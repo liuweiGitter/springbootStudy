@@ -1,0 +1,69 @@
+【redis多数据源配置】
+类似mongo多数据源的配置，方法如下：
+1.application.properties文件配置redis数据源：1个springboot格式，其余的自定义格式
+	#spring redis数据源
+	spring.redis.database=马赛克
+	spring.redis.host=马赛克
+	spring.redis.port=马赛克
+	spring.redis.password=马赛克
+
+	#自定义redis数据源1
+	data.redis01.database=马赛克
+	data.redis01.host=马赛克
+	data.redis01.port=马赛克
+	data.redis01.password=马赛克
+
+2.创建数据源Spring配置类，为自定义的数据源自定义注册bean
+	@Slf4j
+	@Configuration
+	@PropertySource(value = "classpath:/application.properties")
+	public class NosqlDbConfigure {
+
+		@Autowired
+		private Environment environment;
+
+		@Bean(name="redisTemplate01")
+		public RedisTemplate getRedisTemplate01(){
+			String host = environment.getProperty("data.redis01.host");
+			int port = Integer.valueOf(environment.getProperty("data.redis01.port"));
+			int database = Integer.valueOf(environment.getProperty("data.redis01.database"));
+			String password = environment.getProperty("data.redis01.password");//password为空时没有鉴权密码
+			
+			RedisStandaloneConfiguration redisStandaloneConfiguration = new RedisStandaloneConfiguration();
+			redisStandaloneConfiguration.setHostName(host);
+			redisStandaloneConfiguration.setPort(port);
+			redisStandaloneConfiguration.setDatabase(database);
+			redisStandaloneConfiguration.setPassword(password);
+			
+			JedisConnectionFactory conn = new JedisConnectionFactory(redisStandaloneConfiguration);
+			RedisTemplate<String, Object> redisTemplate = new RedisTemplate<>();
+			redisTemplate.setConnectionFactory(conn);
+			redisTemplate.afterPropertiesSet();
+			redisTemplate.setKeySerializer(new StringRedisSerializer());
+			redisTemplate.setValueSerializer(new StringRedisSerializer());
+			redisTemplate.setHashKeySerializer(new StringRedisSerializer());
+			redisTemplate.setHashValueSerializer(new StringRedisSerializer());
+			
+			return redisTemplate;
+		}
+	}
+
+3.spring boot测试类中使用自定义的数据源bean
+	@Slf4j
+	@SpringBootTest
+	@RunWith(SpringJUnit4ClassRunner.class)
+	@ContextConfiguration(classes = {NosqlDbConfigure.class})
+	public class MutilDatabaseTest {
+		@Autowired
+		private RedisTemplate redisTemplate01;
+
+		@Test
+		public void testSelfRedis(){
+			String value = redisTemplate01.opsForValue().get("NE:23094FE5B0124D09BC0D92A4BFB4EA41:0136F6F5E65D78A99105038AA273AA67").toString();
+			log.info("*****");
+			log.info(value);
+		}
+	}
+
+4.spring boot正文中使用自定义的数据源bean
+	直接注入即可使用

@@ -1,0 +1,96 @@
+【mongodb多数据源配置】
+假设项目用到3个mongodb库，需要创建3个mongoTemplate，方法如下：
+
+1.application.properties文件配置MongoDB数据源：1个springboot格式，其余的自定义格式
+	#spring mongo数据源
+	spring.data.mongodb.host=马赛克
+	spring.data.mongodb.port=马赛克
+	spring.data.mongodb.database=马赛克
+	spring.data.mongodb.username=马赛克
+	spring.data.mongodb.password=马赛克
+
+	#自定义mongo数据源1
+	data.mongodb01.host=马赛克
+	data.mongodb01.port=马赛克
+	data.mongodb01.database=马赛克
+	data.mongodb01.database4Authen=马赛克
+	data.mongodb01.username=马赛克
+	data.mongodb01.password=马赛克
+
+	#自定义mongo数据源2
+	data.mongodb02.host=马赛克
+	data.mongodb02.port=马赛克
+	data.mongodb02.database=马赛克
+
+2.创建数据源Spring配置类，为自定义的数据源自定义注册bean(按照spring格式配置的数据源，spring会自动注册bean)
+	@Slf4j
+	@Configuration
+	@PropertySource(value = "classpath:/application.properties")
+	public class NosqlDbConfigure {
+
+		@Autowired
+		private Environment environment;
+
+		@Bean(name="mongoTemplate01")
+		public MongoTemplate getMongoTemplate01(){
+			String host = environment.getProperty("data.mongodb01.host");
+			int port = Integer.valueOf(environment.getProperty("data.mongodb01.port"));
+			String database = environment.getProperty("data.mongodb01.database");
+			String username = environment.getProperty("data.mongodb01.username");
+			String password = environment.getProperty("data.mongodb01.password");
+			//注：本例中，鉴权的库和使用的库不同，故多出一个database4Authen
+			String database4Authen = environment.getProperty("data.mongodb01.database4Authen");
+
+			//服务地址
+			ServerAddress serverAddress = new ServerAddress(host,port);
+			//鉴权
+			MongoCredential credential = MongoCredential.createCredential(username,database4Authen,password.toCharArray());
+			//连接选项(最大连接数，超时时间等，使用默认即可)
+			MongoClientOptions mongoClientOptions = new MongoClientOptions.Builder().build();
+
+			MongoClient mongoClient = new MongoClient(serverAddress,credential,mongoClientOptions);
+			MongoTemplate mongoTemplate = new MongoTemplate(mongoClient,database);
+			log.info("Get self bean mongoTemplate01 successfully");
+			return mongoTemplate;
+		}
+		
+		@Bean(name="mongoTemplate02")
+		public MongoTemplate getMongoTemplate02(){
+			String host = environment.getProperty("data.mongodb02.host");
+			int port = Integer.valueOf(environment.getProperty("data.mongodb02.port"));
+			String database = environment.getProperty("data.mongodb02.database");
+			//注：本例中mongo库不需要鉴权，创建mongoTemplate方式就更简单一些
+			MongoClient mongoClient = new MongoClient( host, port);
+			mongoTemplate = new MongoTemplate(mongoClient,database);
+			log.info("Get self bean mongoTemplate02 successfully");
+			return mongoTemplate;
+		}
+	}
+
+3.spring boot测试类中使用自定义的数据源bean
+	@Slf4j
+	@SpringBootTest
+	@RunWith(SpringJUnit4ClassRunner.class)
+	//测试类中需引入配置类，正文则不需要
+	@ContextConfiguration(classes = {NosqlDbConfigure.class})
+	public class MutilDatabaseTest {
+		@Autowired
+		private MongoTemplate mongoTemplate01;
+
+		@Test
+		public void testSelfMongo(){
+			String collectionName = "T_HISTORY_PERFORMANCE";
+			Document queryObject = new Document();
+			Document fieldsObject = new Document();
+			fieldsObject.put("_id", false);
+			fieldsObject.put("value", true);
+			Query query = new BasicQuery(queryObject,fieldsObject);
+			Criteria criteria = Criteria.where("port_id").is("60AF72064CA730B1A0BF42DECCA2037B");
+			query.addCriteria(criteria);
+			List<String> list = mongoTemplate01.find(query,String.class,collectionName);
+			log.info(JSONObject.toJSONString(list));
+		}
+	}
+
+4.spring boot正文中使用自定义的数据源bean
+	直接注入即可使用

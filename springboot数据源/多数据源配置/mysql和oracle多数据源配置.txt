@@ -1,0 +1,208 @@
+【mysql和oracle多数据源配置】
+springboot的mysql、oracle数据源默认配置参数有重名
+因此，项目中同时使用到mysql、oracle或使用多个mysql或使用多个oracle数据源时，需要自定义配置
+druid可以对jdbc多数据源进行配置，本文则演示另一种方案，仿照druid方式使用c3p0数据源和自定义配置项实现多jdbc数据源bean注册
+
+springboot默认使用内置的tomcat数据库连接池，这种连接池稳定性不如c3p0
+以下讲述使用c3p0配置springboot mysql、oracle两个数据源及后续使用案例
+
+假设项目用到1个mysql库和1个oracle库，数据源配置、注册和使用方法如下：
+
+1.application.properties文件配置自定义的mysql和oracle数据源
+	#自定义mysql数据源
+	mysql.datasource.url=马赛克
+	mysql.datasource.driverClassName=马赛克
+	mysql.datasource.username=马赛克
+	mysql.datasource.password=马赛克
+
+	#自定义oracle数据源
+	oracle.datasource.url=马赛克
+	oracle.datasource.driverClassName=马赛克
+	oracle.datasource.username=马赛克
+	oracle.datasource.password=马赛克
+
+2.创建mysql数据源Spring配置类，为自定义的mysql数据源自定义注册bean
+	/**
+	 * Author: liuwei
+	 * Date: 2019-05-09 11:27
+	 * Desc: mysql datasource数据源配置
+	 * JDBC多数据源时手动配置源，绑定该数据源所应用的mapper的package
+	 * 使用c3p0数据源而非druid
+	 */
+	@Slf4j
+	@Configuration
+	//相同数据源的mapper，放在同一个package中
+	@MapperScan(basePackages = "com.telecom.js.noc.hxtnms.operationplan.mapper.mysql", sqlSessionTemplateRef = "sqlSessionTemplateMysql")
+	public class MysqlDataSourceConfig {
+
+		@Autowired
+		private Environment environment;
+
+		@Bean(name = "dataSourceMysql")
+		@Primary
+		public DataSource getDataSource(){
+			String driverClass = environment.getProperty("mysql.datasource.driverClassName");
+			String jdbcUrl = environment.getProperty("mysql.datasource.url");
+			String user = environment.getProperty("mysql.datasource.username");
+			String password = environment.getProperty("mysql.datasource.password");
+			ComboPooledDataSource dataSource = new ComboPooledDataSource();
+			try {
+				dataSource.setDriverClass(driverClass);
+			} catch (PropertyVetoException e) {
+				log.error("驱动加载异常！");
+			}
+			dataSource.setJdbcUrl(jdbcUrl);
+			dataSource.setUser(user);
+			dataSource.setPassword(password);
+			return dataSource;
+		}
+
+		@Bean(name = "sqlSessionFactoryMysql")
+		@Primary
+		public SqlSessionFactory getSqlSessionFactory(@Qualifier("dataSourceMysql") DataSource dataSource)throws Exception{
+			//注：为使用mybatis-plus的basemapper，此处工厂bean需改为mybatis工厂
+			//SqlSessionFactoryBean bean = new SqlSessionFactoryBean();
+			MybatisSqlSessionFactoryBean bean = new MybatisSqlSessionFactoryBean();
+			bean.setDataSource(dataSource);
+			return bean.getObject();
+		}
+
+		@Bean(name = "dataSourceTransactionManagerMysql")
+		@Primary
+		public DataSourceTransactionManager getDataSourceTransactionManager(@Qualifier("dataSourceMysql") DataSource dataSource){
+			return new DataSourceTransactionManager(dataSource);
+		}
+
+		@Bean(name = "sqlSessionTemplateMysql")
+		@Primary
+		public SqlSessionTemplate getSqlSessionTemplate(@Qualifier("sqlSessionFactoryMysql") SqlSessionFactory sqlSessionFactory)throws Exception{
+			return new SqlSessionTemplate(sqlSessionFactory);
+		}
+	}
+
+3.创建oracle数据源Spring配置类，为自定义的oracle数据源自定义注册bean
+	/**
+	 * Author: liuwei
+	 * Date: 2019-05-09 11:27
+	 * Desc: oracle datasource数据源配置
+	 * JDBC多数据源时手动配置源，绑定该数据源所应用的mapper的package
+	 * 使用c3p0数据源而非druid
+	 */
+	@Slf4j
+	@Configuration
+	//相同数据源的mapper，放在同一个package中
+	@MapperScan(basePackages = "com.telecom.js.noc.hxtnms.operationplan.mapper.oracle", sqlSessionTemplateRef = "sqlSessionTemplateMysql")
+	public class OracleDataSourceConfig {
+
+		@Autowired
+		private Environment environment;
+
+		@Bean(name = "dataSourceOracle")
+		@Primary
+		public DataSource getDataSource(){
+			String driverClass = environment.getProperty("oracle.datasource.driverClassName");
+			String jdbcUrl = environment.getProperty("oracle.datasource.url");
+			String user = environment.getProperty("oracle.datasource.username");
+			String password = environment.getProperty("oracle.datasource.password");
+			ComboPooledDataSource dataSource = new ComboPooledDataSource();
+			try {
+				dataSource.setDriverClass(driverClass);
+			} catch (PropertyVetoException e) {
+				log.error("驱动加载异常！");
+			}
+			dataSource.setJdbcUrl(jdbcUrl);
+			dataSource.setUser(user);
+			dataSource.setPassword(password);
+			return dataSource;
+		}
+
+		@Bean(name = "sqlSessionFactoryOracle")
+		@Primary
+		public SqlSessionFactory getSqlSessionFactory(@Qualifier("dataSourceOracle") DataSource dataSource)throws Exception{
+			//注：为使用mybatis-plus的basemapper，此处工厂bean需改为mybatis工厂
+			//SqlSessionFactoryBean bean = new SqlSessionFactoryBean();
+			MybatisSqlSessionFactoryBean bean = new MybatisSqlSessionFactoryBean();
+			bean.setDataSource(dataSource);
+			return bean.getObject();
+		}
+
+		@Bean(name = "dataSourceTransactionManagerOracle")
+		@Primary
+		public DataSourceTransactionManager getDataSourceTransactionManager(@Qualifier("dataSourceOracle") DataSource dataSource){
+			return new DataSourceTransactionManager(dataSource);
+		}
+
+		@Bean(name = "sqlSessionTemplateOracle")
+		@Primary
+		public SqlSessionTemplate getSqlSessionTemplate(@Qualifier("sqlSessionFactoryOracle") SqlSessionFactory sqlSessionFactory)throws Exception{
+			return new SqlSessionTemplate(sqlSessionFactory);
+		}
+	}
+
+4.mysql数据源的使用演示(oracle类似，不赘述)
+	4.1 实体类：类注解@Data、@Table(name="数据表名")，使用lombok自动实现模板代码
+		package com.telecom.js.noc.hxtnms.operationplan.entity;
+		import com.baomidou.mybatisplus.annotation.TableId;
+		import lombok.Data;
+		import javax.persistence.Table;
+		@Data
+		@Table(name="test_multi_jdbc")
+		public class TestMultiJdbc{
+			@TableId("id")
+			private String id;
+			private String enumType;
+			private int enumValue;
+			private String enumText;
+			private String comment;
+		}
+	4.2 mapper接口：继承mybatis-plus BaseMapper，注意mapper所在的package一定要是相应数据源注册时扫描的mapper package
+		package com.telecom.js.noc.hxtnms.operationplan.mapper.mysql;
+		import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+		import com.telecom.js.noc.hxtnms.operationplan.entity.TestMultiJdbc;
+		import org.springframework.stereotype.Repository;
+		@Repository
+		public interface TestMultiJdbcMapper extends BaseMapper<TestMultiJdbc> {
+			//如果不需要自定义mapper方法，空代码即可
+		}
+	4.3 service接口
+		package com.telecom.js.noc.hxtnms.operationplan.service;
+		import com.baomidou.mybatisplus.extension.service.IService;
+		import com.telecom.js.noc.hxtnms.operationplan.entity.TestMultiJdbc;
+		public interface ITestMultiJdbcService extends IService<TestMultiJdbc> {
+			//如果不需要自定义service方法，空代码即可
+		}
+	4.4 service实现类：继承ServiceImpl实现service接口
+		package com.telecom.js.noc.hxtnms.operationplan.service.impl;
+		import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+		import com.telecom.js.noc.hxtnms.operationplan.entity.TestMultiJdbc;
+		import com.telecom.js.noc.hxtnms.operationplan.mapper.mysql.TestMultiJdbcMapper;
+		import com.telecom.js.noc.hxtnms.operationplan.service.ITestMultiJdbcService;
+		import org.springframework.beans.factory.annotation.Autowired;
+		import org.springframework.stereotype.Service;
+		@Service
+		public class TestMultiJdbcService extends ServiceImpl<TestMultiJdbcMapper, TestMultiJdbc> implements ITestMultiJdbcService {
+			//注入mapper
+			@Autowired
+			private TestMultiJdbcMapper testMultiJdbcMapper;
+			//实现service接口自定义的方法，如果有
+		}
+	4.5 controlller控制类：测试范例
+		@Controller
+		@RequestMapping("/test")
+		@Slf4j
+		public class TestController {
+			//注入服务层
+			@Autowired
+			private TestMultiJdbcService testMultiJdbcService;
+
+			//测试自定义druid式多数据源mapper绑定
+			@RequestMapping(value = "multi", produces = "application/json;charset=UTF-8")
+			@ResponseBody
+			public String test(){
+				String id = "36a34a8a50fb11e993e3a86bad12ab1e";
+				QueryWrapper<TestMultiJdbc> queryWrapper = new QueryWrapper<TestMultiJdbc>();
+				queryWrapper.eq("id",id);
+				TestMultiJdbc testMultiJdbc = testMultiJdbcService.getOne(queryWrapper);
+				return "请求响应为："+JSON.toJSONString(testMultiJdbc);
+			}
+		}
