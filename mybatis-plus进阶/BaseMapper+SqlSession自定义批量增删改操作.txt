@@ -1,0 +1,96 @@
+背景参考《MybatisPlus范式代码mapper接口&service服务层》
+在服务层实现类继承了ServiceImpl<M extends BaseMapper<T>, T>后，继承到了一些批量操作方法，如下(每batchSize条数据刷库提交一次sql语句)：
+
+1.批量增加
+boolean saveBatch(Collection<T> entityList, int batchSize)
+2.批量修改：按照id
+boolean updateBatchById(Collection<T> entityList, int batchSize)
+
+一些场景下，需要按照非id字段批量修改，另一些场景下，需要批量删除(无论是按照id还是其它条件)
+对于这些update、delete语句的批量执行，mybatis plus没有提供现成的方法，需要自定义处理
+所幸，mybatis plus提供了批量操作的SqlSession会话，使用该Session结合mapper接口，少量代码即可实现自定义的批量操作，demo如下
+
+概念释义：
+1.批处理sql元素：在批量操作时，批量sql语句组中的每一条sql语句称为批处理sql元素
+
+【mapper接口自定义方法操作批处理sql元素】
+实际上，BaseMapper本身已经封装了update和delete操作，足以应对所有的场景，mapper层完全可以为空
+但是BaseMapper的sql条件抽象类Wrapper<T>封装的比较厚重，需要自定义类继承Wrapper<T>才可以使用BaseMapper中定义的全部方法，不推荐如此
+本文演示了在mapper层使用自定义方法和sql注解来实现update和delete操作，这种操作相对更加简便
+
+	@Repository
+	public interface UserMapper extends BaseMapper<User> {
+		//按照userName条件修改
+		@Update("update oper_plan_user set choiced_flag = #{user.choicedFlag} where user_name = #{user.userName}")
+		void updateByUserName(@Param("user") User user);
+		//按照userName条件删除
+		@Delete("delete from oper_plan_user where user_name = #{userName}")
+		void deleteByUserName(@Param("userName") String userName);
+	}
+
+【service接口自定义批量操作方法】
+	public interface UserService extends IService<User> {
+		//按照userName批量修改
+		boolean updateByUserNameBatch(List<User> userList, int batchSize);
+		//按照userName批量删除
+		boolean deleteByUserNameBatch(List<String> userNameList, int batchSize);
+	}
+
+【service实现类实现批量操作方法】
+	@Transactional
+	public boolean deleteByUserNameBatch(List<String> userNameList, int batchSize) {
+		if (CollectionUtils.isEmpty(userNameList)) {
+			throw new IllegalArgumentException("Error: userNameList must not be empty");
+		} else {
+			int size = userNameList.size();
+			//获取mybatis plus提供的SqlSession批量会话，批量会话需要手动刷库，但可以控制批量操作
+			//springboot默认创建的SqlSession实例则会自动刷库，但不是批量会话
+			SqlSession batchSession = this.sqlSessionBatch();
+			//通过批量会话获取mapper实例，注意，此处mapper实例不是自动注入的
+			//自动注入的mapper被spring注入了非批量会话，会立即刷库
+			UserMapper userMapper = batchSession.getMapper(UserMapper.class);
+			for(int i = 0; i < size; ++i) {
+				//mapper接口调用批处理sql元素的方法，实际是生成一条sql加入缓存队列
+				userMapper.deleteByUserName(userNameList.get(i));
+				if ((i+1) % batchSize == 0) {
+					//批量提交sql刷库
+					batchSession.commit();
+				}
+			}
+			batchSession.commit();
+		}
+		return true;
+	}
+	
+	@Transactional
+	public boolean updateByUserNameBatch(List<User> userList, int batchSize) {
+		if (CollectionUtils.isEmpty(userList)) {
+			throw new IllegalArgumentException("Error: userList must not be empty");
+		} else {
+			int size = userList.size();
+			SqlSession batchSession = this.sqlSessionBatch();
+			UserMapper userMapper = batchSession.getMapper(UserMapper.class);
+			for(int i = 0; i < size; ++i) {
+				userMapper.updateByUserName(userList.get(i));
+				if ((i+1) % batchSize == 0) {
+					batchSession.commit();
+				}
+			}
+			batchSession.commit();
+		}
+		return true;
+	}
+
+
+
+
+
+
+
+
+
+
+
+
+
+

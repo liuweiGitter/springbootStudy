@@ -1,0 +1,93 @@
+1.依赖引入
+	<dependency>
+		<groupId>com.baomidou</groupId>
+		<artifactId>mybatisplus-spring-boot-starter</artifactId>
+		<version>1.0.5</version>
+	</dependency>
+	<dependency>
+		<groupId>com.baomidou</groupId>
+		<artifactId>mybatis-plus</artifactId>
+		<version>3.1.0</version>
+	</dependency>
+	<dependency>
+		<groupId>org.projectlombok</groupId>
+		<artifactId>lombok</artifactId>
+		<version>1.18.4</version>
+	</dependency>
+
+2.实体类：使用lombok自动实现模板代码
+	package com.telecom.js.noc.hxtnms.operationplan.entity;
+	import com.baomidou.mybatisplus.annotation.TableId;
+	import lombok.Data;
+	import javax.persistence.Table;
+	@Data
+	@Table(name="数据表名")
+	public class LiuweiEntity{
+		@TableId("id")
+		private String id;
+		private String property1;
+		...
+		//如有需要，自定义构造函数，重写equals、hashcode方法等
+	}
+
+3.mapper接口：继承mybatis-plus BaseMapper，注意mapper所在的package一定要是相应数据源注册时扫描的mapper package
+    //SpringBoot默认自动读取application配置文件数据源配置并自动注册数据源Bean，数据源默认自动注入到工程目录下mapper子目录
+	//关于自定义数据源配置以及自定义注册数据源Bean以及自定义mapper注入路径，详参springboot数据源-->mysql和oracle多数据源配置
+	package com.telecom.js.noc.hxtnms.operationplan.mapper;
+	import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+	import com.telecom.js.noc.hxtnms.operationplan.entity.LiuweiEntity;
+	import org.springframework.stereotype.Repository;
+	@Repository
+	public interface LiuweiMapper extends BaseMapper<LiuweiEntity> {
+		//如果不需要自定义mapper方法，空代码即可
+	}
+
+4.service接口：继承mybatis-plus IService
+	package com.telecom.js.noc.hxtnms.operationplan.service;
+	import com.baomidou.mybatisplus.extension.service.IService;
+	import com.telecom.js.noc.hxtnms.operationplan.entity.LiuweiEntity;
+	public interface ILiuweiService extends IService<LiuweiEntity> {
+		//如果不需要自定义service方法，空代码即可
+	}
+
+5.service实现类：继承mybatis-plus ServiceImpl实现service接口
+	package com.telecom.js.noc.hxtnms.operationplan.service.impl;
+	import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+	import com.telecom.js.noc.hxtnms.operationplan.entity.LiuweiEntity;
+	import com.telecom.js.noc.hxtnms.operationplan.mapper.mysql.LiuweiMapper;
+	import com.telecom.js.noc.hxtnms.operationplan.service.ILiuweiService;
+	import org.springframework.beans.factory.annotation.Autowired;
+	import org.springframework.stereotype.Service;
+	@Service
+	public class LiuweiService extends ServiceImpl<LiuweiMapper, LiuweiEntity> implements ILiuweiService {
+		//视情况而定，当自定义service方法中用到mapper时注入mapper
+		@Autowired
+		private LiuweiMapper liuweiMapper;
+		//实现service接口自定义的方法，如果有
+	}
+
+6.controller控制类：测试范例
+	@Controller
+	@RequestMapping("/test")
+	@Slf4j
+	public class TestController {
+		//注入服务层
+		@Autowired
+		private LiuweiService liuweiService;
+
+		//控制方法balabala
+	}
+
+
+
+
+
+
+
+
+
+
+
+
+
+

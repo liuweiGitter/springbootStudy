@@ -186,7 +186,7 @@ springboot默认使用内置的tomcat数据库连接池，这种连接池稳定�
 			private TestMultiJdbcMapper testMultiJdbcMapper;
 			//实现service接口自定义的方法，如果有
 		}
-	4.5 controlller控制类：测试范例
+	4.5 controller控制类：测试范例
 		@Controller
 		@RequestMapping("/test")
 		@Slf4j
