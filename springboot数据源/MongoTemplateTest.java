@@ -116,7 +116,7 @@ public class MongoTemplateTest {
 
         List<OperplanPerformance> list = mongoTemplate.find(query, OperplanPerformance.class,collectionName);
         for (int i = 0;i<list.size();i++){
-            log.info(JSON.toJSONString(list.get(i)));
+            log.info("["+i+"]"+JSON.toJSONString(list.get(i)));
         }
     }
 
@@ -184,17 +184,21 @@ public class MongoTemplateTest {
         MongoCollection<Document> collection = mongoTemplate.getCollection(collectionName);
 
         //【插入数据】
-        OperplanPerformance operplanPerformance = new OperplanPerformance();
-        operplanPerformance.setPlanId("后台插入数据");
-        operplanPerformance.setEmsId("12334");
+        //OperplanPerformance operplanPerformance = new OperplanPerformance();
+        //operplanPerformance.setPlanId("后台插入数据");
         List<OperplanPerformance> list = new ArrayList<OperplanPerformance>();
-        list.add(operplanPerformance);
+        for (int i =0;i<50;i++){
+            list.add(new OperplanPerformance("批量插入一个list",i));
+        }
         //插入一个对象
         //mongoTemplate.insert(operplanPerformance);
-        mongoTemplate.insert(operplanPerformance,collectionName);
+        //mongoTemplate.insert(operplanPerformance,collectionName);
         //插入一组对象
         //mongoTemplate.insert(list,collectionName);
         //mongoTemplate.insert(list,entityClass);
+        //批量插入一组对象
+        int batchSize = 9;
+        mongoBatchInsert(mongoTemplate,list,collectionName,batchSize);
 
         log.info(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
     }
@@ -217,13 +221,13 @@ public class MongoTemplateTest {
 
     //带鉴权的mongodb库，获取mongoTemplate
     private MongoTemplate getAuthenMongoTemplate(){
-        String host = "132.60.14.94";
-        int port = 38010;
+        String host = "马赛克";
+        int port = 马赛克;
         //注：鉴权用的库和实际连接的库可能不是一个库
-        String database4Authen = "admin";
-        String database = "otms_0250";
-        String username = "root";
-        String password = "Otms_otms";
+        String database4Authen = "马赛克";
+        String database = "马赛克";
+        String username = "马赛克";
+        String password = "马赛克";
 
         //服务地址
         ServerAddress serverAddress = new ServerAddress(host,port);
@@ -251,6 +255,23 @@ public class MongoTemplateTest {
         query.addCriteria(criteria);
         List<String> list = mongoTemplate.find(query,String.class,collectionName);
         log.info(JSONObject.toJSONString(list));
+
+    }
+	
+	//批量插入方法提取
+    private <T> void mongoBatchInsert(MongoTemplate mongoTemplate, List<? extends T> batchToSave,
+                                      String collectionName,Integer batchSize){
+        int listLength = batchToSave.size();
+        //循环批量
+        for (int i =1;i<=listLength;i++){
+            if (i%batchSize==0){
+                mongoTemplate.insert(batchToSave.subList(i-batchSize,i),collectionName);
+            }
+        }
+        //余量插入
+        if (listLength%batchSize!=0){
+            mongoTemplate.insert(batchToSave.subList(listLength-listLength%batchSize,listLength),collectionName);
+        }
 
     }
 }
