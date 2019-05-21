@@ -39,6 +39,7 @@ springboot默认使用内置的tomcat数据库连接池，这种连接池稳定�
 		private Environment environment;
 
 		@Bean(name = "dataSourceMysql")
+		//多数据源时只能保留一个主数据源
 		@Primary
 		public DataSource getDataSource(){
 			String driverClass = environment.getProperty("mysql.datasource.driverClassName");
@@ -98,7 +99,8 @@ springboot默认使用内置的tomcat数据库连接池，这种连接池稳定�
 		private Environment environment;
 
 		@Bean(name = "dataSourceOracle")
-		@Primary
+		//多数据源时只能保留一个主数据源，此处注释
+		//@Primary
 		public DataSource getDataSource(){
 			String driverClass = environment.getProperty("oracle.datasource.driverClassName");
 			String jdbcUrl = environment.getProperty("oracle.datasource.url");
@@ -117,7 +119,7 @@ springboot默认使用内置的tomcat数据库连接池，这种连接池稳定�
 		}
 
 		@Bean(name = "sqlSessionFactoryOracle")
-		@Primary
+		//@Primary
 		public SqlSessionFactory getSqlSessionFactory(@Qualifier("dataSourceOracle") DataSource dataSource)throws Exception{
 			//注：为使用mybatis-plus的basemapper，此处工厂bean需改为mybatis工厂
 			//SqlSessionFactoryBean bean = new SqlSessionFactoryBean();
@@ -127,13 +129,13 @@ springboot默认使用内置的tomcat数据库连接池，这种连接池稳定�
 		}
 
 		@Bean(name = "dataSourceTransactionManagerOracle")
-		@Primary
+		//@Primary
 		public DataSourceTransactionManager getDataSourceTransactionManager(@Qualifier("dataSourceOracle") DataSource dataSource){
 			return new DataSourceTransactionManager(dataSource);
 		}
 
 		@Bean(name = "sqlSessionTemplateOracle")
-		@Primary
+		//@Primary
 		public SqlSessionTemplate getSqlSessionTemplate(@Qualifier("sqlSessionFactoryOracle") SqlSessionFactory sqlSessionFactory)throws Exception{
 			return new SqlSessionTemplate(sqlSessionFactory);
 		}
