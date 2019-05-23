@@ -70,6 +70,10 @@ springboot默认使用内置的tomcat数据库连接池，这种连接池稳定�
 			//不过，为了方便管理，最好将mapper.xml按数据源或者其它类别分目录存放
 			//添加以下代码可正确扫描mapper.xml文件
 			bean.setMapperLocations(new PathMatchingResourcePatternResolver().getResources("classpath:/mapper/*Mapper.xml"));
+			//springboot可在application.properties文件中配置实体类别名，以供mapper.xml文件sql语句参数引用，见本文底部附文
+			//但这种配置只对单数据源有效，多数据源时需要添加以下代码，包路径下所有实体类的别名将被设置为类名本身(非驼峰)
+			//以下代码必须添加到bean.setMapperLocations代码之前，否则会报错找不到别名
+			[此行代码上移]bean.setTypeAliasesPackage("com.telecom.js.noc.hxtnms.operationplan.entity");
 			bean.setDataSource(dataSource);
 			return bean.getObject();
 		}
@@ -130,12 +134,16 @@ springboot默认使用内置的tomcat数据库连接池，这种连接池稳定�
 			//注：为使用mybatis-plus的basemapper，此处工厂bean需改为mybatis工厂
 			//SqlSessionFactoryBean bean = new SqlSessionFactoryBean();
 			MybatisSqlSessionFactoryBean bean = new MybatisSqlSessionFactoryBean();
-			//注：默认情况下，springboot扫描不到mapper.xml文件，即使在application.properties文件中配置了扫描路径
+			//注：多数据源默认情况下，springboot扫描不到mapper.xml文件，即使在application.properties文件中配置了扫描路径
 			//如果只需要mapper接口(继承basemapper)和sql注解，而不需要xml文件，则无需特殊配置
 			//多数据源的mapper接口必须放在不同的package中，但mapper.xml可以在同一目录下，springboot能够区分每一个xml对应的数据源
 			//不过，为了方便管理，最好将mapper.xml按数据源或者其它类别分目录存放
 			//添加以下代码可正确扫描mapper.xml文件
 			bean.setMapperLocations(new PathMatchingResourcePatternResolver().getResources("classpath:/mapper/*Mapper.xml"));
+			//springboot可在application.properties文件中配置实体类别名，以供mapper.xml文件sql语句参数引用，见本文底部附文
+			//但这种配置只对单数据源有效，多数据源时需要添加以下代码，包路径下所有实体类的别名将被设置为类名本身(非驼峰)
+			//以下代码必须添加到bean.setMapperLocations代码之前，否则会报错找不到别名
+			[此行代码上移]bean.setTypeAliasesPackage("com.telecom.js.noc.hxtnms.operationplan.entity");
 			bean.setDataSource(dataSource);
 			return bean.getObject();
 		}
@@ -226,8 +234,10 @@ springboot默认使用内置的tomcat数据库连接池，这种连接池稳定�
 ########################################################
 ###mybatis-plus
 ########################################################
+#mapper.xml扫描路径，单数据源时生效，多数据源无效
 mybatis-plus.mapper-locations=classpath:/mapper/*Mapper.xml
-mybatis-plus.typeAliasesPackage=com.telecom.js.noc.hxtnms.fmanager.entity
+#扫描实体类包并批量为实体类创建别名，别名为实体类名，可在mapper.xml文件中引用，单数据源时生效，多数据源无效
+mybatis-plus.type-aliases-package=com.telecom.js.noc.hxtnms.fmanager.entity
 mybatis-plus.global-config.id-type=3
 mybatis-plus.global-config.field-strategy=2
 mybatis-plus.global-config.auto-set-db-type=true
