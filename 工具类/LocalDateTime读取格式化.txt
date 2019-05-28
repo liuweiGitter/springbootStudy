@@ -1,0 +1,15 @@
+对日期时间字段，建议使用LocalDateTime(自JDK1.8)
+LocalDateTime默认取值格式为"yyyy-MM-ddTHH:mm:ss.SS"，如"2019-05-28T20:00:00.66"
+需要对取值方法格式化处理，返回String字符串即可：即实体类中定义LocalDateTime字段，数据库存储该字段为datetime，get取值则为String类型
+	
+	//1.工具类CommonConstants中定义以下静态常量
+    public static final String TIME_TYPE_DEFAULT = "yyyy-MM-dd HH:mm:ss";
+    public static final String TIME_TYPE_MILLSECOND = "yyyy-MM-dd HH:mm:ss.SSS";
+	
+	//2.实体类日期字段
+	private LocalDateTime updateTime;
+
+    //日期格式化：(查询、导出等)取值时格式化日期
+    public String getUpdateTime(){
+        return updateTime.format(DateTimeFormatter.ofPattern(CommonConstants.TIME_TYPE_DEFAULT));
+    }

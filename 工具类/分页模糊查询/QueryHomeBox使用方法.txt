@@ -1,0 +1,161 @@
+【控制层】
+前端JSON传参格式：
+{
+    "queryPageNum": 1,
+    "pageDataCount": 5,
+    "equal": {},
+    "like": {
+        "planName": "测"
+    },
+    "order": {
+        "plan.update_time": "desc"
+    }
+}
+控制方法接收参数：
+@RequestBody QueryHomeBox<T> queryHomeBox
+响应数据类型：
+ResponseBox<T>，参见《增删改查统一response/ResponseBox使用方法》
+响应JSON格式：
+{
+    "success": true,
+    "msg": "查询成功！",
+    "responseCode": 200,
+    "detail": null,
+    "list": [
+        {
+            "id": 13,
+            "planName": "测试8",
+            "ownerId": "测试用户",
+            "location": "南京",
+            "modelName": "测试模板",
+            "planSubnetList": null,
+            "planPortList": null,
+            "planPfItemList": null,
+            "status": "草稿",
+            "updateTime": "2019-05-27T14:04:30"
+        },
+        {
+            "id": 12,
+            "planName": "测试7",
+            "ownerId": "测试用户",
+            "location": "南京",
+            "modelName": "测试模板",
+            "planSubnetList": null,
+            "planPortList": null,
+            "planPfItemList": null,
+            "status": "草稿",
+            "updateTime": "2019-05-27T11:26:18"
+        }
+    ],
+    "page": {
+        "pageDataCount": 2,
+        "queryPageNum": 2,
+        "totalCount": 5,
+        "totalPageNum": 3
+    }
+}
+
+
+    @Autowired
+    private PlanBaseService planBaseService;
+
+    /**
+     * 作业计划列表查询
+     * @param queryHomeBox 查询条件封装对象
+     * @return
+     */
+    @RequestMapping(value = "getPlanList", method = RequestMethod.POST, produces = "application/json;charset=UTF-8")
+    @ResponseBody
+    public ResponseBox<PlanBase> getPlanList(@RequestBody QueryHomeBox<PlanBase> queryHomeBox){
+        queryHomeBox.setTotalCount(planBaseService.queryCount(queryHomeBox));
+        //如果查总数为空，不再查结果集
+        if (0 == queryHomeBox.getTotalCount()){
+            return new ResponseBox<PlanBase>(new ArrayList<>(),queryHomeBox);
+        }
+        return new ResponseBox<PlanBase>(planBaseService.queryPlansByConditions(queryHomeBox),queryHomeBox);
+    }
+	
+【服务层】
+接口不述，以下为实现类
+
+	@Autowired
+    private PlanBaseMapper planBaseMapper;
+	@Override
+    public int queryCount(QueryHomeBox<PlanBase> queryHomeBox){
+        //查总数
+        return planBaseMapper.queryCount(queryHomeBox);
+    }
+	@Override
+    public List<PlanBase> queryPlansByConditions(QueryHomeBox<PlanBase> queryHomeBox) {
+        //按模糊条件、分页排序查询
+        return planBaseMapper.queryPlansByConditions(queryHomeBox);
+    }
+
+【mapper接口和xml】
+	//按模糊条件、分页排序查询
+    int queryCount(@Param("condition") QueryHomeBox<PlanBase> queryHomeBox);
+    List<PlanBase> queryPlansByConditions(@Param("condition") QueryHomeBox<PlanBase> queryHomeBox);
+
+	<!--查总数：模糊条件、精确条件-->
+    <select id="queryCount" resultType="int">
+        select count(1)
+        <include refid="plan_list_common" />
+    </select>
+    <!--查列表：模糊条件、精确条件、排序、分页-->
+    <select id="queryPlansByConditions" resultType="PlanBase">
+        <include refid="plan_list_query" />
+    </select>
+	<sql id="plan_list_common">
+        from oper_plan as plan,oper_plan_user as man
+        where plan.del_flag = 0
+        <if test="like.planName != null" >
+            and plan.plan_name like concat('%',#{like.planName},'%')
+        </if>
+        <if test="like.location != null" >
+            and plan.location like concat('%',#{like.location},'%')
+        </if>
+        <if test="equal.status != null" >
+            <choose>
+                <when test="equal.status == '草稿'">
+                    and plan.status = 0
+                </when >
+                <when test="equal.status == '激活'">
+                    and plan.status = 1
+                </when >
+                <when test="equal.status == '挂起'">
+                    and plan.status = 2
+                </when >
+            </choose>
+        </if>
+        <if test="like.ownerId != null" >
+            and man.cn_name like concat('%',#{like.ownerId},'%')
+        </if>
+        and man.id = plan.owner_id
+    </sql>
+	<sql id="plan_list_query">
+        select plan.id,plan.plan_name,man.cn_name as owner_id,plan.location,plan.model_name,
+        case plan.status when 0 then '草稿' when 1 then '激活' when 2 then '挂起' else '异常' end as status
+        ,plan.update_time
+        <include refid="plan_list_common"></include>
+        <if test="order != null" >
+            <!--order by后不允许换行-->
+            order by <foreach collection="order" index="key" item="value" open="" close="" separator=",">${key} ${value}</foreach>
+        </if>
+        limit #{limitStart},#{pageDataCount}
+    </sql>
+
+【实体类】
+实体类需要注意的是，对日期字段的格式化，建议使用LocalDateTime(自JDK1.8)，并对取值方法格式化处理，返回String字符串即可(实体类定义LocalDateTime，数据库存储datetime，get取值String)
+	//1.工具类中定义以下静态常量
+    public static final String TIME_TYPE_DEFAULT = "yyyy-MM-dd HH:mm:ss";
+    public static final String TIME_TYPE_MILLSECOND = "yyyy-MM-dd HH:mm:ss.SSS";
+	
+	//2.实体类日期字段
+	private LocalDateTime updateTime;
+
+    //日期格式化：取值时格式化日期
+    public String getUpdateTime(){
+        return updateTime.format(DateTimeFormatter.ofPattern(CommonConstants.TIME_TYPE_DEFAULT));
+    }
+
+

@@ -1,0 +1,293 @@
+增删改查全部统一返回ResponseBox对象，其中返回码如下
+    public static final int SUCCESS_CODE = 200;
+    public static final int PARAM_ERROR_CODE = 250;
+    public static final int FAILE_CODE = 500;
+统一响应格式为：
+{
+    "success": xxx,//非空，true或false
+    "msg": "xxx",//非空，字符串
+    "responseCode": xxx,//非空，整数响应码
+    "detail": xxx,//非查详情时为null，查详情时不为null
+    "list": xxx,//非查列表时为null，查列表时不为null(可能为空list，即一对中括号)
+    "page": xxx//非查列表时为null，查列表时不为null，包括4个子字段"pageDataCount","queryPageNum","totalCount","totalPageNum"
+}
+	
+【增加、删除和修改】
+增删改响应格式完全一致，构造函数也完全一致，响应new ResponseBox(int count)，其中，count为增删改sql操作返回的int值
+响应格式为：
+{
+    "success": true,
+    "msg": "操作成功！",
+    "responseCode": 200,
+    "detail": null,
+    "list": null,
+    "page": null
+}
+
+----------控制层----------
+
+	/**
+     * 作业计划增加
+     * @return
+     */
+    @RequestMapping(value = "addPlan", method = RequestMethod.POST, produces = "application/json;charset=UTF-8")
+    @ResponseBody
+    public ResponseBox addPlan(@RequestBody PlanBase planBase){
+        //时间字段等在后端控制类中赋值
+        planBase.setUpdateTime(LocalDateTime.now());
+        planBase.setStatus("0");
+        return new ResponseBox(planBaseService.insertPlan(planBase));
+    }
+	
+	/**
+     * 作业计划修改
+     * @return
+     */
+    @RequestMapping(value = "updatePlan", method = RequestMethod.POST, produces = "application/json;charset=UTF-8")
+    @ResponseBody
+    public ResponseBox updatePlan(@RequestBody PlanBase planBase){
+        //时间字段等在后端控制类中赋值
+        planBase.setUpdateTime(LocalDateTime.now());
+        planBase.setStatus("0");
+        return new ResponseBox(planBaseService.updatePlan(planBase));
+    }
+
+    /**
+     * 作业计划删除
+     * @return
+     */
+    @RequestMapping(value = "deletePlan", method = RequestMethod.POST, produces = "application/json;charset=UTF-8")
+    @ResponseBody
+    public ResponseBox deletePlan(@RequestBody List<Integer> planIdList){
+        int result = 0;
+        if (null == planIdList){
+            return new ResponseBox("删除参数不能为空！");
+        }else if(1 == planIdList.size()){
+            result = planBaseService.deletePlan(planIdList.get(0));
+        }else{
+            result = planBaseService.deletePlanBatch(planIdList,CommonConstants.BATCH_SIZE_DELETE);
+        }
+        return new ResponseBox(result);
+    }
+
+----------服务层(注意在事务中为count赋值，count初始化为0)----------
+    @Override
+    @Transactional
+    public int insertPlan(PlanBase planBase) {
+        //作业计划表的关联插入
+        int result = 0;
+        result = planBaseMapper.insertPlan(planBase);
+        planBaseMapper.insertPlanSubnet(planBase);
+        planBaseMapper.insertPlanPort(planBase);
+        planBaseMapper.insertPlanPfItem(planBase);
+        return result;
+    }
+
+    @Override
+    @Transactional
+    public int deletePlan(int planId) {
+        //作业计划表的关联逻辑删除
+        int result = 0;
+        result = planBaseMapper.deletePlan(planId);
+        planBaseMapper.deletePlanSubnet(planId);
+        planBaseMapper.deletePlanPort(planId);
+        planBaseMapper.deletePlanPfItem(planId);
+        return result;
+    }
+
+    @Override
+    @Transactional
+    public int deletePlanBatch(List<Integer> planIdList, int batchSize) {
+        int result = 0;
+        //作业计划表的关联逻辑删除：批量删除
+        int listLength = planIdList.size();
+        //循环批量删除
+        for (int i = 1; i <= listLength; i++) {
+            if (i % batchSize == 0) {
+                result = deletePlanBatch(planIdList.subList(i - batchSize, i));
+            }
+        }
+        //余量删除
+        if (listLength % batchSize != 0) {
+            result = deletePlanBatch(planIdList.subList(listLength - listLength % batchSize, listLength));
+        }
+        return result;
+    }
+
+    @Override
+    @Transactional
+    public int updatePlan(PlanBase planBase) {
+        //作业计划关联表组合修改
+        int result = 0;
+        result = planBaseMapper.updatePlan(planBase);
+        planBaseMapper.removePlanPfItem(planBase.getId());
+        planBaseMapper.removePlanPort(planBase.getId());
+        planBaseMapper.removePlanSubnet(planBase.getId());
+        planBaseMapper.insertPlanSubnet(planBase);
+        planBaseMapper.insertPlanPort(planBase);
+        planBaseMapper.insertPlanPfItem(planBase);
+        return result;
+    }
+
+    private int deletePlanBatch(List<Integer> planIdSubList) {
+        int result = 0;
+        result = planBaseMapper.deletePlanBatch(planIdSubList);
+        planBaseMapper.deletePlanSubnetBatch(planIdSubList);
+        planBaseMapper.deletePlanPortBatch(planIdSubList);
+        planBaseMapper.deletePlanPfItemBatch(planIdSubList);
+        return result;
+    }
+
+【查列表】
+响应new ResponseBox(List<T> list,QueryHomeBox<T> queryHomeBox)，关于QueryHomeBox，参见《分页模糊查询/QueryHomeBox使用方法》
+响应格式为：
+{
+    "success": true,
+    "msg": "查询成功！",
+    "responseCode": 200,
+    "detail": null,
+    "list": [
+        {
+            "id": 13,
+            "planName": "测试8",
+            "ownerId": "测试用户",
+            "location": "南京",
+            "modelName": "测试模板",
+            "planSubnetList": null,
+            "planPortList": null,
+            "planPfItemList": null,
+            "status": "草稿",
+            "updateTime": "2019-05-27T14:04:30"
+        },
+        {
+            "id": 12,
+            "planName": "测试7",
+            "ownerId": "测试用户",
+            "location": "南京",
+            "modelName": "测试模板",
+            "planSubnetList": null,
+            "planPortList": null,
+            "planPfItemList": null,
+            "status": "草稿",
+            "updateTime": "2019-05-27T11:26:18"
+        }
+    ],
+    "page": {
+        "pageDataCount": 2,
+        "queryPageNum": 2,
+        "totalCount": 5,
+        "totalPageNum": 3
+    }
+}
+
+----------控制层----------
+    /**
+     * 作业计划列表查询
+     * @param queryHomeBox 查询条件封装对象
+     * @return
+     */
+    @RequestMapping(value = "getPlanList", method = RequestMethod.POST, produces = "application/json;charset=UTF-8")
+    @ResponseBody
+    public ResponseBox<PlanBase> getPlanList(@RequestBody QueryHomeBox<PlanBase> queryHomeBox){
+        queryHomeBox.setTotalCount(planBaseService.queryCount(queryHomeBox));
+        //如果查总数为空，不再查结果集
+        if (0 == queryHomeBox.getTotalCount()){
+            return new ResponseBox<PlanBase>(new ArrayList<>(),queryHomeBox);
+        }
+        return new ResponseBox<PlanBase>(planBaseService.queryPlansByConditions(queryHomeBox),queryHomeBox);
+    }
+
+【查详情】
+响应new ResponseBox (T detail)
+响应格式为：
+{
+    "success": true,
+    "msg": "查询成功！",
+    "responseCode": 200,
+    "detail": {
+        "id": 19,
+        "planName": "测试98",
+        "ownerId": "119",
+        "location": "南京",
+        "modelName": "测试模板",
+        "planSubnetList": [
+            {
+                "id": 46,
+                "planId": 19,
+                "emsId": "test",
+                "emsName": "测试网管0",
+                "subnetId": "test",
+                "subnetName": "测试子网0",
+                "updateTime": "2019-05-27 15:51:38"
+            }
+        ],
+        "planPortList": [
+            {
+                "id": 36,
+                "planId": 19,
+                "transType": "test",
+                "emsName": "测试网管0",
+                "subnetName": "测试子网0",
+                "portName": "测试端口0",
+                "providerComment": "",
+                "userComment": "",
+                "updateTime": "2019-05-27 15:51:38"
+            }
+        ],
+        "planPfItemList": [
+			{
+                "id": 4,
+                "planId": 19,
+                "pfId": "xxx",
+                "pfName": "xxx",
+                "provider": "xxx",
+                "layerLevel": "xxx",
+                "transType": "xxx"
+            }
+		],
+        "status": "0",
+        "updateTime": "2019-05-27 15:51:38"
+    },
+    "list": null,
+    "page": null
+}
+
+----------控制层----------
+
+    /**
+     * 作业计划详情查询
+     * @param planIdOrName 作业计划名称或id
+     * @return
+     */
+    @RequestMapping(value = "getPlanDetail", method = RequestMethod.POST, produces = "application/json;charset=UTF-8")
+    @ResponseBody
+    public ResponseBox<PlanBase> getPlanDetail(@RequestBody Object planIdOrName){
+        Integer planId = null;
+        String planName = null;
+        if (planIdOrName instanceof String){
+            if (!"".equals((String) planIdOrName)){
+                planName = (String) planIdOrName;
+            }
+        }else if(planIdOrName instanceof Integer){
+            planId = (Integer) planIdOrName;
+        }
+        if (null == planId && null == planName){
+            return new ResponseBox<PlanBase>("查询参数不能为空");
+        }
+        return new ResponseBox<PlanBase>(planBaseService.queryPlanByIdOrName(planId,planName));
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

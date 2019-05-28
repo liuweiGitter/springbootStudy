@@ -1,0 +1,97 @@
+综述：
+mapper层(含mapper.xml)
+	检索出List<Map<String columnName, Object columnValue>>格式数据，其中Map为LinkedHashMap类型
+controller层
+	创建ExcelWriteKitty(String sheetName, String[] headerNames)对象，指定结果集的导出开始列setStartColumnIndex(int mapResultStartIndex)，默认第1列开始导出
+	ExcelWriteKitty对象调用writeExcel(List<Map<String,Object>> dataListMap, OutputStream out)写入excel数据到输出流
+	输出流为HttpServletResponse.getOutputStream()时，写入前端响应
+	输出流可以是其它设备，如本地文件路径等，excel据此写入文件系统或其它
+entity类
+	日期字段格式化处理，实体类定义LocalDateTime，数据库存储datetime，get取值String，前端增、修时数据库可正常入库，查询时则格式化输出
+
+
+【控制层】
+前端JSON传参格式：
+[
+	12,
+	16
+]
+控制方法接收参数：
+@RequestBody List<Integer> planIdList
+
+    @Autowired
+    private PlanBaseService planBaseService;
+
+    /**
+     * 作业计划导出
+     * @param response
+     * @param planIdList 作业计划id列表
+     */
+    @RequestMapping(value = "downloadExcel")
+    public void downloadExcel(HttpServletResponse response, @RequestBody List<Integer> planIdList){
+        //查数据：导出选中的plan_id列表：按id查询速度更快，推荐此类方式，不推荐分页条件查询
+        List<Map<String, Object>> planBaseMapList = planBaseService.queryPlansMapByIds(planIdList);
+		//定义导出的excel名称
+        String fileName = new SimpleDateFormat("yyyyMMddhhmmss").format(Date.from(LocalDateTime.now().atZone(ZoneId.of(ConstantValue.SYSTEM_ZONE_ID)).toInstant())) +"_作业计划表.xls";
+        response.setContentType("application/x-msdownload");
+        try {
+            response.setHeader("Content-Disposition", "attachment; filename=" + new String(fileName.getBytes("utf-8"), "iso8859-1"));
+        } catch (UnsupportedEncodingException e) {
+            log.info("字符集不支持！",e);
+            return;
+        }
+		//创建excel对象，并指定结果集导出开始列为第2列
+        ExcelWriteKitty kitty = new ExcelWriteKitty("作业计划导出",new String[]{"作业计划名称","计划管理人","区域","模板名称","状态","更新时间"}).setStartColumnIndex(1);
+        try {
+			//excel直接写入HttpServletResponse，响应给前端
+            kitty.writeExcel(planBaseMapList,response.getOutputStream());
+        } catch (IOException e) {
+            log.info("导出数据失败！",e);
+        }
+    }
+	
+【服务层】
+接口不述，以下为实现类
+
+	@Autowired
+    private PlanBaseMapper planBaseMapper;
+	@Override
+    public List<Map<String, Object>> queryPlansMapByIds(List<Integer> planIdList){
+        //按id列表查询多个
+        return planBaseMapper.queryPlansMapByIds(planIdList);
+    }
+
+【mapper接口和xml】
+	//按id列表查询多个
+    List<Map<String, Object>> queryPlansMapByIds(List<Integer> planIdList);
+
+	<!--导出列表：按id列表查询-->
+    <!--返回类型为Map时将不保证字段的查询顺序为返回顺序，应使用LinkedHashMap-->
+    <select id="queryPlansMapByIds" parameterType="java.util.List" resultType="java.util.LinkedHashMap">
+        select plan.id,plan.plan_name,man.cn_name as owner_id,plan.location,plan.model_name,
+			case plan.status when 0 then '草稿' when 1 then '激活' when 2 then '挂起' else '异常' end as status
+			,plan.update_time
+        from oper_plan as plan,oper_plan_user as man
+        where plan.del_flag = 0
+        and man.id = plan.owner_id
+        and plan.id in
+			<foreach collection="list" index="index" item="planId" open="(" separator="," close=")">
+				#{planId}
+			</foreach>
+    </select>
+
+【实体类】
+实体类需要注意的是，对日期字段的格式化，建议使用LocalDateTime(自JDK1.8)，并对取值方法格式化处理，返回String字符串即可(实体类定义LocalDateTime，数据库存储datetime，get取值String)
+	//1.工具类中定义以下静态常量
+    public static final String TIME_TYPE_DEFAULT = "yyyy-MM-dd HH:mm:ss";
+    public static final String TIME_TYPE_MILLSECOND = "yyyy-MM-dd HH:mm:ss.SSS";
+	
+	//2.实体类日期字段
+	private LocalDateTime updateTime;
+
+    //日期格式化：取值时格式化日期
+    public String getUpdateTime(){
+        return updateTime.format(DateTimeFormatter.ofPattern(CommonConstants.TIME_TYPE_DEFAULT));
+    }
+
+

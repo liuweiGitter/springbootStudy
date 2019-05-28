@@ -1,0 +1,124 @@
+服务层简单demo，增删改注意事务注解，批量注意余量判断，批量修改注意设置连接开启批量修改参数
+
+
+【增加】
+	@Override
+    @Transactional
+    public int insertXxxBatch(List<Xxx> xxxList, int batchSize) {
+        int result = 0;
+        //批量增加
+        int listLength = xxxList.size();
+        //循环批量增加
+        for (int i = 1; i <= listLength; i++) {
+            if (i % batchSize == 0) {
+                result = insertXxxBatch(xxxList.subList(i - batchSize, i));
+            }
+        }
+        //余量增加
+        if (listLength % batchSize != 0) {
+            result = insertXxxBatch(xxxList.subList(listLength - listLength % batchSize, listLength));
+        }
+        return result;
+    }
+	
+	private int insertXxxBatch(List<Xxx> xxxSubList) {
+		//mapper层批量增加entity列表，mapper.xml foreach标签循环sql
+        int result = 0;
+        result = xxxMapper.insertXxxBatch(xxxSubList);
+        return result;
+    }
+	
+	<insert id="insertPlanSubnet" parameterType="PlanBase" useGeneratedKeys="true">
+        insert into oper_plan_subnet(plan_id,ems_id,ems_name,subnet_id,subnet_name,update_time)
+        values
+        <foreach collection="planSubnetList" item="planSubnet" index= "index" separator =",">
+            (
+            #{id},
+            #{planSubnet.emsId},
+            #{planSubnet.emsName},
+            #{planSubnet.subnetId},
+            #{planSubnet.subnetName},
+            #{updateTime}
+            )
+        </foreach>
+    </insert>
+	
+【删除】以下为逻辑删除，物理删除类似
+	@Override
+    @Transactional
+    public int deleteXxxBatch(List<Integer> idList, int batchSize) {
+        int result = 0;
+        //批量逻辑删除
+        int listLength = idList.size();
+        //循环批量删除
+        for (int i = 1; i <= listLength; i++) {
+            if (i % batchSize == 0) {
+                result = deleteXxxBatch(idList.subList(i - batchSize, i));
+            }
+        }
+        //余量删除
+        if (listLength % batchSize != 0) {
+            result = deleteXxxBatch(idList.subList(listLength - listLength % batchSize, listLength));
+        }
+        return result;
+    }
+	
+	private int deleteXxxBatch(List<Integer> idSubList) {
+		//mapper层逻辑删除id列表，mapper.xml foreach标签in列表sql
+        int result = 0;
+        result = xxxMapper.deleteXxxBatch(idSubList);
+        return result;
+    }
+	
+	<update id="deletePlanBatch" parameterType="java.util.List">
+        update oper_plan set del_flag = 1 where id in
+        <foreach collection="list" index="index" item="planId" open="(" separator="," close=")">
+            #{planId}
+        </foreach>
+    </update>
+
+【修改】
+注：mysql的URL添加 allowMultiQueries=true ，否则不支持批量修改语句
+如jdbc:mysql://数据库库ip:端口/数据库名?useUnicode=true&characterEncoding=utf8&characterSetResults=utf8&allowMultiQueries=true&useSSL=false
+
+	@Override
+    @Transactional
+    public int updateXxxBatch(List<Xxx> xxxList, int batchSize) {
+        int result = 0;
+        //批量修改
+        int listLength = xxxList.size();
+        //循环批量修改
+        for (int i = 1; i <= listLength; i++) {
+            if (i % batchSize == 0) {
+                result = updateXxxBatch(xxxList.subList(i - batchSize, i));
+            }
+        }
+        //余量修改
+        if (listLength % batchSize != 0) {
+            result = updateXxxBatch(xxxList.subList(listLength - listLength % batchSize, listLength));
+        }
+        return result;
+    }
+	
+	private int updateXxxBatch(List<Xxx> xxxSubList) {
+		//mapper层批量修改entity列表，mapper.xml foreach标签循环sql
+        int result = 0;
+        result = xxxMapper.updateXxxBatch(xxxSubList);
+        return result;
+    }
+	
+	<!--实际为分号隔开的批量的update语句，然后一次性提交-->
+	<update id="updatePlanBatch" parameterType="java.util.List">
+		<foreach collection="planList" index="index" item="plan" open="" close="" separator=";">
+			update oper_plan
+			<set>
+				<if test="plan.planName != null and plan.planName != ''">
+					plan_name = #{plan.planName},
+				</if>
+				...
+			</set>
+			where id = #{plan.id}
+        </foreach>
+    </update>
+
+	
