@@ -1,0 +1,191 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.telecom.js.noc.hxtnms.operationplan.mapper.mysql.PlanBaseMapper">
+
+    <resultMap id="planEntity" type="PlanBase">
+        <id property="id" column="id" />
+        <collection property="planSubnetList" javaType="ArrayList" column="id" ofType="PlanSubnet" select="selectPlanSubnetList"/>
+        <collection property="planPortList" javaType="ArrayList" column="id" ofType="PlanPort" select="selectPlanPortList"/>
+        <collection property="planPfItemList" javaType="ArrayList" column="id" ofType="PfItemBase" select="selectPlanPfItemList"/>
+    </resultMap>
+
+    <sql id="plan_list_common">
+        from oper_plan
+        where del_flag = 0
+        <if test="like != null and like.planName != null" >
+            and plan_name like concat('%',#{like.planName},'%')
+        </if>
+        <if test="equal != null and equal.taskStatus != null" >
+            and task_status = #{equal.taskStatus}
+        </if>
+        <!--创建时间段-->
+        <if test="relationMap != null and relationMap.createTimePeriod != null " >
+            and create_time between #{relationMap.createTimePeriod.between} and #{relationMap.createTimePeriod.and}
+        </if>
+    </sql>
+
+    <!--##################################################-->
+    <!--####################select set####################-->
+    <!--##################################################-->
+    <!--查详情-->
+    <select id="queryPlanByIdOrName" parameterType="java.lang.String" resultMap="planEntity">
+        select * from oper_plan where del_flag = 0
+        <choose>
+            <when test="planName != null">
+                and plan_name = #{planName}
+            </when >
+            <when test="planId != null">
+                and id = #{planId}
+            </when >
+        </choose>
+        limit 1
+    </select>
+    <select id="selectPlanSubnetList" parameterType="int" resultType="PlanSubnet">
+        select * from oper_plan_subnet where plan_id = #{planId}
+    </select>
+    <select id="selectPlanPortList" parameterType="int" resultType="PlanPort">
+        select * from oper_plan_port where plan_id = #{planId}
+    </select>
+    <select id="selectPlanPfItemList" parameterType="int" resultType="PfItemBase">
+        select base.*,plan.plan_id from oper_plan_base_pfitem as base,oper_plan_pfitem as plan
+        where base.id = plan.pf_base_id
+        and plan.plan_id = #{planId}
+    </select>
+    <!--查总数：模糊条件、精确条件-->
+    <select id="queryCount" resultType="int">
+        select count(1)
+        <include refid="plan_list_common" />
+    </select>
+    <!--查列表：模糊条件、精确条件、排序、分页-->
+    <select id="queryPlansByConditions" resultType="PlanBase">
+        select *
+        ,concat(period_year,if(period_month is null,'',concat(' ',period_month)),if(period_day is null,'',concat(' ',period_day,'号')),' ',period_time) as period
+        ,if(end_time = '9999-12-31 23:59:59','永久',concat(start_time,'到',end_time)) as time_range
+        <include refid="plan_list_common"></include>
+        <if test="order != null" >
+            <!--order by后不允许换行-->
+            order by <foreach collection="order" index="key" item="value" open="" close="" separator=",">${key} ${value}</foreach>
+        </if>
+        limit #{limitStart},#{pageDataCount}
+    </select>
+    <!--导出列表：按id列表查询-->
+    <!--返回类型为Map时将不保证字段的查询顺序为返回顺序，应使用LinkedHashMap-->
+    <select id="queryPlansMapByIds" parameterType="java.util.List" resultType="java.util.LinkedHashMap">
+        select * from oper_plan where id in
+        <foreach collection="list" index="index" item="planId" open="(" separator="," close=")">
+            #{planId}
+        </foreach>
+    </select>
+
+    <!--##################################################-->
+    <!--####################insert set####################-->
+    <!--##################################################-->
+    <!--判断作业计划名是否已存在-->
+    <select id="queryPlanNameExist" parameterType="String" resultType="java.lang.Boolean">
+        select count(1) from (select 1 from oper_plan where plan_name = #{planName} limit 1) a
+    </select>
+    <!--主表类包含主表的所有字段，并联合了多个从表的list集合作为扩展属性-->
+    <!--主表id自增长，插入主表后，获取生成的id并赋值给主表类的keyProperty属性，以实现依赖于该id的多个从表数据的插入-->
+    <insert id="insertPlan" parameterType="PlanBase" useGeneratedKeys="true">
+        <selectKey resultType="int" order="AFTER" keyProperty="id">
+            SELECT LAST_INSERT_ID() AS id
+        </selectKey>
+        insert into oper_plan(plan_name,creator,owner,period_year,period_month,period_day,period_time,quartz_exp,
+        start_time,end_time,location,model_name,create_time)
+        values(#{planName},#{creator},#{owner},#{periodYear},#{periodMonth},#{periodDay},#{periodTime},#{quartzExp},#{
+        startTime},#{endTime},#{location},#{modelName},#{createTime})
+    </insert>
+    <!--从表id自增长，插入参数为主表类，外键字段取自主表id，list集合批量插入-->
+    <insert id="insertPlanExtend" parameterType="PlanBase" useGeneratedKeys="true">
+        <if test="planSubnetList != null" >
+            insert into oper_plan_subnet(plan_id,ems_id,ems_name,subnet_id,subnet_name,update_time)
+            values
+            <foreach collection="planSubnetList" item="planSubnet" index= "index" separator ="," close=";">
+                (
+                #{id},
+                #{planSubnet.emsId},
+                #{planSubnet.emsName},
+                #{planSubnet.subnetId},
+                #{planSubnet.subnetName},
+                #{createTime}
+                )
+            </foreach>
+        </if>
+        <if test="planPortList != null" >
+            insert into oper_plan_port(plan_id,trans_type,ems_name,subnet_name,port_name,provider_comment,user_comment,update_time)
+            values
+            <foreach collection="planPortList" item="planPort" index= "index" separator ="," close=";">
+                (
+                #{id},
+                #{planPort.transType},
+                #{planPort.emsName},
+                #{planPort.subnetName},
+                #{planPort.portName},
+                #{planPort.providerComment},
+                #{planPort.userComment},
+                #{createTime}
+                )
+            </foreach>
+        </if>
+        <if test="planPfItemList != null" >
+            insert into oper_plan_pfitem(plan_id,pf_base_id,update_time)
+            values
+            <foreach collection="planPfItemList" item="planPfItem" index= "index" separator ="," close=";">
+                (
+                #{id},
+                #{planPfItem.id},
+                #{createTime}
+                )
+            </foreach>
+        </if>
+    </insert>
+
+    <!--##################################################-->
+    <!--####################delete set####################-->
+    <!--##################################################-->
+    <!--逻辑批量删除：多表批量-->
+    <update id="deletePlanBatch" parameterType="java.util.List">
+        update oper_plan set del_flag = 1 where id in
+        <foreach collection="list" index="index" item="planId" open="(" separator="," close=");">
+            #{planId}
+        </foreach>
+        update oper_plan_subnet set del_flag = 1 where plan_id in
+        <foreach collection="list" index="index" item="planId" open="(" separator="," close=");">
+            #{planId}
+        </foreach>
+        update oper_plan_port set del_flag = 1 where plan_id in
+        <foreach collection="list" index="index" item="planId" open="(" separator="," close=");">
+            #{planId}
+        </foreach>
+        update oper_plan_pfitem set del_flag = 1 where plan_id in
+        <foreach collection="list" index="index" item="planId" open="(" separator="," close=");">
+            #{planId}
+        </foreach>
+    </update>
+
+    <!--##################################################-->
+    <!--####################update set####################-->
+    <!--##################################################-->
+    <!--修改作业计划任务状态-->
+    <update id="planTaskStatusChange">
+        update oper_plan
+        set task_status = #{taskStatus}
+        where id  in
+        <foreach collection="planIdList" index="index" item="planId" open="(" separator="," close=")">
+            #{planId}
+        </foreach>
+    </update>
+    <!--修改作业计划：修改主表，物理删除从表，新增从表-->
+    <update id="updatePlan" parameterType="PlanBase">
+        update oper_plan
+        set plan_name = #{planName},updater = #{updater},owner = #{owner},period_year = #{periodYear},
+        period_month = #{periodMonth},period_day = #{periodDay},period_time = #{periodTime},
+        quartz_exp = #{quartzExp},start_time = #{startTime},end_time = #{endTime},location = #{location},
+        model_name = #{modelName},update_time = #{updateTime}
+        where id = #{id};
+        delete from oper_plan_subnet where plan_id = #{id};
+        delete from oper_plan_port where plan_id = #{id};
+        delete from oper_plan_pfitem where plan_id = #{id};
+    </update>
+
+</mapper>

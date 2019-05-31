@@ -1,124 +1,480 @@
-服务层简单demo，增删改注意事务注解，批量注意余量判断，批量修改注意设置连接开启批量修改参数
+增删改注意事务注解，批量注意余量判断，批量修改注意设置连接开启批量修改参数
 
-
+--------------------------------------------------------------------------
+----------单表批量操作：示意----------------------------------------------
+--------------------------------------------------------------------------
 【增加】
+服务层
 	@Override
     @Transactional
     public int insertXxxBatch(List<Xxx> xxxList, int batchSize) {
-        int result = 0;
-        //批量增加
-        int listLength = xxxList.size();
-        //循环批量增加
-        for (int i = 1; i <= listLength; i++) {
-            if (i % batchSize == 0) {
-                result = insertXxxBatch(xxxList.subList(i - batchSize, i));
-            }
+		int listLength = xxxList.size();
+        //多数情况下，批次没有超过batchSize，不走循环
+        if (listLength <= batchSize){
+            return xxxMapper.insertXxxBatch(xxxList);
         }
-        //余量增加
+        //循环批量
+        int result = 0;
+        int circleSize = listLength/batchSize;
+        for (int i = 1; i <= circleSize; i++) {
+            result = xxxMapper.insertXxxBatch(xxxList.subList((i-1)*batchSize, i*batchSize));
+        }
+        //余量
         if (listLength % batchSize != 0) {
-            result = insertXxxBatch(xxxList.subList(listLength - listLength % batchSize, listLength));
+            result = xxxMapper.insertXxxBatch(xxxList.subList(listLength - listLength % batchSize, listLength));
         }
         return result;
     }
-	
-	private int insertXxxBatch(List<Xxx> xxxSubList) {
-		//mapper层批量增加entity列表，mapper.xml foreach标签循环sql
-        int result = 0;
-        result = xxxMapper.insertXxxBatch(xxxSubList);
-        return result;
-    }
-	
-	<insert id="insertPlanSubnet" parameterType="PlanBase" useGeneratedKeys="true">
-        insert into oper_plan_subnet(plan_id,ems_id,ems_name,subnet_id,subnet_name,update_time)
+mapper接口
+	int insertXxxBatch(List<Xxx> xxxList);
+mapper.xml文件
+	<insert id="insertXxxBatch" parameterType="Xxx" useGeneratedKeys="true">
+        insert into xxx_table(column1,column2,...)
         values
-        <foreach collection="planSubnetList" item="planSubnet" index= "index" separator =",">
+        <foreach collection="list" item="xxx" index= "index" separator =",">
             (
-            #{id},
-            #{planSubnet.emsId},
-            #{planSubnet.emsName},
-            #{planSubnet.subnetId},
-            #{planSubnet.subnetName},
-            #{updateTime}
+            #{xxx.column1},
+            #{xxx.column2},
+            ...
             )
         </foreach>
     </insert>
 	
-【删除】以下为逻辑删除，物理删除类似
+【删除】以下为逻辑删除，物理删除类似，逻辑删除统一delete打头，物理删除统一remove打头
+服务层
 	@Override
     @Transactional
     public int deleteXxxBatch(List<Integer> idList, int batchSize) {
-        int result = 0;
-        //批量逻辑删除
         int listLength = idList.size();
-        //循环批量删除
-        for (int i = 1; i <= listLength; i++) {
-            if (i % batchSize == 0) {
-                result = deleteXxxBatch(idList.subList(i - batchSize, i));
-            }
+        //多数情况下，批次没有超过batchSize，不走循环
+        if (listLength <= batchSize){
+            return xxxMapper.deleteXxxBatch(idList);
         }
-        //余量删除
-        if (listLength % batchSize != 0) {
-            result = deleteXxxBatch(idList.subList(listLength - listLength % batchSize, listLength));
-        }
-        return result;
-    }
-	
-	private int deleteXxxBatch(List<Integer> idSubList) {
-		//mapper层逻辑删除id列表，mapper.xml foreach标签in列表sql
+        //循环批量
         int result = 0;
-        result = xxxMapper.deleteXxxBatch(idSubList);
+        int circleSize = listLength/batchSize;
+        for (int i = 1; i <= circleSize; i++) {
+            result = xxxMapper.deleteXxxBatch(idList.subList((i-1)*batchSize, i*batchSize));
+        }
+        //余量
+        if (listLength % batchSize != 0) {
+            result = xxxMapper.deleteXxxBatch(idList.subList(listLength - listLength % batchSize, listLength));
+        }
         return result;
     }
-	
-	<update id="deletePlanBatch" parameterType="java.util.List">
-        update oper_plan set del_flag = 1 where id in
-        <foreach collection="list" index="index" item="planId" open="(" separator="," close=")">
-            #{planId}
+mapper接口
+	int deleteXxxBatch(List<Integer> idList);
+mapper.xml文件	
+	<update id="deleteXxxBatch" parameterType="java.util.List">
+        update xxx_table set del_flag = 1 where id in
+        <foreach collection="list" index="index" item="id" open="(" separator="," close=")">
+            #{id}
         </foreach>
     </update>
 
 【修改】
 注：mysql的URL添加 allowMultiQueries=true ，否则不支持批量修改语句
 如jdbc:mysql://数据库库ip:端口/数据库名?useUnicode=true&characterEncoding=utf8&characterSetResults=utf8&allowMultiQueries=true&useSSL=false
-
+服务层
 	@Override
     @Transactional
     public int updateXxxBatch(List<Xxx> xxxList, int batchSize) {
-        int result = 0;
-        //批量修改
-        int listLength = xxxList.size();
-        //循环批量修改
-        for (int i = 1; i <= listLength; i++) {
-            if (i % batchSize == 0) {
-                result = updateXxxBatch(xxxList.subList(i - batchSize, i));
-            }
+		int listLength = xxxList.size();
+        //多数情况下，批次没有超过batchSize，不走循环
+        if (listLength <= batchSize){
+            return xxxMapper.updateXxxBatch(xxxList);
         }
-        //余量修改
+        //循环批量
+        int result = 0;
+        int circleSize = listLength/batchSize;
+        for (int i = 1; i <= circleSize; i++) {
+            result = xxxMapper.updateXxxBatch(xxxList.subList((i-1)*batchSize, i*batchSize));
+        }
+        //余量
         if (listLength % batchSize != 0) {
-            result = updateXxxBatch(xxxList.subList(listLength - listLength % batchSize, listLength));
+            result = xxxMapper.updateXxxBatch(xxxList.subList(listLength - listLength % batchSize, listLength));
         }
         return result;
     }
-	
-	private int updateXxxBatch(List<Xxx> xxxSubList) {
-		//mapper层批量修改entity列表，mapper.xml foreach标签循环sql
-        int result = 0;
-        result = xxxMapper.updateXxxBatch(xxxSubList);
-        return result;
-    }
-	
+mapper接口
+	int updateXxxBatch(List<Xxx> xxxList);
+mapper.xml文件
 	<!--实际为分号隔开的批量的update语句，然后一次性提交-->
-	<update id="updatePlanBatch" parameterType="java.util.List">
-		<foreach collection="planList" index="index" item="plan" open="" close="" separator=";">
-			update oper_plan
+	<update id="updateXxxBatch" parameterType="java.util.List">
+		<foreach collection="list" index="index" item="xxx" open="" close="" separator=";">
+			update xxx_table
 			<set>
-				<if test="plan.planName != null and plan.planName != ''">
-					plan_name = #{plan.planName},
+				<if test="xxx.column1 != null and xxx.column1 != ''">
+					column1 = #{xxx.column1},
 				</if>
 				...
 			</set>
-			where id = #{plan.id}
+			where id = #{xxx.id}
         </foreach>
     </update>
 
+
+
+--------------------------------------------------------------------------
+------多表级联、主表一条、从表批量、从表统一批量操作：实例演示------------
+--------------------------------------------------------------------------
+在mapper.xml中，多表既可以分别独立标签编写sql，也可以并入一个标签，以下说明多表如何并入一个标签级联增删改
+多表级联操作，尤其是增加和修改多字段这种长sql操作，要注意评估sql长度，以选择适当的batchSize大小
+【增加】
+一个主表可能关联多个从表，本例中，主表id自增长，因此需要插入2次：第一次插入主表并获取主表id，第二次插入所有从表
+如果主表id不是自增长，而是由java代码生成，则只需要插入1次即可，但除非从表数据相当少，否则强烈不建议只插入1次
+通常情况下，建议从表在主表之后独立插入
+如果每一条主表对应的从表数据量可能非常大，应减小batchSize或适当提高数据库sql长度限制
+
+服务层
+    /**
+     * 作业计划表的关联插入
+     * @param planBase
+     * @param planExtendBatchSize 从表的批量批次
+     * @return
+     */
+    @Override
+    @Transactional
+    public int insertPlan(PlanBase planBase,int planExtendBatchSize) {
+        int result = 0;
+        //插入主表
+        result = planBaseMapper.insertPlan(planBase);
+        //插入从表
+        insertPlanExtend(planBase,planExtendBatchSize);
+        return result;
+    }
+    /**
+     * 从表插入
+     * @param planBase
+     * @param planExtendBatchSize
+     */
+    private void insertPlanExtend(PlanBase planBase,int planExtendBatchSize){
+        //多张从表list统一在一个标签中批量插入，提高代码集成度和复杂度，减少数据库访问次数
+        //作业计划业务可能关联多达数千个端口，必须在此保证批量平稳入库
+        //取出所有原始列表
+        List<PlanSubnet> planSubnetList = planBase.getPlanSubnetList();
+        List<PlanPort> planPortList = planBase.getPlanPortList();
+        List<PfItemBase> planPfItemList = planBase.getPlanPfItemList();
+        int planSubnetListSize = planSubnetList.size();
+        int planPortListSize = planPortList.size();
+        int planPfItemListSize = planPfItemList.size();
+        //获取最长的列表长度，作为批次判断基准
+        int maxListLength = ArrayUtil.getMaxValue(planSubnetListSize,planPortListSize,planPfItemListSize);
+        //多数情况下，批次没有超过batchSize，不走循环
+        if (maxListLength <= planExtendBatchSize){
+            planBaseMapper.insertPlanExtend(planBase);
+            return;
+        }
+        /**
+         * - - - - -复杂逻辑分割线- - - - -
+         */
+        //每个列表的完整批量的数量
+        int planSubnetCircleSize = planSubnetListSize/planExtendBatchSize;
+        int planPortCircleSize = planPortListSize/planExtendBatchSize;
+        int planPfItemCircleSize = planPfItemListSize/planExtendBatchSize;
+        //插入前对所有列表置空
+        planBase.setPlanSubnetList(null);
+        planBase.setPlanPfItemList(null);
+        planBase.setPlanPortList(null);
+        //循环批量
+        int circleSize = maxListLength/planExtendBatchSize;
+        for (int i = 1; i <= circleSize; i++) {
+            //如果该完整批次尚有列表需插入，对主类该列表字段重新赋值子列表
+            if (planSubnetCircleSize >= i){
+                planBase.setPlanSubnetList(planSubnetList.subList((i-1)*planExtendBatchSize, i*planExtendBatchSize));
+            }
+            if (planPfItemCircleSize >= i){
+                planBase.setPlanPfItemList(planPfItemList.subList((i-1)*planExtendBatchSize, i*planExtendBatchSize));
+            }
+            if (planPortCircleSize >= i){
+                planBase.setPlanPortList(planPortList.subList((i-1)*planExtendBatchSize, i*planExtendBatchSize));
+            }
+            planBaseMapper.insertPlanExtend(planBase);
+            //插入后对所有列表置空
+            planBase.setPlanSubnetList(null);
+            planBase.setPlanPfItemList(null);
+            planBase.setPlanPortList(null);
+        }
+        //循环批量时，以上循环总会被执行，跳出循环后，所有列表都已经被赋值为null
+
+        //余量
+        boolean hasRemain = false;
+        if (planSubnetListSize % planExtendBatchSize != 0) {
+            hasRemain = true;
+            planBase.setPlanSubnetList(planSubnetList.subList(planSubnetListSize - planSubnetListSize % planExtendBatchSize, planSubnetListSize));
+        }
+        if (planPortListSize % planExtendBatchSize != 0) {
+            hasRemain = true;
+            planBase.setPlanPortList(planPortList.subList(planPortListSize - planPortListSize % planExtendBatchSize, planPortListSize));
+        }
+        if (planPfItemListSize % planExtendBatchSize != 0) {
+            hasRemain = true;
+            planBase.setPlanPfItemList(planPfItemList.subList(planPfItemListSize - planPfItemListSize % planExtendBatchSize, planPfItemListSize));
+        }
+        if (hasRemain) {
+            planBaseMapper.insertPlanExtend(planBase);
+        }
+    }
+mapper接口
+    int insertPlan(PlanBase planBase);
+    int insertPlanExtend(PlanBase planBase);
+mapper.xml文件
+    <!--主表类包含主表的所有字段，并联合了多个从表的list集合作为扩展属性-->
+    <!--主表id自增长，插入主表后，获取生成的id并赋值给主表类的keyProperty属性，以实现依赖于该id的多个从表数据的插入-->
+    <insert id="insertPlan" parameterType="PlanBase" useGeneratedKeys="true">
+        <selectKey resultType="int" order="AFTER" keyProperty="id">
+            SELECT LAST_INSERT_ID() AS id
+        </selectKey>
+        insert into oper_plan(plan_name,creator,owner,period_year,period_month,period_day,period_time,quartz_exp,
+        start_time,end_time,location,model_name,create_time)
+        values(#{planName},#{creator},#{owner},#{periodYear},#{periodMonth},#{periodDay},#{periodTime},#{quartzExp},#{
+        startTime},#{endTime},#{location},#{modelName},#{createTime})
+    </insert>
+    <!--从表id自增长，插入参数为主表类，外键字段取自主表id，list集合批量插入，插入前对每一个list判空-->
+    <insert id="insertPlanExtend" parameterType="PlanBase" useGeneratedKeys="true">
+        <if test="planSubnetList != null" >
+            insert into oper_plan_subnet(plan_id,ems_id,ems_name,subnet_id,subnet_name,update_time)
+            values
+            <foreach collection="planSubnetList" item="planSubnet" index= "index" separator ="," close=";">
+                (
+                #{id},
+                #{planSubnet.emsId},
+                #{planSubnet.emsName},
+                #{planSubnet.subnetId},
+                #{planSubnet.subnetName},
+                #{createTime}
+                )
+            </foreach>
+        </if>
+        <if test="planPortList != null" >
+            insert into oper_plan_port(plan_id,trans_type,ems_name,subnet_name,port_name,provider_comment,user_comment,update_time)
+            values
+            <foreach collection="planPortList" item="planPort" index= "index" separator ="," close=";">
+                (
+                #{id},
+                #{planPort.transType},
+                #{planPort.emsName},
+                #{planPort.subnetName},
+                #{planPort.portName},
+                #{planPort.providerComment},
+                #{planPort.userComment},
+                #{createTime}
+                )
+            </foreach>
+        </if>
+        <if test="planPfItemList != null" >
+            insert into oper_plan_pfitem(plan_id,pf_base_id,update_time)
+            values
+            <foreach collection="planPfItemList" item="planPfItem" index= "index" separator ="," close=";">
+                (
+                #{id},
+                #{planPfItem.id},
+                #{createTime}
+                )
+            </foreach>
+        </if>
+    </insert>
 	
+【删除】以下为逻辑删除，物理删除类似，逻辑删除统一delete打头，物理删除统一remove打头
+服务层
+    @Override
+    @Transactional
+    public int deletePlanBatch(List<Integer> planIdList, int batchSize) {
+        int listLength = planIdList.size();
+        //多数情况下，批次没有超过batchSize，不走循环
+        if (listLength <= batchSize){
+            return planBaseMapper.deletePlanBatch(planIdList);
+        }
+        //循环批量
+        int result = 0;
+        int circleSize = listLength/batchSize;
+        for (int i = 1; i <= circleSize; i++) {
+            result = planBaseMapper.deletePlanBatch(planIdList.subList((i-1)*batchSize, i*batchSize));
+        }
+        //余量
+        if (listLength % batchSize != 0) {
+            result = planBaseMapper.deletePlanBatch(planIdList.subList(listLength - listLength % batchSize, listLength));
+        }
+        return result;
+    }
+mapper接口
+	int deletePlanBatch(List<Integer> planIdList);
+mapper.xml文件	
+    <!--逻辑批量删除：多表批量-->
+	<!--实际为分号隔开的批量的update语句，然后一次性提交-->
+    <update id="deletePlanBatch" parameterType="java.util.List">
+        update oper_plan set del_flag = 1 where id in
+        <foreach collection="list" index="index" item="planId" open="(" separator="," close=");">
+            #{planId}
+        </foreach>
+        update oper_plan_subnet set del_flag = 1 where plan_id in
+        <foreach collection="list" index="index" item="planId" open="(" separator="," close=");">
+            #{planId}
+        </foreach>
+        update oper_plan_port set del_flag = 1 where plan_id in
+        <foreach collection="list" index="index" item="planId" open="(" separator="," close=");">
+            #{planId}
+        </foreach>
+        update oper_plan_pfitem set del_flag = 1 where plan_id in
+        <foreach collection="list" index="index" item="planId" open="(" separator="," close=");">
+            #{planId}
+        </foreach>
+    </update>
+
+【修改】
+服务层
+    /**
+     * 作业计划关联表组合修改
+     * @param planBase
+     * @param planExtendBatchSize
+     * @return
+     */
+    @Override
+    @Transactional
+    public int updatePlan(PlanBase planBase,int planExtendBatchSize) {
+        int result = 0;
+        //修改主表、物理删除从表
+        result = planBaseMapper.updatePlan(planBase);
+        //新增从表
+        insertPlanExtend(planBase,planExtendBatchSize);
+        return result;
+    }
+	/**
+     * 从表插入
+     * @param planBase
+     * @param planExtendBatchSize
+     */
+    private void insertPlanExtend(PlanBase planBase,int planExtendBatchSize){
+        //多张从表list统一在一个标签中批量插入，提高代码集成度和复杂度，减少数据库访问次数
+        //作业计划业务可能关联多达数千个端口，必须在此保证批量平稳入库
+        //取出所有原始列表
+        List<PlanSubnet> planSubnetList = planBase.getPlanSubnetList();
+        List<PlanPort> planPortList = planBase.getPlanPortList();
+        List<PfItemBase> planPfItemList = planBase.getPlanPfItemList();
+        int planSubnetListSize = planSubnetList.size();
+        int planPortListSize = planPortList.size();
+        int planPfItemListSize = planPfItemList.size();
+        //获取最长的列表长度，作为批次判断基准
+        int maxListLength = ArrayUtil.getMaxValue(planSubnetListSize,planPortListSize,planPfItemListSize);
+        //多数情况下，批次没有超过batchSize，不走循环
+        if (maxListLength <= planExtendBatchSize){
+            planBaseMapper.insertPlanExtend(planBase);
+            return;
+        }
+        /**
+         * - - - - -复杂逻辑分割线- - - - -
+         */
+        //每个列表的完整批量的数量
+        int planSubnetCircleSize = planSubnetListSize/planExtendBatchSize;
+        int planPortCircleSize = planPortListSize/planExtendBatchSize;
+        int planPfItemCircleSize = planPfItemListSize/planExtendBatchSize;
+        //插入前对所有列表置空
+        planBase.setPlanSubnetList(null);
+        planBase.setPlanPfItemList(null);
+        planBase.setPlanPortList(null);
+        //循环批量
+        int circleSize = maxListLength/planExtendBatchSize;
+        for (int i = 1; i <= circleSize; i++) {
+            //如果该完整批次尚有列表需插入，对主类该列表字段重新赋值子列表
+            if (planSubnetCircleSize >= i){
+                planBase.setPlanSubnetList(planSubnetList.subList((i-1)*planExtendBatchSize, i*planExtendBatchSize));
+            }
+            if (planPfItemCircleSize >= i){
+                planBase.setPlanPfItemList(planPfItemList.subList((i-1)*planExtendBatchSize, i*planExtendBatchSize));
+            }
+            if (planPortCircleSize >= i){
+                planBase.setPlanPortList(planPortList.subList((i-1)*planExtendBatchSize, i*planExtendBatchSize));
+            }
+            planBaseMapper.insertPlanExtend(planBase);
+            //插入后对所有列表置空
+            planBase.setPlanSubnetList(null);
+            planBase.setPlanPfItemList(null);
+            planBase.setPlanPortList(null);
+        }
+        //循环批量时，以上循环总会被执行，跳出循环后，所有列表都已经被赋值为null
+
+        //余量
+        boolean hasRemain = false;
+        if (planSubnetListSize % planExtendBatchSize != 0) {
+            hasRemain = true;
+            planBase.setPlanSubnetList(planSubnetList.subList(planSubnetListSize - planSubnetListSize % planExtendBatchSize, planSubnetListSize));
+        }
+        if (planPortListSize % planExtendBatchSize != 0) {
+            hasRemain = true;
+            planBase.setPlanPortList(planPortList.subList(planPortListSize - planPortListSize % planExtendBatchSize, planPortListSize));
+        }
+        if (planPfItemListSize % planExtendBatchSize != 0) {
+            hasRemain = true;
+            planBase.setPlanPfItemList(planPfItemList.subList(planPfItemListSize - planPfItemListSize % planExtendBatchSize, planPfItemListSize));
+        }
+        if (hasRemain) {
+            planBaseMapper.insertPlanExtend(planBase);
+        }
+    }
+mapper接口
+    int updatePlan(PlanBase planBase);
+	int insertPlanExtend(PlanBase planBase);
+mapper.xml文件
+    <!--修改作业计划：修改主表，物理删除从表，新增从表-->
+    <update id="updatePlan" parameterType="PlanBase">
+        update oper_plan
+        set plan_name = #{planName},updater = #{updater},owner = #{owner},period_year = #{periodYear},
+        period_month = #{periodMonth},period_day = #{periodDay},period_time = #{periodTime},
+        quartz_exp = #{quartzExp},start_time = #{startTime},end_time = #{endTime},location = #{location},
+        model_name = #{modelName},update_time = #{updateTime}
+        where id = #{id};
+        delete from oper_plan_subnet where plan_id = #{id};
+        delete from oper_plan_port where plan_id = #{id};
+        delete from oper_plan_pfitem where plan_id = #{id};
+    </update>
+	<!--从表id自增长，插入参数为主表类，外键字段取自主表id，list集合批量插入-->
+    <insert id="insertPlanExtend" parameterType="PlanBase" useGeneratedKeys="true">
+        <if test="planSubnetList != null" >
+            insert into oper_plan_subnet(plan_id,ems_id,ems_name,subnet_id,subnet_name,update_time)
+            values
+            <foreach collection="planSubnetList" item="planSubnet" index= "index" separator ="," close=";">
+                (
+                #{id},
+                #{planSubnet.emsId},
+                #{planSubnet.emsName},
+                #{planSubnet.subnetId},
+                #{planSubnet.subnetName},
+                #{createTime}
+                )
+            </foreach>
+        </if>
+        <if test="planPortList != null" >
+            insert into oper_plan_port(plan_id,trans_type,ems_name,subnet_name,port_name,provider_comment,user_comment,update_time)
+            values
+            <foreach collection="planPortList" item="planPort" index= "index" separator ="," close=";">
+                (
+                #{id},
+                #{planPort.transType},
+                #{planPort.emsName},
+                #{planPort.subnetName},
+                #{planPort.portName},
+                #{planPort.providerComment},
+                #{planPort.userComment},
+                #{createTime}
+                )
+            </foreach>
+        </if>
+        <if test="planPfItemList != null" >
+            insert into oper_plan_pfitem(plan_id,pf_base_id,update_time)
+            values
+            <foreach collection="planPfItemList" item="planPfItem" index= "index" separator ="," close=";">
+                (
+                #{id},
+                #{planPfItem.id},
+                #{createTime}
+                )
+            </foreach>
+        </if>
+    </insert>
+
+
+--------------------------------------------------------------------------------------
+------多表级联、主表批量、从表批量的批量、从表统一批量操作：场景很少见，暂不处理------
+--------------------------------------------------------------------------------------
+
+

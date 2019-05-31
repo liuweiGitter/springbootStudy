@@ -1,25 +1,65 @@
-package util;
+package com.telecom.js.noc.hxtnms.operationplan.configure;
 
+import com.mongodb.MongoClient;
+import com.mongodb.MongoClientOptions;
+import com.mongodb.MongoCredential;
+import com.mongodb.ServerAddress;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.PropertySource;
+import org.springframework.core.env.Environment;
+import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
 import org.springframework.data.redis.connection.jedis.JedisConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
 
 /**
  * Author: liuwei
- * Date: 2019-05-08 15:45
- * Desc: redisTemplate工具测试类，在普通测试类中使用
+ * Date: 2019-05-08 08:40
+ * Desc: nosql多数据源时，数据库template类等自定义bean位置
+ *      application配置文件配置单数据源，其它数据源定义在此
  */
 @Slf4j
-public class RedisTemplateUtil {
+@Configuration
+@PropertySource(value = "classpath:/application.properties")
+public class NosqlDbConfigure {
 
-    //获取鉴权的RedisTemplate对象
-    public RedisTemplate getRedisTemplate(){
-        String host = "马赛克";
-        int port = 马赛克;
-        int database = 马赛克;
-        String password = "";//本例没有鉴权密码
+    @Autowired
+    private Environment environment;
+
+    @Bean(name="otmsMongoTemplate")
+    public MongoTemplate getOtmsMongoTemplate(){
+        String host = environment.getProperty("data.mongodb.otms.host");
+        int port = Integer.valueOf(environment.getProperty("data.mongodb.otms.port"));
+        String database = environment.getProperty("data.mongodb.otms.database");
+        String username = environment.getProperty("data.mongodb.otms.username");
+        String password = environment.getProperty("data.mongodb.otms.password");
+        String database4Authen = environment.getProperty("data.mongodb.otms.database4Authen");
+
+        //服务地址
+        ServerAddress serverAddress = new ServerAddress(host,port);
+        //鉴权
+        MongoCredential credential = MongoCredential.createCredential(username,database4Authen,password.toCharArray());
+        //连接选项(最大连接数，超时时间等，使用默认即可)
+        MongoClientOptions mongoClientOptions = new MongoClientOptions.Builder().build();
+
+        MongoClient mongoClient = new MongoClient(serverAddress,credential,mongoClientOptions);
+        MongoTemplate mongoTemplate = new MongoTemplate(mongoClient,database);
+        log.info("Get Otms mongoTemplate successfully");
+        return mongoTemplate;
+    }
+
+    @Bean(name="redisTemplate")
+    public RedisTemplate getRedisTemplate01(){
+        String host = environment.getProperty("data.redis.host");
+        int port = Integer.valueOf(environment.getProperty("data.redis.port"));
+        int database = Integer.valueOf(environment.getProperty("data.redis.database"));
+        String password = environment.getProperty("data.redis.password");//password为空时没有鉴权密码
+
         //redis单节点配置，集群需配置RedisClusterConfiguration
         RedisStandaloneConfiguration redisStandaloneConfiguration = new RedisStandaloneConfiguration();
         redisStandaloneConfiguration.setHostName(host);

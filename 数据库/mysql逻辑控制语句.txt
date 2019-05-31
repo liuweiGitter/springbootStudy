@@ -1,0 +1,5 @@
+1.判断数据是否存在，若存在，返回1，否则，返回0
+    <!--判断作业计划名是否已存在-->
+    <select id="queryPlanNameExist" parameterType="String" resultType="java.lang.Boolean">
+        select count(1) from (select 1 from oper_plan where plan_name = #{planName} limit 1) a
+    </select>

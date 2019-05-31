@@ -1,20 +1,22 @@
-增删改查全部统一返回ResponseBox对象，其中返回码如下
+增删改全部统一返回ResponseBox对象，查询(列表和详情)全部统一返回ResponseBox<T>对象，其中返回码如下
     public static final int SUCCESS_CODE = 200;
     public static final int PARAM_ERROR_CODE = 250;
     public static final int FAILE_CODE = 500;
 统一响应格式为：
 {
     "success": xxx,//非空，true或false
-    "msg": "xxx",//非空，字符串
+    "msg": "xxx",//非空，响应字符串
     "responseCode": xxx,//非空，整数响应码
     "detail": xxx,//非查详情时为null，查详情时不为null
     "list": xxx,//非查列表时为null，查列表时不为null(可能为空list，即一对中括号)
-    "page": xxx//非查列表时为null，查列表时不为null，包括4个子字段"pageDataCount","queryPageNum","totalCount","totalPageNum"
+    "page": xxx//非查列表以及不分页查列表时为null，查分页列表时不为null，包括4个子字段"pageDataCount","queryPageNum","totalCount","totalPageNum"
 }
-	
+
 【增加、删除和修改】
-增删改响应格式完全一致，构造函数也完全一致，响应new ResponseBox(int count)，其中，count为增删改sql操作返回的int值
-响应格式为：
+增删改响应格式完全一致，构造函数也完全一致
+响应new ResponseBox(int count)或new ResponseBox(int count,String successMsg,String failMsg)
+其中，count为增删改sql操作返回的int值
+响应格式如：
 {
     "success": true,
     "msg": "操作成功！",
@@ -25,6 +27,7 @@
 }
 
 ----------控制层----------
+控制方法返回ResponseBox对象
 
 	/**
      * 作业计划增加
@@ -33,23 +36,16 @@
     @RequestMapping(value = "addPlan", method = RequestMethod.POST, produces = "application/json;charset=UTF-8")
     @ResponseBody
     public ResponseBox addPlan(@RequestBody PlanBase planBase){
-        //时间字段等在后端控制类中赋值
-        planBase.setUpdateTime(LocalDateTime.now());
-        planBase.setStatus("0");
-        return new ResponseBox(planBaseService.insertPlan(planBase));
-    }
-	
-	/**
-     * 作业计划修改
-     * @return
-     */
-    @RequestMapping(value = "updatePlan", method = RequestMethod.POST, produces = "application/json;charset=UTF-8")
-    @ResponseBody
-    public ResponseBox updatePlan(@RequestBody PlanBase planBase){
-        //时间字段等在后端控制类中赋值
-        planBase.setUpdateTime(LocalDateTime.now());
-        planBase.setStatus("0");
-        return new ResponseBox(planBaseService.updatePlan(planBase));
+        ResponseBox responseBox = checkInsertAndUpdate(planBase);
+        if (null!=responseBox){
+            //校验失败，返回校验结果
+            return responseBox;
+        }
+        //计算quartz表达式
+        planBase.setQuartzExp4Plan();
+        //拼接period字段
+        planBase.resetPeriod();
+        return new ResponseBox(planBaseService.insertPlan(planBase,CommonConstants.BATCH_SIZE_UPSERT));
     }
 
     /**
@@ -58,89 +54,125 @@
      */
     @RequestMapping(value = "deletePlan", method = RequestMethod.POST, produces = "application/json;charset=UTF-8")
     @ResponseBody
-    public ResponseBox deletePlan(@RequestBody List<Integer> planIdList){
+    public ResponseBox deletePlan(@RequestBody Map<String,List<Integer>> param){
+        List<Integer> planIdList = param.get("planIdList");
         int result = 0;
         if (null == planIdList){
             return new ResponseBox("删除参数不能为空！");
-        }else if(1 == planIdList.size()){
-            result = planBaseService.deletePlan(planIdList.get(0));
         }else{
             result = planBaseService.deletePlanBatch(planIdList,CommonConstants.BATCH_SIZE_DELETE);
         }
         return new ResponseBox(result);
     }
 
+    /**
+     * 作业计划修改
+     * @return
+     */
+    @RequestMapping(value = "updatePlan", method = RequestMethod.POST, produces = "application/json;charset=UTF-8")
+    @ResponseBody
+    public ResponseBox updatePlan(@RequestBody PlanBase planBase){
+        ResponseBox responseBox = checkInsertAndUpdate(planBase);
+        if (null!=responseBox){
+            //校验失败，返回校验结果
+            return responseBox;
+        }
+        //计算quartz表达式
+        planBase.setQuartzExp4Plan();
+        //拼接period字段
+        planBase.resetPeriod();
+        //时间字段等在后端控制类中赋值
+        planBase.setUpdateTime(LocalDateTime.now());
+        return new ResponseBox(planBaseService.updatePlan(planBase,CommonConstants.BATCH_SIZE_UPSERT));
+    }
 ----------服务层(注意在事务中为count赋值，count初始化为0)----------
+服务方法返回int
+
+    /**
+     * 作业计划表的关联插入
+     * @param planBase
+     * @param planExtendBatchSize 从表的批量批次
+     * @return
+     */
     @Override
     @Transactional
-    public int insertPlan(PlanBase planBase) {
-        //作业计划表的关联插入
+    public int insertPlan(PlanBase planBase,int planExtendBatchSize) {
         int result = 0;
+        //插入主表
         result = planBaseMapper.insertPlan(planBase);
-        planBaseMapper.insertPlanSubnet(planBase);
-        planBaseMapper.insertPlanPort(planBase);
-        planBaseMapper.insertPlanPfItem(planBase);
+        //插入从表
+        insertPlanExtend(planBase,planExtendBatchSize);
+        //插入子网树：因一一对应，不需要批量操作，独立于其它从表插入
+        planBaseMapper.insertPlanSubnetTree(planBase.getId(),planBase.getSubnetTree());
+        //事务成功后通知调度中心注册
+        if (result>0){
+            addOrUpdateXxlJob("add",planBase);
+        }
         return result;
     }
 
-    @Override
-    @Transactional
-    public int deletePlan(int planId) {
-        //作业计划表的关联逻辑删除
-        int result = 0;
-        result = planBaseMapper.deletePlan(planId);
-        planBaseMapper.deletePlanSubnet(planId);
-        planBaseMapper.deletePlanPort(planId);
-        planBaseMapper.deletePlanPfItem(planId);
-        return result;
-    }
-
+    /**
+     * 作业计划删除
+     * @param planIdList
+     * @param batchSize
+     * @return
+     */
     @Override
     @Transactional
     public int deletePlanBatch(List<Integer> planIdList, int batchSize) {
         int result = 0;
-        //作业计划表的关联逻辑删除：批量删除
         int listLength = planIdList.size();
-        //循环批量删除
-        for (int i = 1; i <= listLength; i++) {
-            if (i % batchSize == 0) {
-                result = deletePlanBatch(planIdList.subList(i - batchSize, i));
+        //多数情况下，批次没有超过batchSize，不走循环
+        if (listLength <= batchSize){
+            result = planBaseMapper.deletePlanBatch(planIdList);
+            //事务成功后通知调度中心删除任务
+            if (result>0){
+                changeXxlJob(planIdList,9);
             }
+            return result;
         }
-        //余量删除
+        //循环批量
+        int circleSize = listLength/batchSize;
+        for (int i = 1; i <= circleSize; i++) {
+            result = planBaseMapper.deletePlanBatch(planIdList.subList((i-1)*batchSize, i*batchSize));
+        }
+        //余量
         if (listLength % batchSize != 0) {
-            result = deletePlanBatch(planIdList.subList(listLength - listLength % batchSize, listLength));
+            result = planBaseMapper.deletePlanBatch(planIdList.subList(listLength - listLength % batchSize, listLength));
+        }
+        //事务成功后通知调度中心删除任务
+        if (result>0){
+            changeXxlJob(planIdList,9);
         }
         return result;
     }
 
+    /**
+     * 作业计划关联表组合修改
+     * @param planBase
+     * @param planExtendBatchSize
+     * @return
+     */
     @Override
     @Transactional
-    public int updatePlan(PlanBase planBase) {
-        //作业计划关联表组合修改
+    public int updatePlan(PlanBase planBase,int planExtendBatchSize) {
         int result = 0;
+        //修改主表、物理删除从表
         result = planBaseMapper.updatePlan(planBase);
-        planBaseMapper.removePlanPfItem(planBase.getId());
-        planBaseMapper.removePlanPort(planBase.getId());
-        planBaseMapper.removePlanSubnet(planBase.getId());
-        planBaseMapper.insertPlanSubnet(planBase);
-        planBaseMapper.insertPlanPort(planBase);
-        planBaseMapper.insertPlanPfItem(planBase);
-        return result;
-    }
-
-    private int deletePlanBatch(List<Integer> planIdSubList) {
-        int result = 0;
-        result = planBaseMapper.deletePlanBatch(planIdSubList);
-        planBaseMapper.deletePlanSubnetBatch(planIdSubList);
-        planBaseMapper.deletePlanPortBatch(planIdSubList);
-        planBaseMapper.deletePlanPfItemBatch(planIdSubList);
+        //新增从表
+        insertPlanExtend(planBase,planExtendBatchSize);
+        //插入子网树：因一一对应，不需要批量操作，独立于其它从表插入
+        planBaseMapper.updatePlanSubnetTree(planBase.getId(),planBase.getSubnetTree());
+        //事务成功后通知调度中心修改
+        if (result>0){
+            addOrUpdateXxlJob("update",planBase);
+        }
         return result;
     }
 
 【查列表】
 响应new ResponseBox(List<T> list,QueryHomeBox<T> queryHomeBox)，关于QueryHomeBox，参见《分页模糊查询/QueryHomeBox使用方法》
-响应格式为：
+响应格式如：
 {
     "success": true,
     "msg": "查询成功！",
@@ -148,39 +180,44 @@
     "detail": null,
     "list": [
         {
-            "id": 13,
-            "planName": "测试8",
-            "ownerId": "测试用户",
-            "location": "南京",
-            "modelName": "测试模板",
-            "planSubnetList": null,
-            "planPortList": null,
-            "planPfItemList": null,
-            "status": "草稿",
-            "updateTime": "2019-05-27T14:04:30"
+            "id": 58,
+            "planName": "测试2",
+            "creator": "liuwei2",
+            "owner": "liuwei2",
+            "periodYear": "2",
+            "periodMonth": "3",
+            "periodDay": "15",
+            "periodTime": "06:00",
+            "quartzExp": "00 00 06 15 3,9 ? *",
+            "period": "每年 3,9月 15号 06:00",
+            ...
         },
         {
-            "id": 12,
-            "planName": "测试7",
-            "ownerId": "测试用户",
-            "location": "南京",
-            "modelName": "测试模板",
-            "planSubnetList": null,
-            "planPortList": null,
-            "planPfItemList": null,
-            "status": "草稿",
-            "updateTime": "2019-05-27T11:26:18"
+            "id": 60,
+            "planName": "测试23",
+            "creator": "liuwei2",
+            "owner": "liuwei2",
+            "periodYear": "2",
+            "periodMonth": "3",
+            "periodDay": "15",
+            "periodTime": "06:00",
+            "quartzExp": "00 00 06 15 3,9 ? *",
+            "period": "每年 3,9月 15号 06:00",
+            ...
         }
     ],
     "page": {
-        "pageDataCount": 2,
-        "queryPageNum": 2,
-        "totalCount": 5,
-        "totalPageNum": 3
+        "pageDataCount": 5,
+        "queryPageNum": 1,
+        "totalCount": 2,
+        "totalPageNum": 1
     }
 }
 
 ----------控制层----------
+控制方法返回ResponseBox<T>对象，其中，T为实体类或Map的实现类(HashMap/LinkedHashMap等)
+服务层返回List<T>对象，不赘述
+
     /**
      * 作业计划列表查询
      * @param queryHomeBox 查询条件封装对象
@@ -199,77 +236,45 @@
 
 【查详情】
 响应new ResponseBox (T detail)
-响应格式为：
+响应格式如：
 {
     "success": true,
     "msg": "查询成功！",
     "responseCode": 200,
     "detail": {
-        "id": 19,
-        "planName": "测试98",
-        "ownerId": "119",
-        "location": "南京",
-        "modelName": "测试模板",
-        "planSubnetList": [
-            {
-                "id": 46,
-                "planId": 19,
-                "emsId": "test",
-                "emsName": "测试网管0",
-                "subnetId": "test",
-                "subnetName": "测试子网0",
-                "updateTime": "2019-05-27 15:51:38"
-            }
-        ],
-        "planPortList": [
-            {
-                "id": 36,
-                "planId": 19,
-                "transType": "test",
-                "emsName": "测试网管0",
-                "subnetName": "测试子网0",
-                "portName": "测试端口0",
-                "providerComment": "",
-                "userComment": "",
-                "updateTime": "2019-05-27 15:51:38"
-            }
-        ],
-        "planPfItemList": [
-			{
-                "id": 4,
-                "planId": 19,
-                "pfId": "xxx",
-                "pfName": "xxx",
-                "provider": "xxx",
-                "layerLevel": "xxx",
-                "transType": "xxx"
-            }
-		],
-        "status": "0",
-        "updateTime": "2019-05-27 15:51:38"
+        "id": 60,
+        "planName": "测试23",
+        "creator": "liuwei2",
+        "owner": "liuwei2",
+        "periodYear": "2",
+        "periodMonth": "3",
+        "periodDay": "15",
+        "periodTime": "06:00",
+        "quartzExp": "00 00 06 15 3,9 ? *",
+        "period": "每年 3,9月 15号 06:00",
+        ...
     },
     "list": null,
     "page": null
 }
 
 ----------控制层----------
+控制方法返回ResponseBox<T>对象，其中，T为实体类或Map的实现类(HashMap/LinkedHashMap等)
+服务层返回T对象，不赘述
 
     /**
      * 作业计划详情查询
-     * @param planIdOrName 作业计划名称或id
      * @return
      */
     @RequestMapping(value = "getPlanDetail", method = RequestMethod.POST, produces = "application/json;charset=UTF-8")
     @ResponseBody
-    public ResponseBox<PlanBase> getPlanDetail(@RequestBody Object planIdOrName){
+    public ResponseBox<PlanBase> getPlanDetail(@RequestBody Map<String,Object> param){
         Integer planId = null;
         String planName = null;
-        if (planIdOrName instanceof String){
-            if (!"".equals((String) planIdOrName)){
-                planName = (String) planIdOrName;
-            }
-        }else if(planIdOrName instanceof Integer){
-            planId = (Integer) planIdOrName;
+        if (null != param.get("planId")){
+            planId = (Integer) param.get("planId");
+        }else if(null != param.get("planName") && !"".equals(param.get("planName"))){
+            planName = (String) param.get("planName");
         }
         if (null == planId && null == planName){
             return new ResponseBox<PlanBase>("查询参数不能为空");

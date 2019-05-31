@@ -19,15 +19,15 @@ public class ResponseBox<T>{
     private String msg;
     //返回码
     private Integer responseCode;
-    //响应实体类：查详情
+    //响应实体类或Map：查详情
     private T detail;
-    //响应实体类列表：查列表
+    //响应实体类或Map列表：查列表，支持分页和不分页
     private List<T> list;
-    //分页参数
+    //分页参数：不分页时响应为null
     private Map<String,Integer> page;
 
     /**
-     * 详情查询默认构造
+     * 详情查询默认构造(支持实体类和Map)
      * @param detail
      * @return
      */
@@ -37,21 +37,23 @@ public class ResponseBox<T>{
     }
 
     /**
-     * 列表查询默认构造
+     * 列表查询默认构造(支持实体类和Map，支持分页和不分页)
      * @param list 查询列表结果
-     * @param queryHomeBox 查询box(分页相关参数已被赋值)
+     * @param queryHomeBox 查询box(分页相关参数已被赋值)，如果不分页，传参null
      */
     public ResponseBox (List<T> list,QueryHomeBox<T> queryHomeBox){
         this.list = list;
-        page = new HashMap<>();
-        //每页数量
-        page.put("pageDataCount",queryHomeBox.getPageDataCount());
-        //查询的页码
-        page.put("queryPageNum",queryHomeBox.getQueryPageNum());
-        //总数量
-        page.put("totalCount",queryHomeBox.getTotalCount());
-        //总页码
-        page.put("totalPageNum",queryHomeBox.getTotalPageNum());
+        if (null != queryHomeBox){
+            page = new HashMap<>();
+            //每页数量
+            page.put("pageDataCount",queryHomeBox.getPageDataCount());
+            //查询的页码
+            page.put("queryPageNum",queryHomeBox.getQueryPageNum());
+            //总数量
+            page.put("totalCount",queryHomeBox.getTotalCount());
+            //总页码
+            page.put("totalPageNum",queryHomeBox.getTotalPageNum());
+        }
         this.setAll(true,"查询成功！",CommonConstants.SUCCESS_CODE);
     }
 
@@ -80,7 +82,20 @@ public class ResponseBox<T>{
     }
 
     /**
-     * 参数错误的构造
+     * 一个正确或错误的响应：仅响应字符串信息，在导入、导出、任务计算等只需要操作结果的场景下使用
+     * @param responseMsg 响应信息
+     * @param isRight 正确true信息还是错误false信息
+     */
+    public ResponseBox(String responseMsg,boolean isRight){
+        if (isRight){
+            setAll(true,responseMsg,CommonConstants.SUCCESS_CODE);
+        }else{
+            setAll(false,responseMsg,CommonConstants.FAILE_CODE);
+        }
+    }
+
+    /**
+     * 一个错误的响应：当参数错误时响应错误信息，参数错误码独立于其它普通错误的错误码
      * @param failParamMsg 错误参数信息
      */
     public ResponseBox(String failParamMsg){
