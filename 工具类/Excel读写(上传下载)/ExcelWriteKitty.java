@@ -66,7 +66,7 @@ public class ExcelWriteKitty {
         this.columnNames = new String[headerNames.length];
     }
 
-    //初始化map数据列名和各列数据类型
+    //初始化map数据列名
     private void initColumnName(Set<String> keySet){
         int keySize = keySet.size();
         //如果查询结果集中列数减去开始导出的列的下标后小于表头列的列数，抛出异常

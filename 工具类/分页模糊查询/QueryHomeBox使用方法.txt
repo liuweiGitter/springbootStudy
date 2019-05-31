@@ -1,9 +1,14 @@
-【控制层】
-前端JSON传参格式：
+【前端传参说明】
+//queryPageNum:必填，要查询的页码
+//pageDataCount:必填，每页数量
+//equal:不精确查询时传null，或者忽略该参数(建议统一传null)，精确查询时，格式形如{"onWork":0,...}
+//like:不模糊查询时传null，或者忽略该参数(建议统一传null)，模糊查询时，格式形如{"modelName":"模板",...}
+//order:不排序时传null，或者忽略该参数(建议统一传null)，排序时，格式形如{"plan_name":"desc",...}
+示例：
 {
     "queryPageNum": 1,
     "pageDataCount": 5,
-    "equal": {},
+    "equal": null,
     "like": {
         "planName": "测"
     },
@@ -11,51 +16,177 @@
         "plan.update_time": "desc"
     }
 }
+
+【QueryHomeBox字段说明及使用范例概述】
+
+>>>>>>>>>>>>>1.分页
+
+----QueryHomeBox分页字段----
+字段名：	queryPageNum	pageDataCount	limitStart						rowNumUp(<=)				prowNumDown(>=)
+释义：      要查询的页码	每页数量		mysql分页limit开始值			oracle分页rownum上限值		oracle分页rownum下限值
+关系：		/           	/				(queryPageNum-1)*pageDataCount	queryPageNum*pageDataCount	1+(queryPageNum-1)*pageDataCount
+示例1：		1				50				0         						50							1
+示例2：		2				50				50         						100							51
+
+
+----oracle分页----
+select *
+from (select rownum as rowno, t.*
+      from table t
+      where ...
+      and rownum <= #{rowNumUp}) table_alias
+where table_alias.rowno >= #{rowNumDown}
+
+
+----mysql分页----
+select *
+from table
+where ...
+limit #{limitStart},#{pageDataCount}
+
+>>>>>>>>>>>>>2.排序
+
+----QueryHomeBox排序字段----
+字段名：	order
+释义：      排序HashMap<String [tableAliasName.]columnName,String descOrAsc>键值对
+示例：		{"create_time":"desc","plan.name","asc"}
+
+
+----mysql/oracle排序----
+select *
+from table
+where ...
+<if test="order != null" >
+	<!--order by后不允许换行-->
+	order by <foreach collection="order" index="key" item="value" open="" close="" separator=",">${key} ${value}</foreach>
+</if>
+
+>>>>>>>>>>>>>3.模糊查询
+
+----QueryHomeBox模糊查询字段----
+字段名：	like
+释义：      T like泛型实体类对象
+示例：		{"planName": "测"}
+
+----oracle模糊查询----(mapper.xml需要对like判空，此处不述)
+select *
+from table
+where column_name like '%'||#{like.like_properties}||'%'
+
+----mysql模糊查询----
+select *
+from table
+where column_name like concat('%',#{like.like_properties},'%')
+
+>>>>>>>>>>>>>4.精确查询
+
+----QueryHomeBox精确查询字段----
+字段名：	equal
+释义：      T equal泛型实体类对象
+示例：		{"planName": "测试"}
+
+----mysql/oracle精确查询----(mapper.xml需要对equal判空，此处不述)
+select *
+from table
+where column_name = #{equal.equal_properties}
+
+>>>>>>>>>>>>>5.其它查询(反选、匹配所有关系运算符的操作)
+反选写入inverse字段
+匹配所有关系运算符统一约定全部写入relationMap键，参见relationMap字段说明
+当有这种特殊条件时，传参格式如下：
+{
+    "queryPageNum": 1,
+    "pageDataCount": 5,
+    "equal": null,
+    "like": {
+        "planName": "测"
+    },
+    "order": {
+        "plan.update_time": "desc"
+    },
+	"inverse": true,
+    "relationMap": {
+        "列1": { "relation": ">","value": 50 },
+        "列2": { "relation": ">=","value": 50 },
+        "列3": { "relation": "<","value": 50 },
+        "列4": { "relation": "<=","value": 50 },
+        "列5": { "relation": "=","value": 50 },
+        "列6": { "relation": "<>","value": 50 },
+        "列7": { "not":false, "between": 50, "and": 60 },
+        "列8": { "not":true, "like": "men" }
+    }
+}
+mapper.xml文件取值时范例如下：
+	<if test="relationMap != null and relationMap.列1到6 != null" >
+		and 列1到6 ${relationMap.列1到6.relation} #{relationMap.列1到6.value}
+	</if>
+	<if test="relationMap != null and relationMap.列7 != null" >
+		and 列7 <if test="relationMap.列7.not == true" >not</if> between #{relationMap.列7.between} and #{relationMap.列7.and}
+	</if>
+	<if test="relationMap != null and relationMap.列8 != null" >
+		and 列8 <if test="relationMap.列8.not == true" >not</if> like concat('%',#{relationMap.列8.like},'%')
+	</if>
+
+【控制层】
+前端JSON传参格式：
+	{
+		"queryPageNum": 1,
+		"pageDataCount": 5,
+		"equal": {},
+		"like": {
+			"planName": "测"
+		},
+		"order": {
+			"plan.update_time": "desc"
+		}
+	}
 控制方法接收参数：
 @RequestBody QueryHomeBox<T> queryHomeBox
 响应数据类型：
 ResponseBox<T>，参见《增删改查统一response/ResponseBox使用方法》
 响应JSON格式：
-{
-    "success": true,
-    "msg": "查询成功！",
-    "responseCode": 200,
-    "detail": null,
-    "list": [
-        {
-            "id": 13,
-            "planName": "测试8",
-            "ownerId": "测试用户",
-            "location": "南京",
-            "modelName": "测试模板",
-            "planSubnetList": null,
-            "planPortList": null,
-            "planPfItemList": null,
-            "status": "草稿",
-            "updateTime": "2019-05-27T14:04:30"
-        },
-        {
-            "id": 12,
-            "planName": "测试7",
-            "ownerId": "测试用户",
-            "location": "南京",
-            "modelName": "测试模板",
-            "planSubnetList": null,
-            "planPortList": null,
-            "planPfItemList": null,
-            "status": "草稿",
-            "updateTime": "2019-05-27T11:26:18"
-        }
-    ],
-    "page": {
-        "pageDataCount": 2,
-        "queryPageNum": 2,
-        "totalCount": 5,
-        "totalPageNum": 3
-    }
-}
-
-
+	{
+		"success": true,
+		"msg": "查询成功！",
+		"responseCode": 200,
+		"detail": null,
+		"list": [
+			{
+				"id": 11,
+				"planName": "测试",
+				"creator": "liuwei",
+				"owner": "liuwei",
+				"periodYear": "每一日",
+				"periodMonth": null,
+				"periodDay": null,
+				"periodTime": "06:00",
+				"quartzExp": "00 00 06 * * ? *",
+				"period": "每一日   06:00",
+				"startTime": "2019-05-30 08:00:00",
+				"endTime": "2019-06-30 08:30:00",
+				"timeRange": null,
+				"lastRunTime": null,
+				"location": "南京",
+				"modelName": "光路误码模板",
+				"taskStatus": 0,
+				"runStatus": 9,
+				"exceptionFlag": false,
+				"createTime": "2019-05-30 10:23:34",
+				"updater": null,
+				"updateTime": null,
+				"planSubnetList": null,
+				"planPortList": null,
+				"planPfItemList": null
+			}
+		],
+		"page": {
+			"pageDataCount": 2,
+			"queryPageNum": 2,
+			"totalCount": 5,
+			"totalPageNum": 3
+		}
+	}
+控制类相关代码
     @Autowired
     private PlanBaseService planBaseService;
 
@@ -103,45 +234,29 @@ ResponseBox<T>，参见《增删改查统一response/ResponseBox使用方法》
     </select>
     <!--查列表：模糊条件、精确条件、排序、分页-->
     <select id="queryPlansByConditions" resultType="PlanBase">
-        <include refid="plan_list_query" />
-    </select>
-	<sql id="plan_list_common">
-        from oper_plan as plan,oper_plan_user as man
-        where plan.del_flag = 0
-        <if test="like.planName != null" >
-            and plan.plan_name like concat('%',#{like.planName},'%')
-        </if>
-        <if test="like.location != null" >
-            and plan.location like concat('%',#{like.location},'%')
-        </if>
-        <if test="equal.status != null" >
-            <choose>
-                <when test="equal.status == '草稿'">
-                    and plan.status = 0
-                </when >
-                <when test="equal.status == '激活'">
-                    and plan.status = 1
-                </when >
-                <when test="equal.status == '挂起'">
-                    and plan.status = 2
-                </when >
-            </choose>
-        </if>
-        <if test="like.ownerId != null" >
-            and man.cn_name like concat('%',#{like.ownerId},'%')
-        </if>
-        and man.id = plan.owner_id
-    </sql>
-	<sql id="plan_list_query">
-        select plan.id,plan.plan_name,man.cn_name as owner_id,plan.location,plan.model_name,
-        case plan.status when 0 then '草稿' when 1 then '激活' when 2 then '挂起' else '异常' end as status
-        ,plan.update_time
+        select *
+        ,concat(period_year,' ',if(period_month is null,'',period_month),' ',if(period_day is null,'',period_day),' ',period_time) as period
+        ,if(update_time = '9999-12-31 23:59:59','永久',concat(start_time,'到',end_time)) as time_range
         <include refid="plan_list_common"></include>
         <if test="order != null" >
             <!--order by后不允许换行-->
             order by <foreach collection="order" index="key" item="value" open="" close="" separator=",">${key} ${value}</foreach>
         </if>
         limit #{limitStart},#{pageDataCount}
+    </select>
+	<sql id="plan_list_common">
+        from oper_plan
+        where del_flag = 0
+        <if test="like != null and like.planName != null" >
+            and plan_name like concat('%',#{like.planName},'%')
+        </if>
+        <if test="equal != null and equal.taskStatus != null" >
+            and task_status = #{equal.taskStatus}
+        </if>
+        <!--创建时间段-->
+        <if test="equal != null and equal.startTime != null and equal.endTime != null " >
+            and create_time between #{equal.startTime} and #{equal.endTime}
+        </if>
     </sql>
 
 【实体类】
