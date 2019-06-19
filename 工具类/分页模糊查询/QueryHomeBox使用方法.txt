@@ -235,8 +235,13 @@ ResponseBox<T>，参见《增删改查统一response/ResponseBox使用方法》
     <!--查列表：模糊条件、精确条件、排序、分页-->
     <select id="queryPlansByConditions" resultType="PlanBase">
         select *
+<<<<<<< HEAD
         ,concat(period_year,if(period_month is null,'',concat(' ',period_month)),if(period_day is null,'',concat(' ',period_day,'号')),' ',period_time) as period
         ,if(end_time = '9999-12-31 23:59:59','永久',concat(start_time,'到',end_time)) as time_range
+=======
+        ,concat(period_year,' ',if(period_month is null,'',period_month),' ',if(period_day is null,'',period_day),' ',period_time) as period
+        ,if(update_time = '9999-12-31 23:59:59','永久',concat(start_time,'到',end_time)) as time_range
+>>>>>>> b1025695160880fd4ff61063ae2eb4e37da47776
         <include refid="plan_list_common"></include>
         <if test="order != null" >
             <!--order by后不允许换行-->
