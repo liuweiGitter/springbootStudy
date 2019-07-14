@@ -1,0 +1,76 @@
+<?xml version="1.0"?>
+<!DOCTYPE mycat:schema SYSTEM "schema.dtd">
+<mycat:schema xmlns:mycat="http://io.mycat/">
+	<!-- 逻辑表：一个表一个库 -->
+	<!-- 分片表：一个表多个库 -->
+	<!-- ER表：所有子表和主表在一个库，避免跨库查询 -->
+	<!-- 全局表：数据量不多的公共表所有库的保存，通过数据冗余解决跨库查询 -->
+	
+	<!-- 声明一个逻辑库, tnms_tx, 和server.xml中的对应 -->
+	<schema name="tnms_tx" checkSQLschema="false" sqlMaxLimit="100">
+		<!-- 指定逻辑表名为oper_plan_port, 是在oper_plan_port_node节点上-->
+		<!-- 按作业计划id模4分片 -->
+		<!-- dataNode和subTables支持表达式匹配，如dataNode=dn1$0-743表示dn10到dn1743节点 -->
+		<!-- 此处单库分表，即只分表不分库 -->
+		<!-- 模后得0存表1，得1存表2，类推 -->
+		<table name="oper_plan_port" primaryKey="id" autoIncrement="true" subTables="oper_plan_port$1-4"
+		dataNode="oper_plan_port_node1" rule="plan-id-mod-long" />
+		
+		<!-- 分片表：一个表多个库 -->
+		<!-- <table name="oper_plan_port" primaryKey="id" autoIncrement="true" dataNode="oper_plan_port_node1" rule="plan-id-mod-long" /> -->
+		<!--全局表-->
+		<!-- <table name="company" primaryKey="ID" type="global" dataNode="dn1,dn2,dn3" /> -->
+		<!--关联表-->
+		<!-- <table name="employee" primaryKey="ID" dataNode="dn1,dn2"
+			   rule="sharding-by-intfile" />
+		<table name="customer" primaryKey="ID" dataNode="dn1,dn2"
+			   rule="sharding-by-intfile">
+			<childTable name="orders" primaryKey="ID" joinKey="customer_id"
+						parentKey="id">
+				<childTable name="order_items" joinKey="order_id"
+							parentKey="id" />
+			</childTable>
+			<childTable name="customer_addr" primaryKey="ID" joinKey="customer_id"
+						parentKey="id" />
+		</table> -->
+	</schema>
+	
+	<dataNode name="oper_plan_port_node1" dataHost="localhost_oper" database="tnms_tx" />
+	<!-- <dataNode name="oper_plan_port_node2" dataHost="localhost_oper" database="tnms_tx" />
+	<dataNode name="oper_plan_port_node3" dataHost="localhost_oper" database="tnms_tx" />
+	<dataNode name="oper_plan_port_node4" dataHost="localhost_oper" database="tnms_tx" /> -->
+	
+	<dataHost name="localhost_oper" maxCon="1000" minCon="10" balance="0"
+			  writeType="0" dbType="mysql" dbDriver="native" switchType="1"  slaveThreshold="100">
+		<heartbeat>select user()</heartbeat>
+		<!-- 分布式集群中，可以读写分离，可以多读多写 -->
+		<!-- can have multi write hosts -->
+		<writeHost host="hostM1" url="localhost:3306" user="root" password="password"/>
+		<!-- can have multi read hosts 但是配了readHost会报错格式错误，readHost应该为writeHost子节点，待验证 -->
+		<!-- <readHost host="hostS1" url="localhost:3306" user="root" password="password"/> -->
+		<!-- <writeHost host="hostM2" url="localhost:3316" user="root" password="123456"/> -->
+		<!-- <readHost host="hostS2" url="localhost:3316" user="root" password="123456" /> -->
+	</dataHost>
+	<!--
+		<dataHost name="sequoiadb1" maxCon="1000" minCon="1" balance="0" dbType="sequoiadb" dbDriver="jdbc">
+		<heartbeat> 		</heartbeat>
+		 <writeHost host="hostM1" url="sequoiadb://1426587161.dbaas.sequoialab.net:11920/SAMPLE" user="jifeng" 	password="jifeng"></writeHost>
+		 </dataHost>
+
+	  <dataHost name="oracle1" maxCon="1000" minCon="1" balance="0" writeType="0" 	dbType="oracle" dbDriver="jdbc"> <heartbeat>select 1 from dual</heartbeat>
+		<connectionInitSql>alter session set nls_date_format='yyyy-mm-dd hh24:mi:ss'</connectionInitSql>
+		<writeHost host="hostM1" url="jdbc:oracle:thin:@127.0.0.1:1521:nange" user="base" 	password="123456" > </writeHost> </dataHost>
+
+		<dataHost name="jdbchost" maxCon="1000" 	minCon="1" balance="0" writeType="0" dbType="mongodb" dbDriver="jdbc">
+		<heartbeat>select 	user()</heartbeat>
+		<writeHost host="hostM" url="mongodb://192.168.0.99/test" user="admin" password="123456" ></writeHost> </dataHost>
+
+		<dataHost name="sparksql" maxCon="1000" minCon="1" balance="0" dbType="spark" dbDriver="jdbc">
+		<heartbeat> </heartbeat>
+		 <writeHost host="hostM1" url="jdbc:hive2://feng01:10000" user="jifeng" 	password="jifeng"></writeHost> </dataHost> -->
+
+	<!-- <dataHost name="jdbchost" maxCon="1000" minCon="10" balance="0" dbType="mysql"
+		dbDriver="jdbc"> <heartbeat>select user()</heartbeat> <writeHost host="hostM1"
+		url="jdbc:mysql://localhost:3306" user="root" password="123456"> </writeHost>
+		</dataHost> -->
+</mycat:schema>

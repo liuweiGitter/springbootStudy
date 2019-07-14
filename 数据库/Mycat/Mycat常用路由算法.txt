@@ -1,0 +1,67 @@
+Mycat内置了许多路由算法，实际为java类方法，全部位于./lib/Mycat-server-xxx-release.jar/io.mycat.route.function包下
+分片列是不允许修改的，在设置分片列时，需要注意这一点
+分片算法的结果是返回一个int整数，表示分片数据源数组的下标(从0开始)，对应一个数据源
+参见https://www.cnblogs.com/756623607-zhang/p/6656022.html
+
+1.整数取模：PartitionByMod
+如果分片列为整数列，可以设置此路由算法
+rule.xml相关配置
+	<tableRule name="mod-long">
+		<rule>
+			<columns>需要分片计算的列名，必须是整数列，如自增长的id、其它整数字段等</columns>
+			<algorithm>算法名，等于function中的name，mod-long</algorithm>
+		</rule>
+	</tableRule>
+	<function name="算法名，自定义，如mod-long" class="io.mycat.route.function.PartitionByMod">
+		<property name="count">取模的模数，如分库分表3张则取3</property>
+	</function>
+算法核心代码
+	BigInteger bigNum = new BigInteger(columnValue).abs();
+	return Integer.valueOf(bigNum.mod(BigInteger.valueOf(this.count)).intValue());
+	
+2.每月对应一张表：PartitionByMonth
+如果分片列为日期或日期时间列，可以设置此路由算法
+rule.xml相关配置
+	<tableRule name="sharding-by-month">
+		<rule>
+			<columns>create_time</columns>
+			<algorithm>partbymonth</algorithm>
+		</rule>
+	</tableRule>
+	<function name="partbymonth" class="io.mycat.route.function.PartitionByMonth">
+		<!--<property name="sBeginDate">2000-01-01</property>-->
+		<!--<property name="sEndDate">2099-12-01</property>-->
+	</function>
+sBeginDate和sEndDate都不配置时，每个月份对应一张表，共分片12张表，返回月份数值
+sBeginDate不配置时，报错空指针
+sBeginDate配置sEndDate不配置时，每月独立一张表，共动态分片n张表，返回插入数据时的日期与sBeginDate的月份差
+	允许插入数据的日期月份早于sBeginDate，即允许返回负值(负值如何处理？应该是负索引处理，存疑)
+sBeginDate和sEndDate都配置时，sEndDate的年份和月份必须大于sBeginDate，否则报错
+	正确配置后，每个月份对应一张表，共分片(sBeginDate和sEndDate月份差)张表
+	允许插入数据的日期月份早于sBeginDate或晚于sEndDate，但不会返回负值
+	早于sBeginDate时，计算与sBeginDate月份差的绝对值，对分片数取余，然后用分片数减去取余数返回
+	不早于sBeginDate时，计算与sBeginDate月份差，对分片数取余返回
+	可以看到，sBeginDate和sEndDate都配置时，主要是决定了分片数，为了方便计算结果，此时sBeginDate早于所有需要分片插入的可能的日期最好
+
+3.每天对应一张表：PartitionByDate
+如果分片列为日期或日期时间列，可以设置此路由算法
+rule.xml相关配置
+	<tableRule name="sharding-by-date">
+		<rule>
+			<columns>create_time</columns>
+			<algorithm>partbydate</algorithm>
+		</rule>
+	</tableRule>
+	<function name="partbydate" class="io.mycat.route.function.PartitionByDate">
+		<property name="sPartionDay">分片几张表，如需每周一到每周日各一张表，此处可取7</property>
+		<property name="dateFormat">时间格式化，由于内部算法需要，此处固定取yyyy-MM-dd</property>
+		<property name="sBeginDate">2000-01-01</property>
+		<!--<property name="sEndDate">2099-12-01</property>-->
+	</function>
+共分片sPartionDay张表
+sBeginDate必须配置，否则报错空指针
+sEndDate不配置时，返回插入数据时的日期与sBeginDate的日期差取余sPartionDay，插入日期可以早于sBeginDate，但最好不要这么做
+sEndDate可以配置，但除非必要，一定不要这么做，这会导致双重取余，不赘述
+
+未完待续...
+

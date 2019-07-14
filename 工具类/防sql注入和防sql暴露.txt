@@ -1,0 +1,63 @@
+1.防sql注入
+
+/*
+防止sql注入的过滤
+mybatis的#操作已实现防sql注入，#获取的参数，不必另外进行sql处理
+$获取的参数，如果不来自前端传参，而是来自后端控制，也不必另外进行sql处理
+$获取的参数，如果有来自前端传参的成分，则必须另外进行sql处理
+本工具类，对所有String类型和转为String类型的参数值，过滤参数中的引号，有非法字符时，抛出异常，从而防止sql语句变形
+*/
+
+public class SqlFilterUtil {
+
+    //参数值类型的处理
+    public static String getColumnValue(Object value) {
+        if (value instanceof String){//字符串类型
+            return  "\""+sqlInjectFilter(value.toString())+"\"";
+        }else if (value instanceof Number || value instanceof Boolean){//数字类型或布尔类型
+            return  ""+value;
+        }else{//其他类型必须转为以上3种类型之一，否则抛出异常
+            throw new BadSqlGrammarException("SQL statement create with column value of ["+value.toString()+"]",value.toString(),
+                    new SQLException("Column value type error ! Type should be or translate to be String,Number or Boolean"));
+        }
+    }
+	
+	//非法字符过滤
+	private static String sqlInjectFilter(String value){
+		if (!value.contains("\"") && !value.contains("'")){//参数值中不包含"和'时为合法sql参数
+			return value;
+		}else{
+			throw new BadSqlGrammarException("SQL statement create with column value of ["+value+"]",value,
+					new SQLException("Column value character error ! value must not contain character \" or '"));
+		}
+	}
+}
+
+
+2.防sql暴露
+在sql入参错误时，如一些必填字段未填写、一些字段类型填写错误等，将导致sql语句拼写错误
+如果不进行sql异常信息屏蔽，前端将会收到类似以下响应：
+{
+    "timestamp": "2019-07-11T02:26:33.852+0000",
+    "status": 500,
+    "error": "Internal Server Error",
+    "message": "\r\n### Error updating database.  Cause: java.sql.SQLIntegrityConstraintViolationException: Column 'board_model' cannot be null\r\n### The error may exist in file [F:\\NOC\\Trans\\Git\\hxtnms\\operationplan\\target\\operationplan-0.0.1-SNAPSHOT\\WEB-INF\\classes\\mapper\\mysql\\ThresholdMapper.xml]\r\n### The error may involve com.telecom.js.noc.hxtnms.operationplan.mapper.mysql.ThresholdMapper.addOne-Inline\r\n### The error occurred while setting parameters\r\n### SQL: insert into threshold_config_city (          id,threshold_name,threshold_disc,board_model,aliasname,vendor,city,create_user,layer,threshold_single,         threshold_ref_lower,threshold_ref_upper,threshold_lower,threshold_upper,threshold_offset,port_type,del_flag,         update_time,create_time,extra1,extra2,extra3      )         values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)\r\n### Cause: java.sql.SQLIntegrityConstraintViolationException: Column 'board_model' cannot be null\n; Column 'board_model' cannot be null; nested exception is java.sql.SQLIntegrityConstraintViolationException: Column 'board_model' cannot be null",
+    "path": "/operationplan/threshold/add"
+}
+
+sql文件位置以及sql语句都被暴露到前端，造成安全隐患
+sql错误都是SQLException类型的错误，需要对该错误全面进行屏蔽，参见《SpringBoot拦截异常重写json响应》
+
+
+
+
+
+
+
+
+
+
+
+
+
+

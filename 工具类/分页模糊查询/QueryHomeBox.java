@@ -13,11 +13,11 @@ import java.util.Map;
 @Data
 public class QueryHomeBox<T> {
     /**
-     * 条件使用泛型以加强参数名称和类型约束
+     * 条件使用泛型可以加强参数名称和类型约束
      */
-    //模糊条件
+    //模糊条件：实体类，也可以使用relationMap或likeMap，当使用map时，创建QueryHomeBox不需要实体类泛型
     private T like;
-    //精确条件
+    //精确条件：实体类，也可以使用relationMap或equalMap，当使用map时，创建QueryHomeBox不需要实体类泛型
     private T equal;
     //排序：Map<columnName,desc or asc>
     private Map<String,String> order;
@@ -30,10 +30,7 @@ public class QueryHomeBox<T> {
     private int rowNumUp;//oracle：rownum上限，<=
     private int rowNumDown;//oracle：rownum下限，>=
 
-    //查询列表
-    private List<T> resultList;
-
-    //自定义setter：分页limit和上下限
+    //自定义setter：mysql分页limit和oracle分页上下限
     public void setQueryPageNum(int queryPageNum){
         this.queryPageNum = queryPageNum;
         if (0 < pageDataCount){
@@ -51,15 +48,12 @@ public class QueryHomeBox<T> {
         }
     }
 
-    //自定义setter：总数查询
+    //自定义setter：总数查询后赋值总数和总页数
     public void setTotalCount(int totalCount){
         this.totalCount = totalCount;
         this.totalPageNum = totalCount%pageDataCount==0?totalCount/pageDataCount:totalCount/pageDataCount+1;
     }
 
-    //扩展查询：反选、匹配所有关系运算符的操作，少数查询将用到
-    //是否反选，默认false
-    private boolean inverse;
     //匹配所有关系运算符：Map<columnName,Map<relation,notOrColumnValue>>
     //>,>=,<,<=,=,!=,between,not between,like,not like等
     //示例如下：
@@ -74,5 +68,27 @@ public class QueryHomeBox<T> {
         "列8": { "not":true, "like": "men" }
     }*/
     private Map<String,Map<String,Object>> relationMap;
+
+    /**
+     * 对于所有参数都可以使用relationMap，但很多数情况下为等值查询
+     * 对于所有的等值查询，可以使用数据结构更加简单的equalMap
+     */
+    private Map<String,Object> equalMap;
+
+    /**
+     * 对于所有参数都可以使用relationMap，但很多数情况下为模糊查询
+     * 对于所有的模糊查询，可以使用数据结构更加简单的likeMap
+     * 半模糊还是全模糊，由实际业务约定
+     */
+    private Map<String,Object> likeMap;
+
+    //扩展查询：反选、匹配所有关系运算符的操作，少数查询将用到
+    //是否反选，默认false
+    private boolean inverse;
+
+    //扩展查询：字符串列表，少数查询将用到，如按多个字符串id查询
+    private List<String> strList;
+    //扩展查询：整数列表，少数查询将用到，如按多个整数id查询
+    private List<Integer> intList;
 
 }

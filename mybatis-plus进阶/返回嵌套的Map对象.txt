@@ -1,0 +1,23 @@
+﻿mybatis可以对结果集返回List<Map<String key,Object Value>>对象，参数resultType填写为"Map"即可
+mybatis会自动将结果集中每一行的列名- -列值组装为map对象
+
+很多情况下，不需要返回list对象，而是需要返回Map<String或Integer mapId,Map<Stringkey,Object Value>>类型的对象
+其中mapId是结果集中唯一约束列，通常是数据id，可能是String类型，也可能是Integer类型
+方法如下：
+
+1.mapper层添加@MapKey注解
+注解参数为结果集中mapId的列名，如
+    @MapKey("id")
+    Map<Integer, Map<String, Object>> queryRecollectData(QueryHomeBox queryHomeBox);
+	
+2.mapper.xml查询结果集返回Map
+xml文件没有特别要配置的东西，只需返回Map或者LinkedMap即可，如
+    <select id="queryRecollectData" resultType="Map">
+        ...
+    </select>
+	
+取得嵌套Map对象后，通常需要遍历Map，模板代码如：
+	for (Map.Entry<Integer, Map<String, Object>> entry : map.entrySet()) {
+		System.out.println("mapId= " + entry.getKey() + " and mapRow= "
+				+ entry.getValue());
+	}

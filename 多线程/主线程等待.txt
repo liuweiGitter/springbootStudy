@@ -1,0 +1,31 @@
+一个业务中，可能会开启多个子线程执行计算或数据库访问等耗时操作，主线程可能需要等待所有子线程结束后再执行
+示例代码如下：
+
+	主线程...
+	//创建一个固定数量线程池
+	int threadPoolSize = 固定线程池线程总数;
+	ExecutorService fixedThreadPool = Executors.newFixedThreadPool(threadPoolSize);
+	//创建子线程等待的countDownLatch对象
+	int waitCount = 需要等待的子线程数，即业务逻辑总共用到的线程总数
+	final CountDownLatch countDownLatch = new CountDownLatch(waitCount);
+	//子线程逻辑
+	for (int i = 0; i < waitCount ; i++) {
+		final int k = i;
+		fixedThreadPool.execute(new Runnable() {
+			@Override
+			public void run() {
+				子线程逻辑...
+				countDownLatch.countDown();
+			}
+		});
+	}
+	主线程...
+	try {
+		//子线程countDown阻塞等待
+		countDownLatch.await();
+	} catch (InterruptedException e) {
+		log.info("子线程异常中断",e);
+	}
+	主线程...
+
+

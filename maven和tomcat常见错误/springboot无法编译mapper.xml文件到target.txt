@@ -1,0 +1,41 @@
+一般情况下，ide中启动tomcat时，会自动重新编译、打包、部署代码
+如果是在启动tomcat时丢失文件，应停止tomcat服务，然后clean并install代码(即重新maven编译，而不是通过ide自动部署)，然后再启动tomcat
+
+如果重新maven编译后还有问题，在pom.xml文件添加如下一级标签：
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+        </plugins>
+        <!-- 解决idea导入maven工程无法把mapper.xml文件添加到target文件目录下的问题 -->
+        <!-- 把resources目录下的所有文件不经编译直接拷到target目录下即可 -->
+        <!-- 如果还有问题，则指定到具体的文件名 -->
+        <resources>
+            <resource>
+                <directory>${basedir}/src/main/resources</directory>
+                <excludes>
+                    <exclude>mapper</exclude>
+                </excludes>
+            </resource>
+            <resource>
+                <directory>${basedir}/src/main/resources/mapper</directory>
+                <includes>
+                    <include>**/*.xml</include>
+                </includes>
+                <targetPath>mapper</targetPath>
+            </resource>
+        </resources>
+    </build>
+	
+maven单模块的话，一般这样配置就够了
+对于maven多模块，如果本模块有依赖父模块或其它子模块，则需要依赖模块也正确编译才可以
+多人协同开发时，其它模块的代码可能有更新，甚至可能版本号也被更新
+在本模块编译出现错误时，可以先更新依赖模块代码，然后编译这些依赖的jar包，然后再编译本模块
+建议，如果本模块并不依赖父模块或者其它子模块，就不要随意引入这些不必要的依赖，以免出现不必要的编译问题
+
+
+
+

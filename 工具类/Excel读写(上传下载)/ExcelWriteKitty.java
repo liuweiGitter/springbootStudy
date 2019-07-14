@@ -4,6 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.hssf.usermodel.*;
 import org.apache.poi.hssf.util.HSSFColor;
 
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.Date;
@@ -37,18 +38,51 @@ public class ExcelWriteKitty {
     //结果集从第几列开始读写，默认从第1列开始，允许自定义开始列，列数基于0
     private int mapResultStartIndex = 0;
 
+    /**
+     * 自动获取map数据列名且自定义表样式的构造函数
+     * 由于map查询字段为null时不创建key，因此dataListMap.get(0).keySet()可能小于实际值，从而导致导出错误
+     * 自动获取map列名必须在查询时对可能为null的字段进行非null处理
+     * 部分情况下，导出的每一列都是非空的，但更多的情况下，可能有null数据
+     * 此构造函数酌情慎用
+     * 如果使用此构造函数，务必使用LinkedHashMap查询数据，以保证key顺序
+     * @param sheetName 表名
+     * @param headerNames 表头名
+     * @param headerStyle 表头样式
+     * @param bodyStyle 表样式
+     */
     public ExcelWriteKitty(String sheetName, String[] headerNames, HSSFCellStyle headerStyle, HSSFCellStyle bodyStyle){
         init(sheetName,headerNames,headerStyle,bodyStyle);
         createSheet();
     }
-
+    /**
+     * 自动获取map数据列名且使用默认表样式的构造函数
+     * 由于map查询字段为null时不创建key，因此dataListMap.get(0).keySet()可能小于实际值，从而导致导出错误
+     * 自动获取map列名必须在查询时对可能为null的字段进行非null处理
+     * 部分情况下，导出的每一列都是非空的，但更多的情况下，可能有null数据
+     * 此构造函数酌情慎用
+     * 如果使用此构造函数，务必使用LinkedHashMap查询数据，以保证key顺序
+     * @param sheetName 表名
+     * @param headerNames 表头名
+     */
     public ExcelWriteKitty(String sheetName, String[] headerNames){
         init(sheetName,headerNames,workbook.createCellStyle(),workbook.createCellStyle());
         defaultStyle();
         createSheet();
     }
+    /**
+     * 自定义map数据列名且使用默认表样式的构造函数：任何时候，推荐如此
+     * @param sheetName 表名
+     * @param headerNames 表头名
+     * @param columnNames map列名
+     */
+    public ExcelWriteKitty(String sheetName, String[] headerNames, String[] columnNames){
+        init(sheetName,headerNames,workbook.createCellStyle(),workbook.createCellStyle());
+        this.columnNames = columnNames;
+        defaultStyle();
+        createSheet();
+    }
 
-    //设置从第mapResultStartIndex列开始读写，列数基于0
+    //设置从第mapResultStartIndex列开始读写，列数基于0，在自动获取map列名时允许如此设置
     public ExcelWriteKitty setStartColumnIndex(int mapResultStartIndex){
         this.mapResultStartIndex = mapResultStartIndex;
         return this;
@@ -63,15 +97,15 @@ public class ExcelWriteKitty {
         this.headerNames = headerNames;
         this.headerStyle = headerStyle;
         this.bodyStyle = bodyStyle;
-        this.columnNames = new String[headerNames.length];
     }
 
-    //初始化map数据列名
+    //初始化map数据列名，在自动获取map列名时调用
     private void initColumnName(Set<String> keySet){
+        this.columnNames = new String[headerNames.length];
         int keySize = keySet.size();
         //如果查询结果集中列数减去开始导出的列的下标后小于表头列的列数，抛出异常
         if (headerNames.length > keySize-mapResultStartIndex){
-            throw new IllegalStateException("查询结果集共"+keySet.size()+
+            throw new IllegalStateException("查询结果集共"+keySize+
                     "列，指定导出"+
                     (keySize-mapResultStartIndex)+"列，表头共"+headerNames.length+"列，表头列数过多！");
         }
@@ -147,8 +181,10 @@ public class ExcelWriteKitty {
             log.info("无数据写入！");
             return false;
         }
-        //初始化列名
-        initColumnName(dataListMap.get(0).keySet());
+        //初始化列名：在自动获取map列名时调用，自定义列名时不允许调用
+        if(null == this.columnNames){
+            initColumnName(dataListMap.get(0).keySet());
+        }
         int dataCount = dataListMap.size();
         int columnCount = headerNames.length;
 
@@ -176,6 +212,10 @@ public class ExcelWriteKitty {
      * @param value
      */
     private void setCellValue(HSSFCell cell,Object value){
+        if (null == value){
+            cell.setCellValue("");
+            return;
+        }
         if (value instanceof String){//字符串
             cell.setCellValue(value.toString());
         }else if (value instanceof Integer){//整数
@@ -197,7 +237,7 @@ public class ExcelWriteKitty {
             return false;
         }
         try {
-            //workbook.write(new FileOutputStream("E:\\123.xlsx"));postman传参，本地写入文件测试
+            //workbook.write(new FileOutputStream("E:\\123.xlsx"));//postman传参，本地写入文件测试
             workbook.write(out);
             out.close();
         } catch (IOException e) {

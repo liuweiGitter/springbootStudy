@@ -1,0 +1,120 @@
+java.util.List接口及其所有JDK实现类ArrayList、LikedList等都是线程非安全类
+这些list中所有的add、addAll、remove、removeAll方法都是线程不安全的
+java.util.Collections的静态内部类SynchronizedList则是常用的线程安全类，但这个类并没有对所有的数据写操作方法同步，只对部分常用方法进行了同步
+除了这个JDK自带安全类，还可以自定义安全ArrayList，只需要对上述数据写操作方法同步即可
+
+【多线程不安全的ArrayList】add方法示例
+    @Test
+    public void testThreadUnSafe(){
+        List<Integer> list = new ArrayList<>();
+        ExecutorService fixedThreadPool = Executors.newFixedThreadPool(5);
+        final CountDownLatch countDownLatch = new CountDownLatch(5);
+        for (int i = 0; i < 5; i++) {
+            final int k = i;
+            fixedThreadPool.execute(new Runnable() {
+                @Override
+                public void run() {
+                    for (int j = 1; j <= 10000 ; j++) {
+                        list.add(k*10000+j);
+                    }
+                    countDownLatch.countDown();
+                }
+            });
+        }
+        try {
+            countDownLatch.await();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        log.info("数组长度:"+list.size());
+    }
+理想情况下，代码可以正常执行而不抛出异常，且打印结果为50000，但实际运行则几乎绝对会出现以下3个问题中的至少一个：
+①数组越界：
+Exception in thread "pool-1-thread-2" java.lang.ArrayIndexOutOfBoundsException: 15
+②list长度减小：
+19:53:55.080 [main] INFO multithread.test.ListTest - 数组长度:36788
+③数组元素null值：
+某些数组元素为null值
+
+ArrayList的add方法实现如下：
+    public boolean add(E e) {
+        ensureCapacityInternal(size + 1);  // Increments modCount!!
+        elementData[size++] = e;
+        return true;
+    }
+可以看到add方法没有被同步，因此是线程不安全的，多个线程可能对同一个下标赋值，因此造成##--list长度减小--##
+而add方法下标扩容和下标取值并不是原子操作，这是##--数组越界--##的原因所在，具体分析如下
+step1:ensureCapacityInternal(size + 1)判断list是否需要扩容并在需要时对其扩容
+step2:elementData[size++] = e对当前size长度下标处赋值，然后对size自增
+ArrayList的默认初始容量为10，当创建list时指定容量时，实际初始容量取指定值和10之中大的那一个，初始容量是第一个临界容量
+add方法每次执行时，先判断当前size是否等于临界容量，如果等于临界容量，会执行ArrayList扩容，每次扩容量为上一个临界量的50%
+以第一个临界容量为10为例，临界容量数组为10、15、22、33、49、73、109、163、244、366、549、773、1159、...
+假设，在数组长度为9时，线程1和线程2同时调用add方法且线程1先进入
+线程1在step1判断未到临界容量，因此不扩容，之后在执行step2之前，线程切换到了线程2
+线程2在step1判断也是未到临界容量，因此也不扩容，但线程2此时执行了step2，对下标9赋值，并使size自增到了10，然后线程切换到了线程1
+线程1此时执行step2，对下标10赋值，但因为数组未扩容，第一个临界下标为9，因此报错在index 10处数组越界
+以此类推，所有的数组越界都是发生在下标为临界容量值处，越界的原因都是因为下标扩容和下标取值不是原子操作
+
+在new一个ArrayList时，如果不指定初始容量，ArrayList的默认初始容量为10，但此时数组为空数组，size为0，当首次执行add方法时，就会执行数组扩容
+也就是说，实际上，非常重要的时，ArrayList的第一个临界容量是0，上述的数组越界还可能发生在下标0处，只是这种情况非常少见而已
+但，另一种多线程问题也通常发生在临界容量下标处，包括经常出现在下标0处，这就是元素null值，具体示例如下：
+22:53:47.549 [main] INFO multithread.test.ListTest -  [0]null [1]0 [2]5 [3]6 [4]7 [5]1 [6]2 [7]3 [8]20 [9]21
+22:53:47.553 [main] INFO multithread.test.ListTest -  [10]22 [11]23 [12]24 [13]25 [14]26 [15]27 [16]28 [17]29 [18]30 [19]31
+22:53:47.553 [main] INFO multithread.test.ListTest -  [20]32 [21]33 [22]34 [23]35 [24]36 [25]37 [26]38 [27]39 [28]40 [29]41
+22:53:47.553 [main] INFO multithread.test.ListTest -  [30]42 [31]43 [32]44 [33]null [34]48 [35]47 [36]49 [37]50 [38]51 [39]52
+22:53:47.553 [main] INFO multithread.test.ListTest -  [40]53 [41]54 [42]55 [43]56 [44]57 [45]58 [46]59 [47]8 [48]9 [49]10
+22:53:47.553 [main] INFO multithread.test.ListTest -  [50]11 [51]16 [52]17 [53]18 [54]19 [55]12 [56]13 [57]14 [58]15
+以上示例，5个线程添加60个元素，最终，成功添加了59个元素，且0和33元素为null
+假设，在数组长度为33时，线程1和线程2同时调用add方法且线程1先进入step1
+线程1在step1时判断到临界容量，因此扩容到49，扩容完成前切换到了线程2
+线程2在step1时判断到临界容量，因此也扩容到49，扩容完成前切换到了线程1
+线程1完成扩容，step2下标33赋值A，下标自增到34，线程切换到了线程2
+线程2完成扩容，覆盖下标33赋值null(扩容后默认值)，取下标34赋值B
+最终临界容量下标处出现了null值
+
+【线程安全的ArrayList】
+    @Test
+    public void testThreadSafe(){
+		//线程安全的List
+        List<Integer> list = Collections.synchronizedList(new ArrayList<Integer>());
+        int batchSize = 15;
+        int size = 4;
+        ExecutorService fixedThreadPool = Executors.newFixedThreadPool(5);
+        final CountDownLatch countDownLatch = new CountDownLatch(batchSize);
+        for (int i = 0; i < batchSize; i++) {
+            final int k = i;
+            fixedThreadPool.execute(new Runnable() {
+                @Override
+                public void run() {
+                    for (int j = 0; j < size ; j++) {
+						/**
+                         * 不建议使用线程安全的add方法，这种做法会对每个add同步，数据量大时效率很低
+                         * 由于在线程内部是单线程，建议在多线程内部使用临时的线程不安全的ArrayList，对所有元素add后
+                         * 再调用线程安全List的addAll方法同步一次数据即可
+                         * 在jdk1.8的jvm中，少量的非耗时数据并发甚至只会触发偏向锁，而不会进一步升级为轻量级锁和重量级锁
+                         * 这意味着，在大量数据时，addAll方法效率会非常高(即使每批次增加数据量很多，也只是短暂的一次重量级锁而已)
+                         */
+                        list.add(k*size+j);
+                    }
+                    countDownLatch.countDown();
+                }
+            });
+        }
+        try {
+            countDownLatch.await();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        String str = "";
+        for (int i = 0; i < list.size() ; i++) {
+            str+=" ["+i+"]"+list.get(i);
+            if ((i+1)%10==0){
+                log.info(str);
+                str = "";
+            }
+        }
+        if (!"".equals(str)){
+            log.info(str);
+        }
+        log.info("数组长度:"+list.size());
+    }

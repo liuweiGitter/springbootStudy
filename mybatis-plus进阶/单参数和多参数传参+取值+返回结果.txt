@@ -1,0 +1,68 @@
+mybatis传参时，可以传递匿名参数，也可以传递命名参数，可以传递一个参数，也可以传递多个参数
+注：本文中java基本类型包括String(虽然是引用类型，但部分性质和基本类型一致，故归为一类分析)
+
+1.传参时命名(mapper层)
+单参数时，传参都可以不命名，多参数时，所有的传参都应该对每个参数命名
+命名传参对参数加注解@Param("参数名")即可
+
+2.读参时取值(mapper.xml)
+xml中parameterType，在单参数时可以不填写，在多参数时不能填写
+单参数的传参和多参数传参取值方式不同
+单参数，如果是java基本类型，直接取参数值，如果是java对象类型，参数取值则从对象属性取起
+多参数，则从参数名开始取起
+
+匿名的单参数
+	如果是java基本类型，取值时使用任意名称都可以取到，如传参(int id)时可以使用#{id}、#{any_name_you_like}等取参
+	如果是java对象类型，则取值为对象的属性，这其中，普通对象、数组和list集合、map对象又有区别
+		普通对象，按照实际的属性名来取值，这些属性名必须定义有public的get方法
+		数组对象和list集合，取值即遍历数组，可以使用任意名称指代数组，遍历方式如下
+			<foreach collection="any_name_you_like" item="element_name_whatever" index="element_index_whatever" open="(" close=")" separator=",">
+				#{element_name_whatever}
+			</foreach>
+		map对象，取值需要遍历key- -value，必须用到map名，但单参数传对象类型参数时，直接从属性名取起，因此无法使用
+			可以转为多参数传递或者在map对象外再封装一层map来解决此问题
+命名的单参数，需要使用命名名称去取值，除此之外，和匿名单参数取值没有区别
+
+匿名的多参数，绝对不建议，但，mybatis也会默认对其命名，按照参数顺序，分别被命名为param1、param2、...，取参时按命名去取，基本不用，细节不解释
+命名的多参数，取参时按命名去取，除了取参时的第一层为参数名之外，和命名的单参数取值没有区别
+	这其中，可以解决map遍历的问题，示例如下(设map命名为paramMap)：
+	//map并列条件
+		where 1 = 1
+		<foreach collection="paramMap.keys" item="key" open="" close="" separator="">
+			<choose>
+				<when test="'${key}' != 'id'">
+					and ${key} = #{paramMap[${key}]}
+				</when>
+				<otherwise>
+					and id != #{paramMap[id]}
+				</otherwise>
+			</choose>
+		</foreach>
+	//map新增一个
+		insert ignore into ${tableName}
+		<foreach collection="paramMap.keys" item="key" open="(" close=")" separator="," >
+			${key}
+		</foreach>
+		values 
+		<foreach collection="paramMap.keys"  item="key" open="(" close=")" separator=",">
+			#{paramMap[${key}]}
+		</foreach>
+	//map更新一个
+		update ${tableName} set
+		<foreach collection="paramMap.keys" item="key" open="" close="" separator=",">  
+			${key} = #{paramMap[${key}]}  
+		</foreach>
+		where id = #{id}
+
+3.返回sql执行结果
+增删改时
+	resultType可以不写，默认返回int，即执行sql影响的数据行数
+		需要说明的是，对于修改或删除，可能由于数据无变化或者不存在而不去改动数据库，从而出现，sql未执行失败，但影响的数据行数为0
+	resultType可以声明为boolean，即sql执行的成功与否，只要不失败，就是成功
+查询时
+	对于基本类型，resultType不需要填写，也可直接声明为基本类型小写名称(如int)或其包装类的不限定类名(如Integer)，String类型没有小写名称(毕竟为引用类型)
+	对于对象类型，resultType需要填写，需声明为返回类型的完全限定类名(即全路径)或者别名
+		别名可以自定义，但最好使用类名简名，SpringBoot中mybatis定义扫描的实体类包名即可对该包下的所有实体类创建类名同名别名，参见SpringBoot数据源章节中MysqlDataSourceConfig.java
+		结果集如果为List，声明返回List元素的类型
+		结果集如果为Map，声明返回Map(默认为HashMap，也可具体指定为LinkedHashMap)
+

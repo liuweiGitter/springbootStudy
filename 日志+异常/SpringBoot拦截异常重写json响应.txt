@@ -1,0 +1,124 @@
+前后端分离时，页面都在前端服务器，后端服务器主要接收ajax(get或post)请求，并响应json字符串
+在程序出现异常时，Springboot默认会将异常信息响应到前端，比如一些sql语句和文件位置
+需要对各类Exception异常进行拦截，重写json字符串，以屏蔽敏感信息
+
+拦截前响应：
+{
+    "timestamp": "2019-07-11T02:26:33.852+0000",
+    "status": 500,
+    "error": "Internal Server Error",
+    "message": "\r\n### Error updating database.  Cause: java.sql.SQLIntegrityConstraintViolationException: Column 'board_model' cannot be null\r\n### The error may exist in file [F:\\NOC\\Trans\\Git\\hxtnms\\operationplan\\target\\operationplan-0.0.1-SNAPSHOT\\WEB-INF\\classes\\mapper\\mysql\\ThresholdMapper.xml]\r\n### The error may involve com.telecom.js.noc.hxtnms.operationplan.mapper.mysql.ThresholdMapper.addOne-Inline\r\n### The error occurred while setting parameters\r\n### SQL: insert into threshold_config_city (          id,threshold_name,threshold_disc,board_model,aliasname,vendor,city,create_user,layer,threshold_single,         threshold_ref_lower,threshold_ref_upper,threshold_lower,threshold_upper,threshold_offset,port_type,del_flag,         update_time,create_time,extra1,extra2,extra3      )         values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)\r\n### Cause: java.sql.SQLIntegrityConstraintViolationException: Column 'board_model' cannot be null\n; Column 'board_model' cannot be null; nested exception is java.sql.SQLIntegrityConstraintViolationException: Column 'board_model' cannot be null",
+    "path": "/operationplan/threshold/add"
+}
+
+拦截后响应：
+{
+    "url": "http://localhost:8088/operationplan/threshold/add",
+    "msg": "Occur sql exception , caused by : SQLIntegrityConstraintViolationException",
+    "errorCode": 500
+}
+
+实现方案：
+
+【1.异常json响应类】
+package com.telecom.js.noc.hxtnms.operationplan.utils;
+
+import lombok.Data;
+
+/**
+ * Author: liuwei
+ * Date: 2019-07-11 15:05
+ * Desc: 异常响应json类
+ */
+@Data
+public class ExceptionJson {
+    //请求url
+    private String url;
+    //响应信息
+    private String msg;
+    //响应错误码
+    private Integer errorCode = 500;
+}
+
+【2.全局异常处理类(作为一个普通bean注入即可)】
+package com.telecom.js.noc.hxtnms.operationplan.configure;
+
+import com.telecom.js.noc.hxtnms.operationplan.utils.ExceptionJson;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.web.bind.annotation.ControllerAdvice;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.ResponseBody;
+
+import javax.servlet.http.HttpServletRequest;
+import java.sql.SQLException;
+
+/**
+ * Author: liuwei
+ * Date: 2019-07-11 15:02
+ * Desc: 全局异常处理类
+ */
+
+@ControllerAdvice
+@Slf4j
+public class GlobalExceptionHandler {
+
+    /**
+     * 捕获@RequestMapping注解的方法抛出的Exception异常并处理：
+     * 若是ajax请求或请求端接受json数据则返回json信息，否则转发（forward）到templates下的/error/error映射，error.html页面展示信息
+     */
+    /**
+     * 捕获特定的sql异常进行自定义的处理
+     */
+    /**
+     * 注解@ExceptionHandler的value不能重复，否则报错
+     * 这意味着，不能对同一异常类型同时进行json处理和视图响应处理
+     * 对于前后端分离项目，后端不会响应视图，只会响应json
+     */
+
+    //json响应：sql错误响应
+    @ExceptionHandler(value = {SQLException.class, DataIntegrityViolationException.class})
+    @ResponseBody
+    public ExceptionJson jsonSqlErrorHandler(HttpServletRequest req, SQLException e){
+        //服务器控制台打印异常详情，如果不主动打印，服务器端不会记录这些信息
+        log.error(">>>>>>"+e);
+        //重写响应的json
+        ExceptionJson exceptionJson = new ExceptionJson();
+        exceptionJson.setUrl(req.getRequestURL().toString());
+        exceptionJson.setMsg("Occur sql exception , caused by : "+e.getClass().getSimpleName());
+        return exceptionJson;
+    }
+
+    //json响应：所有未捕获的错误响应
+    @ExceptionHandler(value = Exception.class)
+    @ResponseBody
+    public ExceptionJson jsonDefaultErrorHandler(HttpServletRequest req, Exception e){
+        log.error(">>>>>>"+e);
+        ExceptionJson exceptionJson = new ExceptionJson();
+        exceptionJson.setUrl(req.getRequestURL().toString());
+        exceptionJson.setMsg("Occur unknown exception , caused by : "+e.getClass().getSimpleName());
+        return exceptionJson;
+    }
+
+    /*//视图响应：所有视图请求的未捕获的错误响应
+    @ExceptionHandler(value = Exception.class)
+    public ModelAndView defaultErrorHandler(HttpServletRequest req, Exception e){
+        ModelAndView mav = new ModelAndView();
+        mav.addObject("exception", e);
+        mav.addObject("url", req.getRequestURL());
+        mav.setViewName("error/error");
+        return mav;
+    }
+
+    //视图响应：视图请求中sql错误的响应
+    @ExceptionHandler(value = SQLException.class)
+    public ModelAndView sqlErrorHandler(HttpServletRequest req, SQLException e){
+        ModelAndView mav = new ModelAndView();
+        mav.addObject("exception", e);
+        mav.addObject("url", req.getRequestURL());
+        mav.setViewName("error/sqlError");
+        return mav;
+    }*/
+
+}
+

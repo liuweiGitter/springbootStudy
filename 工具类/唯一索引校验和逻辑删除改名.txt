@@ -1,0 +1,125 @@
+相关实现代码参见《单表map查询以及指定字段修改策略》
+
+许多表在主键之外都对某些字段建立了唯一索引(包括联合主键索引)
+许多表的删除都是逻辑删除
+逻辑删除时需要对唯一索引字段改名，否则，字段值会被占用，在新增或修改时如果入库同样的值，会报错约束冲突
+逻辑删除改名，建议对唯一索引字段添加后缀_delete，通用代码示例如下：
+    //阈值删除：逻辑删除
+    @RequestMapping(value = "delete", method = RequestMethod.POST, produces = "application/json;charset=UTF-8")
+    @ResponseBody
+    public ResponseBox delete(@RequestBody Map<String, List<String>> param){
+        List<String> thresholdIdList = param.get("thresholdIdList");
+        if (null == thresholdIdList){
+            return new ResponseBox("删除参数不能为空！");
+        }else{
+            return new ResponseBox(mysqlDsCommonService.deleteWithUniqueIndex(
+                    TABLE_NAME,"threshold_name",thresholdIdList));
+        }
+    }
+    //唯一索引删除时改名
+    public int deleteWithUniqueIndex(String tableName, String uniqueColumn, List idList){
+        int resultCount = 0;
+        int listLength = idList.size();
+        int batchSize = 1000;
+        //循环批量
+        int circleSize = listLength/batchSize;
+        //是否有余量
+        boolean remain = listLength % batchSize != 0;
+        //循环批量
+        for (int i = 1; i <= circleSize ; i++) {
+            resultCount+=mysqlDsCommonMapper.deleteWithUniqueIndex(tableName,uniqueColumn,idList.subList((i - 1) * batchSize, i * batchSize));
+        }
+        //余量
+        if (remain) {
+            resultCount+=mysqlDsCommonMapper.deleteWithUniqueIndex(tableName,uniqueColumn,idList.subList(listLength - listLength % batchSize, listLength));
+        }
+        return resultCount;
+    }
+	
+	//逻辑删除时唯一索引列改名
+    int deleteWithUniqueIndex(@Param("tableName") String tableName,@Param("uniqueColumn") String uniqueColumn,@Param("idList") List idList);
+
+    <update id="deleteWithUniqueIndex">
+        update ${tableName} set del_flag = 1,${uniqueColumn} = concat(${uniqueColumn},'_delete')
+        where id in
+        <foreach collection="idList" index="index" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </update>
+	
+另外，在新增和修改时，需要对唯一索引进行校验，通用代码示例如下(以联合主键索引为例)：
+    //阈值增加
+    @RequestMapping(value = "add", method = RequestMethod.POST, produces = "application/json;charset=UTF-8")
+    @ResponseBody
+    public ResponseBox add(@RequestBody ThresholdConfig thresholdConfig){
+        //0.校验字段是否造成唯一约束冲突
+		Map<String,Object> paramMap = new HashMap<>();
+        paramMap.put("threshold_name",thresholdConfig.getThresholdName());
+        paramMap.put("board_model",thresholdConfig.getBoardModel());
+        paramMap.put("vendor",thresholdConfig.getVendor());
+        paramMap.put("layer",thresholdConfig.getLayer());
+        paramMap.put("city",thresholdConfig.getCity());
+        ResponseBox responseBox = mysqlDsCommonService.ifExistOne("threshold_config_city",paramMap,"阈值名称、板卡类型、层速率、厂商、城市");
+        if(null!=responseBox){
+            return responseBox;
+        }
+        //1.id和创建时间生成
+        thresholdConfig.setId(UUID.randomUUID().toString().replace("-", ""));
+        thresholdConfig.setCreateTime(LocalDateTime.now());
+        thresholdConfig.setDelFlag(false);
+        //2.新增
+        return new ResponseBox(thresholdService.addOne(thresholdConfig));
+    }
+	
+	//阈值修改
+	@RequestMapping(value = "update", method = RequestMethod.POST, produces = "application/json;charset=UTF-8")
+    @ResponseBody
+    public ResponseBox update(@RequestBody ThresholdConfig thresholdConfig){
+        //0.校验字段是否造成唯一约束冲突
+		Map<String,Object> paramMap = new HashMap<>();
+        paramMap.put("threshold_name",thresholdConfig.getThresholdName());
+        paramMap.put("id",thresholdConfig.getId());
+        paramMap.put("board_model",thresholdConfig.getBoardModel());
+        paramMap.put("vendor",thresholdConfig.getVendor());
+        paramMap.put("layer",thresholdConfig.getLayer());
+        paramMap.put("city",thresholdConfig.getCity());
+        ResponseBox responseBox = mysqlDsCommonService.ifExistOne("threshold_config_city",paramMap,"阈值名称、板卡类型、层速率、厂商、城市");
+        if(null!=responseBox){
+            return responseBox;
+        }
+        //1.修改时间生成
+        thresholdConfig.setUpdateTime(LocalDateTime.now());
+        //2.修改
+        return new ResponseBox(thresholdService.update(thresholdConfig));
+    }
+	
+    //新增、修改时唯一索引检查是否存在
+    public ResponseBox ifExistOne(String tableName, Map<String,Object> paramMap, String indexConflictMsg){
+        if(mysqlDsCommonMapper.ifExistOne(tableName,paramMap)){
+            return new ResponseBox("唯一索引冲突！字段["+indexConflictMsg+"]");
+        }else{
+            return null;
+        }
+    }
+	
+	//新增、修改时唯一索引检查是否存在
+    boolean ifExistOne(@Param("tableName") String tableName, @Param("paramMap") Map<String,Object> paramMap);
+	
+    <select id="ifExistOne" resultType="java.lang.Boolean">
+        select count(1) from (select 1 from ${tableName} where 1 = 1
+        <foreach collection="paramMap.keys" item="key" open="" close="" separator="">
+            <choose>
+                <when test="'${key}' != 'id'">
+                    and ${key} = #{paramMap[${key}]}
+                </when>
+                <otherwise>
+                    and id != #{paramMap[id]}
+                </otherwise>
+            </choose>
+        </foreach>
+        limit 1) a
+    </select>
+	
+	
+	
+	

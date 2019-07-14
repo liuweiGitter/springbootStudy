@@ -1,5 +1,6 @@
 package com.telecom.js.noc.hxtnms.operationplan.utils;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 
 import java.lang.reflect.Field;
@@ -10,9 +11,53 @@ import java.lang.reflect.Field;
  * Desc: mapper.xml sql语句生成
  * 生成sql语句半成品，简化mapper.xml中sql语句编写
  */
+@Slf4j
 public class MapperSqlUtil {
 
-    private static String[][] getArray(Class clz){
+    private final String ID_SELECT = "<selectKey resultType=\"int\" order=\"AFTER\" keyProperty=\"id\">\n" +
+            "\tSELECT LAST_INSERT_ID() AS id\n" +
+            "</selectKey>";
+    private final String ORDER_BY = "\n        <choose>\n" +
+            "            <when test=\"order != null\">\n" +
+            "                <!--order by后不允许换行-->\n" +
+            "                order by <foreach collection=\"order\" index=\"key\" item=\"value\" open=\"\" close=\"\" separator=\",\">${key} ${value}</foreach>\n" +
+            "            </when>\n" +
+            "            <otherwise>\n" +
+            "                order by xxx desc\n" +
+            "            </otherwise>\n" +
+            "        </choose>\n";
+
+    //批量插入id自增长的从表
+    private final String INSERT_BATCH_RELATION_TABLE_AUTO = "<insert id=\"xxx\" parameterType=\"主表类\" useGeneratedKeys=\"true\">\n" +
+            "\t<if test=\"从表list != null\" >\n" +
+            "\t\tinsert into 从表名(xxx,xxx,xxx)\n" +
+            "\t\tvalues\n" +
+            "\t\t<foreach collection=\"从表list\" item=\"从表对象\" index= \"index\" separator =\",\" close=\";\">\n" +
+            "\t\t\t(\n" +
+            "\t\t\t#{xxx},\n" +
+            "\t\t\t#{xxx},\n" +
+            "\t\t\t#{xxx}\n" +
+            "\t\t\t)\n" +
+            "\t\t</foreach>\n" +
+            "\t</if>\n" +
+            "</insert>";
+    //批量插入id自定义的从表
+    private final String INSERT_BATCH_RELATION_TABLE ="<insert id=\"xxx\" parameterType=\"主表类\">\n" +
+            "\t<if test=\"从表list != null\" >\n" +
+            "\t\tinsert into 从表名(id,xxx,xxx,xxx)\n" +
+            "\t\tvalues\n" +
+            "\t\t<foreach collection=\"从表list\" item=\"从表对象\" index= \"index\" separator =\",\" close=\";\">\n" +
+            "\t\t\t(\n" +
+            "\t\t\t#{id},\n" +
+            "\t\t\t#{xxx},\n" +
+            "\t\t\t#{xxx},\n" +
+            "\t\t\t#{xxx}\n" +
+            "\t\t\t)\n" +
+            "\t\t</foreach>\n" +
+            "\t</if>\n" +
+            "</insert>";
+
+    private String[][] getArray(Class clz){
         Field[] fieldArray = clz.getDeclaredFields();
         int size = fieldArray.length;
         String[] fields = new String[size];
@@ -24,36 +69,64 @@ public class MapperSqlUtil {
         return new String[][]{fields,columns};
     }
 
-    private static void getMapperSql(String[][] array,String tableName){
+    private void getMapperSql(String[][] array,String tableName){
+        //"xxx,xxx,xxx"
+        String column = "";
+        //"(#{xxx},#{xxx},#{xxx})"
+        String insertValue = "";
+        //"xxx = #{xxx},xxx = #{xxx},xxx = #{xxx}"
+        String updateStr = "";
+
         String[] fields = array[0];
         String[] columns = array[1];
-        StringBuilder insertBuilder = new StringBuilder("<insert id=\"xxx\" parameterType=\"xxx\" useGeneratedKeys=\"true\">\ninsert into "+tableName+"(");
-        StringBuilder insertValuesBuilder = new StringBuilder("\nvalues (");
-        StringBuilder updateBuilder = new StringBuilder("<update id=\"xxx\" parameterType=\"xxx\">\nupdate "+tableName+"\nset ");
-        StringBuilder selectBuilder = new StringBuilder("<select id=\"xxx\" parameterType=\"xxx\" resultType=\"xxx\">\nselect ");
+        insertValue+="(";
         for (int i=0;i<fields.length;i++){
             if (i!=fields.length-1){
-                insertBuilder.append(columns[i]+",");
-                insertValuesBuilder.append("#{"+fields[i]+"},");
-                updateBuilder.append(columns[i]+" = #{"+fields[i]+"},");
-                selectBuilder.append(columns[i]+",");
+                column+=columns[i]+",";
+                insertValue+="#{"+fields[i]+"},";
+                if (!"id".equals(columns[i])){
+                    updateStr+=columns[i]+" = #{"+fields[i]+"},";
+                }
             }else{
-                insertBuilder.append(columns[i]+")").append(insertValuesBuilder).append("#{"+fields[i]+"})");
-                updateBuilder.append(columns[i]+" = #{"+fields[i]+"} where id = #{id}");
-                selectBuilder.append(columns[i]+" from "+tableName);
+                column+=columns[i];
+                insertValue+="#{"+fields[i]+"})";
+                updateStr+=columns[i]+" = #{"+fields[i]+"}";
             }
         }
+        //单条插入id自增长的主表
+        String INSERT_MAIN_TABLE_AUTO = "<insert id=\"xxx\" parameterType=\"xxx\" useGeneratedKeys=\"true\">\n" +
+                "\t"+ID_SELECT+"\n" +
+                "\tinsert into "+tableName+"("+column+")"+"\n" +
+                "\tvalues"+insertValue+"\n" +
+                "</insert>";
+        //批量插入id自增长的主表
+        String INSERT_BATCH_MAIN_TABLE_AUTO = "<insert id=\"xxx\" parameterType=\"xxx\" useGeneratedKeys=\"true\">\n" +
+                "\tinsert into "+tableName+"("+column+")"+"\n" +
+                "\tvalues\n" +
+                "\t<foreach collection=\"list\" item=\"item\" index= \"index\" separator =\",\" close=\";\">\n" +
+                "\t\t"+insertValue+"\n" +
+                "\t</foreach>\n" +
+                "</insert>";
+        //单条主表修改
+        String UPDATE_MAIN_TABLE = "<update id=\"xxx\" parameterType=\"xxx\">\n" +
+                "\tupdate "+tableName+"\n" +
+                "\tset "+updateStr+"\n" +
+                "</update>";
 
         //打印这些sql
-        System.out.println("- - - - -insert sql- - - - -");
-        System.out.println(insertBuilder+"\n</insert>");
-        System.out.println("- - - - -update sql- - - - -");
-        System.out.println(updateBuilder+"\n</update>");
-        System.out.println("- - - - -select sql- - - - -");
-        System.out.println(selectBuilder+"\n</select>");
+        log.info("- - - - -单条插入insert sql- - - - -");
+        log.info("\n"+INSERT_MAIN_TABLE_AUTO);
+        log.info("- - - - -多条插入insert sql- - - - -");
+        log.info("\n"+INSERT_BATCH_MAIN_TABLE_AUTO);
+        log.info("- - - - -单条逻辑删除update sql- - - - -");
+        log.info("- - - - -多条逻辑删除update sql- - - - -");
+        log.info("- - - - -单条修改update sql- - - - -");
+        log.info("\n"+UPDATE_MAIN_TABLE);
+        log.info("- - - - -多条修改update sql- - - - -");
+        log.info("- - - - -查询- - - - -");
     }
 
-    private static String[] getFieldsByColumns(String[] columns){
+    private String[] getFieldsByColumns(String[] columns){
         String[] fields = new String[columns.length];
         for (int i = 0; i < columns.length; i++) {
             if (!columns[i].contains("_")){
@@ -69,7 +142,7 @@ public class MapperSqlUtil {
         return fields;
     }
 
-    private static void getMapperSqlForeach(String[][] array,String tableName){
+    private void getMapperSqlForeach(String[][] array,String tableName){
         String[] fields = array[0];
         String[] columns = array[1];
 
@@ -85,8 +158,8 @@ public class MapperSqlUtil {
         }
 
         //打印sql
-        System.out.println("- - - - -insert foreach sql- - - - -");
-        System.out.println(insertBuilder+"\n</if>\n</insert>");
+        log.info("- - - - -insert foreach sql- - - - -");
+        log.info(insertBuilder+"\n</if>\n</insert>");
     }
 
     /**
@@ -94,7 +167,7 @@ public class MapperSqlUtil {
      * @param clz  实体类class
      * @param tableName  数据表名
      */
-    public static void getMapperSql(Class clz,String tableName){
+    public void getMapperSql(Class clz,String tableName){
         String[][] array = getArray(clz);
         getMapperSql(array,tableName);
     }
@@ -104,7 +177,7 @@ public class MapperSqlUtil {
      * @param tableName  数据表名
      * @param columnsString  数据列字符串，形如"plan_name,updater,owner,period_year"
      */
-    public static void getMapperSql(String tableName,String columnsString){
+    public void getMapperSql(String tableName,String columnsString){
         String[] columns = columnsString.split(",");
         String[] fields = getFieldsByColumns(columns);
         String[][] array = new String[][]{fields,columns};
@@ -116,7 +189,7 @@ public class MapperSqlUtil {
      * @param tableName  数据表名
      * @param columnsString  数据列字符串，形如"plan_name,updater,owner,period_year"
      */
-    public static void getMapperSqlForeach(String tableName,String columnsString){
+    public void getMapperSqlForeach(String tableName,String columnsString){
         String[] columns = columnsString.split(",");
         String[] fields = getFieldsByColumns(columns);
         String[][] array = new String[][]{fields,columns};

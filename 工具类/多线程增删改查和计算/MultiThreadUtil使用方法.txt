@@ -1,0 +1,28 @@
+
+----多线程批量增删改用法示例----
+
+1.服务层
+//调用多线程modifyData方法
+int count = MultiThreadUtil.modifyData(list,300,"作业计划端口性能数据重采",planBaseMapper,"updateRecollectData");
+
+2.mapper层
+//就是普通的list的增删改，在实际传参时，该list被多线程方法截断分批次调用而已
+int updateRecollectData(List<Map<String, Object>> list);
+
+3.mapper.xml文件：
+普通的list遍历增删改，不赘述
+
+
+----多线程批量查询用法示例----
+
+1.服务层
+//调用多线程queryData方法
+List<PlanBase> list = MultiThreadUtil.queryData(totalCount,2000,"作业计划多线程查询",
+                             planBaseMapper, "queryPlanBaseByCondition", queryHomeBox);
+
+2.mapper层
+//就是普通的条件分页查询，在实际传参时，queryHomeBox的分页条件被修改后传入到相应线程
+List<PlanBase> list = queryPlanBaseByCondition(QueryHomeBoxt<PlanBase> queryHomeBox);
+
+3.mapper.xml文件：
+普通的条件分页查询，不赘述

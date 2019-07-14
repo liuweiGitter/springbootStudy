@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.telecom.js.noc.hxtnms.operationplan.mapper.mysql.MysqlDsCommonMapper">
+
+    <update id="update">
+        ${sql}
+    </update>
+
+    <update id="complexOperation">
+        ${sql}
+    </update>
+
+    <select id="resultMapQuery" resultType="Map">
+        ${sql}
+    </select>
+
+    <select id="ifExistOne" resultType="java.lang.Boolean">
+        select count(1) from (select 1 from ${tableName} where 1 = 1
+        <foreach collection="paramMap.keys" item="key" open="" close="" separator="">
+            <choose>
+                <when test="'${key}' != 'id'">
+                    and ${key} = #{paramMap[${key}]}
+                </when>
+                <otherwise>
+                    and id != #{paramMap[id]}
+                </otherwise>
+            </choose>
+        </foreach>
+        limit 1) a
+    </select>
+
+    <update id="deleteWithUniqueIndex">
+        update ${tableName} set del_flag = 1,${uniqueColumn} = concat(${uniqueColumn},'_delete')
+        where id in
+        <foreach collection="idList" index="index" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </update>
+
+</mapper>

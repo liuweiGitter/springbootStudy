@@ -40,7 +40,7 @@ entity类
             log.info("字符集不支持！",e);
             return;
         }
-		//创建excel对象，并指定结果集导出开始列为第2列
+		//创建excel对象，并指定结果集导出开始列为第2列，可以但不建议这样创建excel对象，本文仅为示例，建议自定义map列名
         ExcelWriteKitty kitty = new ExcelWriteKitty("作业计划导出",new String[]{"作业计划名称","计划管理人","区域","模板名称","状态","更新时间"}).setStartColumnIndex(1);
         try {
 			//excel直接写入HttpServletResponse，响应给前端
@@ -66,7 +66,7 @@ entity类
     List<Map<String, Object>> queryPlansMapByIds(List<Integer> planIdList);
 
 	<!--导出列表：按id列表查询-->
-    <!--返回类型为Map时将不保证字段的查询顺序为返回顺序，应使用LinkedHashMap-->
+    <!--返回类型为Map时将不保证字段的查询顺序为返回顺序，应使用LinkedHashMap，且必须对null字段进行非null处理-->
     <select id="queryPlansMapByIds" parameterType="java.util.List" resultType="java.util.LinkedHashMap">
         select plan.id,plan.plan_name,man.cn_name as owner_id,plan.location,plan.model_name,
 			case plan.status when 0 then '草稿' when 1 then '激活' when 2 then '挂起' else '异常' end as status

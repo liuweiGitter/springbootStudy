@@ -1,0 +1,62 @@
+logback-spring.xml文件内容如下：
+
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration  scan="true" scanPeriod="10 seconds">
+
+    <contextName>logback</contextName>
+
+    <!-- 格式化输出：%date表示日期，%thread表示线程名，%-5level：级别从左显示5个字符宽度 %msg：日志消息，%n是换行符-->
+    <property name="LOG_PATTERN" value="%date{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n" />
+    <!-- 定义日志存储的路径，不要配置相对路径 -->
+    <property name="FILE_PATH" value="D:/logs/operationplan/spring-log.%d{yyyy-MM-dd}.%i.log" />
+
+    <!-- 控制台输出日志 -->
+    <appender name="console" class="ch.qos.logback.core.ConsoleAppender">
+        <layout>
+            <pattern>${LOG_PATTERN}</pattern>
+        </layout>
+    </appender>
+
+    <!--文件保存日志，每天生成一个日志文件，保存30天的日志文件 -->
+    <appender name="rollingFile" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${FILE_PATH}</fileNamePattern>
+            <!-- keep 30 days' worth of history -->
+            <maxHistory>30</maxHistory>
+            <timeBasedFileNamingAndTriggeringPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP">
+                <!-- 日志文件的最大大小 -->
+                <maxFileSize>2MB</maxFileSize>
+            </timeBasedFileNamingAndTriggeringPolicy>
+            <!-- 超出删除老文件 -->
+            <totalSizeCap>1GB</totalSizeCap>
+        </rollingPolicy>
+        <encoder>
+            <pattern>${LOG_PATTERN}</pattern>
+        </encoder>
+    </appender>
+
+    <!-- 本地开发环境 -->
+    <springProfile name="local">
+        <logger name="com.telecom.js.noc.hxtnms.operationplan.mapper.mysql.ThresholdMapper" level="DEBUG" additivity="false">
+            <appender-ref ref="console"/>
+        </logger>
+        <!--<logger name="接口类名全路径，通常为mapper接口路径，用以打印sql语句" level="日志级别，通常debug" additivity="false">
+            <appender-ref ref="日志输出路径1，appender标签的引用，如控制台，本例为console"/>
+            <appender-ref ref="日志输出路径2，appender标签的引用，如文件系统，本例为rollingFile"/>
+        </logger>-->
+    </springProfile>
+
+    <!-- 测试、生产环境 -->
+    <!--<springProfile name="test,prod">
+        <logger name="com.telecom.js.noc.hxtnms.operationplan.mapper.mysql.ThresholdMapper" level="DEBUG" additivity="false">
+            <appender-ref ref="console"/>
+        </logger>
+    </springProfile>-->
+
+    <!-- 日志输出级别 -->
+    <root level="INFO">
+        <appender-ref ref="console" />
+        <appender-ref ref="rollingFile" />
+    </root>
+
+</configuration>

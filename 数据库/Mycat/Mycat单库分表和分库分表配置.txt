@@ -1,0 +1,80 @@
+以windows为例，linux类似
+
+1.windows版mycat下载
+下载地址：https://github.com/MyCATApache/Mycat-download
+下载稳定发布版，如1.6-RELEASE，下载其中的win系统安装包，如Mycat-server-1.6-RELEASE-20161028204710-win.tar.gz
+
+2.解压文件到安装目录
+解压缩程序如7.zip解压win.tar.gz包
+解压后为tar包
+tar包提取到安装目录
+最终的目录结构为(2019.07.03)
+./mycat
+	./bin
+	./catlet
+	./conf
+	./lib
+	./logs
+	./tmlogs
+	version.txt
+	
+3.配置server.xml、rule.xml、schema.xml、wraaper.conf文件
+详细配置参见相应文件
+mycat服务器参数配置于server.xml
+	主要配置：服务器ip、端口、逻辑库信息(库名、用户名、密码)等
+mycat数据分布式分片路由规则配置于rule.xml
+	主要配置：规则信息(规则名、数据列、分片算法、算法函数)
+	内置了许多路由算法，实际为java类方法，全部位于./lib/Mycat-server-xxx-release.jar/io.mycat.route.function包下
+	参见《Mycat常用路由算法》
+mycat分布式数据源参数和映射关系配置于schema.xml
+	主要配置：逻辑库表映射物理库表关系(逻辑库名、逻辑表名、物理库名、物理表名、物理库ip端口和鉴权、映射关系)
+mycat启动脚本引用的部分参数配置于wraaper.conf
+	wrapper.java.command变量配置jdk的java程序路径，如D:\DevelopTools\Java\jdk1.8.0_91\bin\java.exe
+	
+4.启动mycat服务
+执行./bin/startup_nowrap.bat
+注意，该脚本如果直接双击运行会自动退出，不能直观看到程序是否成功启动，应该在Dos窗口运行该脚本，并保持该窗口
+启动成功后，有类似以下信息输出
+	D:\DevelopTools\Mycat\mycat\bin>startup_nowrap.bat
+
+	D:\DevelopTools\Mycat\mycat\bin>REM check JAVA_HOME & java
+
+	D:\DevelopTools\Mycat\mycat\bin>set "JAVA_CMD=D:\DevelopTools\Java\jdk1.8.0_91/bin/java"
+
+	D:\DevelopTools\Mycat\mycat\bin>if "D:\DevelopTools\Java\jdk1.8.0_91" == "" goto noJavaHome
+
+	D:\DevelopTools\Mycat\mycat\bin>if exist "D:\DevelopTools\Java\jdk1.8.0_91\bin\java.exe" goto mainEntry
+
+	D:\DevelopTools\Mycat\mycat\bin>REM set HOME_DIR
+
+	D:\DevelopTools\Mycat\mycat\bin>set "CURR_DIR=D:\DevelopTools\Mycat\mycat\bin"
+
+	D:\DevelopTools\Mycat\mycat\bin>cd ..
+
+	D:\DevelopTools\Mycat\mycat>set "MYCAT_HOME=D:\DevelopTools\Mycat\mycat"
+
+	D:\DevelopTools\Mycat\mycat>cd D:\DevelopTools\Mycat\mycat\bin
+
+	D:\DevelopTools\Mycat\mycat\bin>"D:\DevelopTools\Java\jdk1.8.0_91/bin/java" -server -Xms1G -Xmx2G -XX:MaxPermSize=64M  -XX:+AggressiveOpts -XX:MaxDirectMemorySize=1G -DMYCAT_HOME=D:\DevelopTools\Mycat\mycat -cp "..\conf;..\lib\*" io.mycat.MycatStartup
+	Java HotSpot(TM) 64-Bit Server VM warning: ignoring option MaxPermSize=64M; support was removed in 8.0
+	MyCAT Server startup successfully. see logs in logs/mycat.log
+
+5.连接mycat
+mycat代理数据库访问，在navicat中像访问数据库一样访问mycat
+mycat服务器信息查看server.xml可知
+默认启动端口为8066，如果本机登录，访问ip为127.0.0.1或localhost即可
+鉴权参数信息查看server.xml
+
+6.执行数据访问：增删改查和导入导出
+在navicat中可以导入导出数据，需要注意的是，如果导入数据，数据中的分片列必须不为空，否则不会分库分表到物理表，而是直接存储在逻辑表中
+增删改查最终会映射到物理表
+可以对逻辑表自由的增删操作，mycat内部支持分布式的事务
+可以对逻辑表自由的查询操作，查询条件如果跨表，可能会带来性能问题
+可以对逻辑表进行修改操作，修改也支持分布式事务，但，不允许对分片列进行修改
+
+
+
+
+
+
+
