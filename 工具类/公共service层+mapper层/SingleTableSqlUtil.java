@@ -20,6 +20,10 @@ import java.util.Map;
  */
 public class SingleTableSqlUtil {
 
+    private SingleTableSqlUtil(){
+        throw new IllegalStateException("Utility class allow not to create object !");
+    }
+
     /**
      * >>>>
      * >>>>逻辑删除
@@ -122,32 +126,45 @@ public class SingleTableSqlUtil {
         return "update "+tableName+" set "+sbColumns.toString()+" where "+keyColumn+" = "+getColumnValue(keyValue);
     }
 
+    /**
+     * >>>>
+     * >>>>新增
+     * >>>>
+     */
+
+    //新增
+    public static String insertOne(String tableName, Map<String,Object> columnValueMap) {
+        StringBuilder sql = new StringBuilder("insert into "+tableName+" (");
+        StringBuilder value = new StringBuilder(" values (");
+        boolean isFirst = true;
+        for (Map.Entry<String, Object> entry:columnValueMap.entrySet()) {
+            if (!isFirst){
+                sql.append(","+entry.getKey());
+                value.append(","+getColumnValue(entry.getValue()));
+            }else{
+                isFirst = false;
+                sql.append(entry.getKey());
+                value.append(getColumnValue(entry.getValue()));
+            }
+        }
+        return sql.append(")").append(value).append(")").toString();
+    }
+
+    /**
+     * >>>>
+     * >>>>辅助方法
+     * >>>>
+     */
+
     //参数值类型的处理
     private static String getColumnValue(Object value) {
         if (value instanceof String){//字符串类型
-            return  "\""+sqlInjectFilter(value.toString())+"\"";
+            return  "'"+SqlInjectFilter.strFilterAndAddQuotes(value.toString())+"'";
         }else if (value instanceof Number || value instanceof Boolean){//数字类型或布尔类型
             return  ""+value;
         }else{//其他类型必须转为以上3种类型之一，否则抛出异常
             throw new BadSqlGrammarException("SQL statement create with column value of ["+value.toString()+"]",value.toString(),
                     new SQLException("Column value type error ! Type should be or translate to be String,Number or Boolean"));
-        }
-    }
-
-    /*
-    防止sql注入的过滤
-    mybatis的#操作已实现防sql注入，#获取的参数，不必另外进行sql处理
-    $获取的参数，如果不来自前端传参，而是来自后端控制，也不必另外进行sql处理
-    $获取的参数，如果有来自前端传参的成分，则必须另外进行sql处理
-    本工具类，对所有String类型和转为String类型的参数值，过滤参数中的引号，有非法字符时，抛出异常，从而防止sql语句变形
-     */
-
-    private static String sqlInjectFilter(String value){
-        if (!value.contains("\"") && !value.contains("'")){//不包含"和'时为合法sql参数
-            return value;
-        }else{
-            throw new BadSqlGrammarException("SQL statement create with column value of ["+value+"]",value,
-                    new SQLException("Column value character error ! value must not contain character \" or '"));
         }
     }
 

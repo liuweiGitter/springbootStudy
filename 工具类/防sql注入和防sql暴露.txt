@@ -1,37 +1,50 @@
 1.防sql注入
 
-/*
-防止sql注入的过滤
-mybatis的#操作已实现防sql注入，#获取的参数，不必另外进行sql处理
-$获取的参数，如果不来自前端传参，而是来自后端控制，也不必另外进行sql处理
-$获取的参数，如果有来自前端传参的成分，则必须另外进行sql处理
-本工具类，对所有String类型和转为String类型的参数值，过滤参数中的引号，有非法字符时，抛出异常，从而防止sql语句变形
-*/
+package com.telecom.js.noc.hxtnms.operationplan.utils;
 
-public class SqlFilterUtil {
+import org.springframework.jdbc.BadSqlGrammarException;
 
-    //参数值类型的处理
-    public static String getColumnValue(Object value) {
-        if (value instanceof String){//字符串类型
-            return  "\""+sqlInjectFilter(value.toString())+"\"";
-        }else if (value instanceof Number || value instanceof Boolean){//数字类型或布尔类型
-            return  ""+value;
-        }else{//其他类型必须转为以上3种类型之一，否则抛出异常
-            throw new BadSqlGrammarException("SQL statement create with column value of ["+value.toString()+"]",value.toString(),
-                    new SQLException("Column value type error ! Type should be or translate to be String,Number or Boolean"));
+import java.sql.SQLException;
+
+/**
+ * @author liuwei
+ * @date 2019-07-19 17:45
+ * @desc sql注入过滤类
+ */
+public class SqlInjectFilter {
+
+    private SqlInjectFilter(){
+        throw new IllegalStateException("Utility class allow not to create object !");
+    }
+
+    /*
+    防止sql注入的过滤
+    mybatis的#操作已实现防sql注入，#获取的参数，不必另外进行sql处理
+    $获取的参数，如果不来自前端传参，而是来自后端控制，也不必另外进行sql处理
+    $获取的参数，如果有来自前端传参的成分，则必须另外进行sql处理
+    本工具类，对所有String类型和转为String类型的参数值，过滤参数中的引号，有非法字符时，抛出异常，从而防止sql语句变形
+     */
+    private static String filter(String value){
+        if (!value.contains("\"") && !value.contains("'")){//不包含"和'时为合法sql参数
+            return value;
+        }else{
+            throw new BadSqlGrammarException("SQL statement create with column value of ["+value+"]",value,
+                    new SQLException("Column value character error ! value must not contain character \" or '"));
         }
     }
-	
-	//非法字符过滤
-	private static String sqlInjectFilter(String value){
-		if (!value.contains("\"") && !value.contains("'")){//参数值中不包含"和'时为合法sql参数
-			return value;
-		}else{
-			throw new BadSqlGrammarException("SQL statement create with column value of ["+value+"]",value,
-					new SQLException("Column value character error ! value must not contain character \" or '"));
-		}
-	}
+
+    //对字符串先进行sql注入过滤，再拼接单引号
+    public static String strFilterAndAddQuotes(String value) {
+        return "'"+filter(value)+"'";
+    }
+
+    //对字符串先进行sql注入过滤，再拼接%号和单引号
+    public static String strFilterAndAddLikeQuotes(String value) {
+        return "'%"+filter(value)+"%'";
+    }
+
 }
+
 
 
 2.防sql暴露

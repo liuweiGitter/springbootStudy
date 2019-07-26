@@ -1,5 +1,6 @@
 package com.telecom.js.noc.hxtnms.operationplan.mapper.mysql;
 
+import org.apache.ibatis.annotations.MapKey;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
@@ -36,11 +37,27 @@ public interface MysqlDsCommonMapper {
     int complexOperation(@Param("sqlMap") Map<String,String> sqlMap);
 
     //map结果集查询
-    Map<String,Object> resultMapQuery(@Param("sqlMap") Map<String,String> sqlMap);
+    List<Map<String, Object>> resultMapQuery(@Param("sqlMap") Map<String,String> sqlMap);
+
+    //list<String>查询
+    List<String> listStringQuery(@Param("sqlMap") Map<String,String> sqlMap);
+
+    //Map<String,Map<String,Object>>查询
+    @MapKey("id")
+    Map<String,Map<String,Object>> mapMapQuery(@Param("sqlMap") Map<String,String> sqlMap);
 
     //新增、修改时唯一索引检查是否存在
     boolean ifExistOne(@Param("tableName") String tableName, @Param("paramMap") Map<String,Object> paramMap);
 
     //逻辑删除时唯一索引列改名
     int deleteWithUniqueIndex(@Param("tableName") String tableName,@Param("uniqueColumn") String uniqueColumn,@Param("idList") List idList);
+
+    //删除时检查与之关联的另一张表的关联字段(可能是模糊关联)是否存在
+    boolean ifRelationExistOne(@Param("tableName") String tableName,@Param("equalMap") Map<String, Object> equalMap,@Param("likeMap") Map<String, Object> likeMap);
+
+    //新增操作
+    int insert(Map<String, String> map);
+
+    //查询数量操作
+    int countQuery(Map<String, String> map);
 }

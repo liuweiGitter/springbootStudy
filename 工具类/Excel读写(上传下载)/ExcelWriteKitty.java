@@ -16,6 +16,9 @@ import java.util.Set;
  * Author: liuwei
  * Date: 2019-05-24 10:43
  * Desc: 简单excel(单sheet单行header)写入/导出工具类
+ * 注：写入excel表Map格式数据，对于mysql和oracle，map查询的结果中列名的大小写是不同的，在传参时应注意
+ * mysql会默认查询表中的列名，可以手动指定列名整体或部分字母大小写
+ * oracle除非特别设置，否则，不论如何指定，查询的列名总是大写的
  */
 @Slf4j
 public class ExcelWriteKitty {

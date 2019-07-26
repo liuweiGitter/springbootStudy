@@ -25,29 +25,17 @@ entity类
     /**
      * 作业计划导出
      * @param response
-     * @param planIdList 作业计划id列表
+     * @param param 作业计划id列表
      */
     @RequestMapping(value = "downloadExcel")
-    public void downloadExcel(HttpServletResponse response, @RequestBody List<Integer> planIdList){
-        //查数据：导出选中的plan_id列表：按id查询速度更快，推荐此类方式，不推荐分页条件查询
-        List<Map<String, Object>> planBaseMapList = planBaseService.queryPlansMapByIds(planIdList);
-		//定义导出的excel名称
-        String fileName = new SimpleDateFormat("yyyyMMddhhmmss").format(Date.from(LocalDateTime.now().atZone(ZoneId.of(ConstantValue.SYSTEM_ZONE_ID)).toInstant())) +"_作业计划表.xls";
-        response.setContentType("application/x-msdownload");
-        try {
-            response.setHeader("Content-Disposition", "attachment; filename=" + new String(fileName.getBytes("utf-8"), "iso8859-1"));
-        } catch (UnsupportedEncodingException e) {
-            log.info("字符集不支持！",e);
-            return;
-        }
-		//创建excel对象，并指定结果集导出开始列为第2列，可以但不建议这样创建excel对象，本文仅为示例，建议自定义map列名
-        ExcelWriteKitty kitty = new ExcelWriteKitty("作业计划导出",new String[]{"作业计划名称","计划管理人","区域","模板名称","状态","更新时间"}).setStartColumnIndex(1);
-        try {
-			//excel直接写入HttpServletResponse，响应给前端
-            kitty.writeExcel(planBaseMapList,response.getOutputStream());
-        } catch (IOException e) {
-            log.info("导出数据失败！",e);
-        }
+    public ResponseBox downloadExcel(HttpServletResponse response, @RequestBody Map<String,List<Integer>> param){
+        List<Integer> planIdList = param.get("planIdList");
+        //导出选中的plan_id列表：按id查询速度更快，推荐此类方式
+        return ExcelExportMan.downloadExcel(response,
+                planBaseService.queryPlansMapByIds(planIdList),
+                new ExcelWriteKitty("作业计划",new String[]{"作业计划名称","创建人","所属用户","周期","时间范围","上次执行时间"
+                        ,"区域","模板名称","任务状态","运行状态","是否异常","创建时间","更新人","更新时间"}),
+                "作业计划表");
     }
 	
 【服务层】

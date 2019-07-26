@@ -52,6 +52,14 @@ public class MysqlDataSourceConfig {
         dataSource.setJdbcUrl(jdbcUrl);
         dataSource.setUser(user);
         dataSource.setPassword(password);
+        //设置c3p0连接池数量和周期时间策略
+        //默认值：初始连接数3 最小连接数0 最大连接数15 一次性创建数量3 最大空闲时间0(可以永远空闲而不删除该连接)
+        //默认值：连接生存时间0(可以永远存在，如果设为10s，则自创建起10s后删除该连接，如果被占用，占用结束后再删除)
+        //默认值：每个连接缓存的PreparedStatement数量0(0不缓存，如果设为10，则会对10条ps语句一起发送db请求，提高请求效率)
+        //默认值：获取新连接失败时重复尝试次数30  重复尝试获取新连接时的时间间隔1000ms
+        //默认值：获取新连接时等待连接成功的时间0(如果设为10s，则10s之内不能成功获取到连接时，判定此次连接获取失败)
+        //默认值：每隔0时间检查一次空闲连接(0不检查，如果设为10s，则每10s检查一次)
+        //默认值：通过3个线程实现3个connection被同时执行
         return dataSource;
     }
 

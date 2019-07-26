@@ -1,0 +1,23 @@
+问题示例：数据库时间2019-07-20 10:00:00	查询结果2019-07-20T02:00:00.000+0000
+
+1.mysql连接加时区
+时区使用东八区，如上海时区serverTimezone=Asia/Shanghai
+例：jdbc:mysql://127.0.0.1:3306/tnms_tx?useUnicode=true&characterEncoding=utf8&characterSetResults=utf8&serverTimezone=Asia/Shanghai&allowMultiQueries=true&useSSL=false
+
+2.查询结果格式化
+有2种方式：数据库查询时日期格式化，或者查询结果集赋值Java对象时格式化
+设需要格式化为"yyyy-MM-dd HH:mm:ss"
+2.1 数据库查询格式化
+例：DATE_FORMAT(create_time,'%Y-%m-%d %H:%i:%s') as createTime
+
+2.2 查询结果集赋值Java对象格式化
+使用LocalDateTime表示时间字段，get时间参数时，日期格式化，并返回String类型
+	private LocalDateTime createTime;
+	public String getCreateTime(){
+        return DateUtil.getDefaultFormatDate(createTime);
+    }
+
+	DateTimeFormatter defaultFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+	public static String getDefaultFormatDate(LocalDateTime time){
+        return null==time?null:time.format(defaultFormatter);
+    }
