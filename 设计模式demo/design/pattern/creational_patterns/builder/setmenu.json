@@ -1,0 +1,71 @@
+[
+    {
+        "person": 1,
+        "name": "个人套餐(1香辣鸡腿堡+1大盒薯条+1大杯可乐)",
+        "foods": [
+            {
+                "brand": "ChickenHamburg",
+                "price": 10,
+                "num": 1,
+                "discount": null,
+                "cupSize": null
+            },
+            {
+                "brand": "Chips",
+                "price": 5,
+                "num": 1,
+                "discount": null,
+                "cupSize": "大盒"
+            }
+        ],
+        "drinks": [
+            {
+                "brand": "Coke",
+                "price": 4.5,
+                "num": 1,
+                "discount": null,
+                "cupSize": "大杯",
+                "sugarDegree": null,
+                "hotDegree": "常温"
+            }
+        ]
+    },
+    {
+        "person": 2,
+        "name": "双人套餐(1香辣鸡腿堡+1牛肉堡+2大盒薯条+2大杯可乐)",
+        "foods": [
+            {
+                "brand": "ChickenHamburg",
+                "price": 10,
+                "num": 1,
+                "discount": null,
+                "cupSize": null
+            },
+            {
+                "brand": "BeefHamburg",
+                "price": 12,
+                "num": 1,
+                "discount": null,
+                "cupSize": null
+            },
+            {
+                "brand": "Chips",
+                "price": 4.5,
+                "num": 2,
+                "discount": null,
+                "cupSize": "大盒"
+            }
+        ],
+        "drinks": [
+            {
+                "brand": "Coke",
+                "price": 4,
+                "num": 2,
+                "discount": null,
+                "cupSize": "大杯",
+                "sugarDegree": null,
+                "hotDegree": "常温"
+            }
+        ]
+    }
+]
