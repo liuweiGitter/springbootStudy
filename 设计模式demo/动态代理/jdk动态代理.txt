@@ -1,0 +1,116 @@
+/**
+ * 被代理类Entity的接口类
+ * Entity中被代理的方法必须实现自某个或某些接口
+ * 否则jdk proxy不会为其代理并抛出异常形如：Entity is not an interface
+ */
+public interface EntityInterface {
+
+	void methodPublic(String param1, String param2);
+
+	void methodPublic();
+
+}
+
+*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=
+
+/**
+ * 被代理类
+ */
+public class Entity implements EntityInterface{
+	
+    // 可以被代理
+    public void methodPublic(String param1,String param2) {
+        System.out.println("我是public方法1");
+    }
+
+    // 可以被代理
+    public void methodPublic() {
+        System.out.println("我是public方法2");
+    }
+
+    // private 方法不会被代理
+    private void methodPrivate() {
+        System.out.println("我是private方法，不会被子类继承");
+    }
+
+	public Entity() {
+		methodPrivate();
+	}
+}
+
+*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=
+
+import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.Method;
+
+/**
+ * 被代理类的InvocationHandler对象
+ * 可以代理多个类，故类名根据需要定义
+ */
+public class LiuweiInvocationHandler implements InvocationHandler{
+
+    private Object target;
+
+    public LiuweiInvocationHandler(Object target) {
+        this.target = target;
+    }
+
+    @Override
+    public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
+    	System.out.println(">>>调用前切面逻辑");
+        System.out.println("被代理的类名："+target.getClass().getName());
+        System.out.println("被调用的方法名："+method.getName());
+        System.out.print("被调用的方法参数：");
+        if (null==args || args.length==0) {
+        	System.out.print("无参");
+		} else {
+			for (Object arg : args) {
+	        	System.out.print("("+arg.getClass().getSimpleName()+")"
+	        			+arg+" ");
+			}
+		}
+        System.out.println();
+        System.out.println("代理对象的类名："+proxy.getClass().getName());
+        /**
+         * 代理逻辑示例：在调用方法时，可以切入不同的逻辑
+         * 只要是public对象，均可被代理
+         */
+        if(method.getName().equals("methodPublic")){
+            Object result = method.invoke(target, args);
+            System.out.println("methodPublic方法实际返回void，此处result可以不写而直接返回null即可");
+            return result ;
+        }else{
+            String string = (String) method.invoke(target,args) ;
+            System.out.println("调用了非methodPublic方法，此处还对其强转为String类型并做了后续处理");
+            System.out.println("返回的string长度："+(null==string?-1:string.length()));
+            return string ;
+        }
+    }
+}
+
+*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=
+
+import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.Proxy;
+
+/**
+ * jdk动态代理测试类
+ */
+public class JdkDynamicProxyTest {
+	
+	public static void main(String[] args) {
+        //真实对象
+        Entity entity =  new Entity();
+        //InvocationHandler对象
+        InvocationHandler ih = new LiuweiInvocationHandler(entity);
+        //生成代理对象：必须使用被代理类的接口类传参，必须强转为接口类，必须返回接口类对象
+        EntityInterface proxyClass = (EntityInterface) Proxy.newProxyInstance(
+        		ClassLoader.getSystemClassLoader(), 
+        		new Class[]{EntityInterface.class}, ih);
+
+        //调用方法
+        proxyClass.methodPublic("liu", "wei");
+        proxyClass.methodPublic();
+    }
+}
+

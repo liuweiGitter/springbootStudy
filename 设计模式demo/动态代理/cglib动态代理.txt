@@ -1,0 +1,93 @@
+/**
+ * 被代理类
+ */
+public class Entity {
+	
+    // 可以被代理
+    public void methodPublic(String param1,String param2) {
+        System.out.println("我是public方法，可被子类重写");
+    }
+
+    // final 方法不会被生成的子类覆盖
+    public final void methodFinal() {
+        System.out.println("我是final方法，不可被子类重写");
+    }
+
+    // private 方法不会被生成的子类覆盖
+    private void methodPrivate() {
+        System.out.println("我是private方法，不会被子类继承");
+    }
+
+	public Entity() {
+		methodPrivate();
+	}
+}
+
+*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=
+
+import java.lang.reflect.Method;
+import org.springframework.cglib.proxy.Enhancer;
+import org.springframework.cglib.proxy.MethodInterceptor;
+import org.springframework.cglib.proxy.MethodProxy;
+
+/**
+ * cglib动态代理类
+ */
+public class CglibProxy implements MethodInterceptor {
+	
+    private Object target;
+
+    public CglibProxy(Object target) {
+        this.target = target;
+    }
+
+	@Override
+    public Object intercept(Object o, Method method, Object[] objects, MethodProxy methodProxy) throws Throwable {
+        System.out.println(">>>调用前切面逻辑");
+        System.out.println("被代理的类名："+o.getClass().getSuperclass().getName());
+        System.out.println("被调用的方法名："+method.getName());
+        System.out.print("被调用的方法参数：");
+        for (Object object : objects) {
+        	System.out.print("("+object.getClass().getSimpleName()+")"
+        			+object+" ");
+		}
+        System.out.println();
+        System.out.println("代理对象的类名："+o.getClass().getName());
+        
+        Object result = method.invoke(target, objects);
+        System.out.println(">>>调用后切面逻辑");
+        return result;
+    }
+
+    public static Object getProxy(Object target) {
+    	System.out.println("Cglib 动态代理将对被代理类动态生成一个子类，然后在子类中覆盖代理类中的方法"
+    			+ "\nprivate方法不会被继承，final方法不允许重写，二者均不会被代理");
+		System.out.println("Cglib 不要求被代理的类实现了某个接口，而jdk的动态代理则有此要求，详参相应文档");
+    	System.out.println("Cglib 源码地址：https://github.com/cglib/cglib");
+        Enhancer enhancer = new Enhancer();
+        // 设置需要代理的对象
+        enhancer.setSuperclass(target.getClass());
+        // 设置代理人
+        enhancer.setCallback(new CglibProxy(target));
+        return enhancer.create();
+    }
+
+}
+
+*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=
+
+/**
+ * 测试类
+ */
+public class CglibTest {
+	
+    public static void main(String[] args) {
+        // 生成 Cglib 代理类
+        Entity entityProxy = (Entity) CglibProxy.getProxy(new Entity());
+        // 调用相关方法
+        entityProxy.methodPublic("liu","wei");
+        entityProxy.methodFinal();
+    }
+    
+}
+
