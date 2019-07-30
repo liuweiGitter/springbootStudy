@@ -8,7 +8,11 @@ package design.pattern.structural_patterns.facade;
 public class FacadePattern {
 	
 	public static void main(String[] args) {
-		
+		ServiceWindow serviceWindow = new ServiceWindow();
+		serviceWindow.system1Method1();
+		serviceWindow.system1Method2();
+		serviceWindow.system2Method2();
+		serviceWindow.system3Method3();
 	}
 	
 }
