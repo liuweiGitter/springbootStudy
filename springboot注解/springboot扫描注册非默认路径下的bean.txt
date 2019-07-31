@@ -1,0 +1,17 @@
+springboot默认会扫描注册默认路径(及其所有递归子目录)下的bean
+默认路径为Application类所在目录
+
+非默认路径下的bean，默认不会被扫描注册
+这些非默认路径主要是三方jar中的bean的路径
+为注册这些bean，需要指定这些路径给springboot
+通过对Application类添加注解@SpringBootApplication来实现包扫描
+
+
+/**
+ * SpringBootApplication注解是个奇怪的深井病，scanBasePackages用于扫描注册指定位置的bean，通常这些bean位于第三方jar
+ * 如果缺少scanBasePackages，可能会扫描不到这些bean，但有时候也能扫描到
+ * 如果加上scanBasePackages，可以扫描到这些bean，但可能会引起新的莫名其妙的错误，如mapper无法注册
+ * 在原因未知之前，在启动springboot服务时，最好对Application类准备2个class文件，以便出错时替换
+ */
+//@SpringBootApplication(exclude= {DataSourceAutoConfiguration.class},scanBasePackages = {"org.noc.auth"})
+@SpringBootApplication(exclude= {DataSourceAutoConfiguration.class})
