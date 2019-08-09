@@ -3,7 +3,7 @@ mybatis传参时，可以传递匿名参数，也可以传递命名参数，可�
 
 如果不指定参数命名，mybatis默认会对参数命名
 对于多参数，所有参数会按照形参名命名
-对于单参数，List类型命名为list，Map类型命名为map，Collection类型命名为collection，数组类型命名为array，其它类型参数均不命名
+对于单参数，List类型命名为list，Map类型命名为map，Collection类型(主要是set)命名为collection，数组类型命名为array，其它类型参数均不命名
 取值时必须按照命名去取值，对于未命名的单参数，可以随便使用任何参数名去取
 
 如果指定了多参数命名，mybatis会对参数使用指定的命名覆盖默认命名
