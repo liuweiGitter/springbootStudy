@@ -1,0 +1,78 @@
+ 缓冲区本质上是一块可以写入数据，然后可以从中读取数据的内存
+ 这块内存被包装成NIO Buffer对象，并提供了一组方法，用来方便的访问该内存块
+
+【基本使用步骤】
+ 以读写字节文件数据为例，使用Buffer读写数据一般遵循以下步骤：
+ 0.创建文件
+ 1.根据文件创建通道
+ 2.调用allocate(int capacity)方法创建Buffer并设置缓冲区容量大小
+ 3.通道写入数据到Buffer
+ 4.进入循环：通道不断写数据到Buffer，然后不断从Buffer读数据，直到数据读写完
+ 4.1调用flip()方法切换写模式到读模式
+ 4.2从Buffer中读取数据
+ 4.3调用clear()方法或compact()方法清理Buffer
+ 4.4通道再次写入数据到Buffer
+ 5.关闭通道
+ 6.关闭文件
+ 
+【清理缓冲区：clear和compact方法】
+当创建buffer时，buffer处于写模式，可以写入数据
+如果需要读取数据，应通过flip()方法将Buffer从写模式切换到读模式
+在读模式下，可以读取之前写入到buffer的所有数据
+
+一旦读完了所有的数据，就需要清空缓冲区，让它可以再次被写入
+有两种方式能清空缓冲区：调用clear()或compact()方法
+clear()方法会清空整个缓冲区
+compact()方法只会清除已经读过的数据，任何未读的数据都被移到缓冲区的起始处，新写入的数据将放到缓冲区未读数据的后面
+
+所谓的清空缓冲区，实际上，并不是删除所有缓冲的数据
+而是重置position的位置到0，,limit的位置到原position
+使得再次写入时，二者并不会数组越界且在写入时覆盖掉上一次已读的区间(即0-position)
+
+对于字节缓冲和GB编码的字符缓冲，使用clear方法就可以了
+对于UTF编码的字符缓冲，则必须使用compact方法
+详参《字符缓冲区的读写必读.txt》
+
+【Buffer的读写模式和三大属性】
+Buffer有2种模式：读模式和写模式
+默认写模式，写完调用flip()方法切换到读模式
+读完，调用clear()或compact()方法清理缓存空间，以释放空间再次写入
+
+Buffer的三大属性：capacity、position和limit
+capacity和模式无关，position、limit和模式有关
+
+capacity：缓冲区的容量大小，单位个，具体取决于缓冲区类型
+	如ByteBuffer为capacity个字节，CharBuffer为capacity个字符
+position：position表示当前的位置
+	写模式下，初始值为0，每写入一个数据，position++，最大值为capacity-1
+	flip()切换到读模式，position重置为0，每读取一个数据，position++，最大值为当前写入的数量-1
+limit：数据可以读写的最大数量
+	写模式下，limit等于Buffer的capacity，即，最多可以写入capacity个数据
+	读模式下，limit等于当前写入的数量-1，即最多能读到写入的数量
+
+【Buffer读写的2种方式】
+写数据到Buffer有两种方式：
+1.通过Channel的各种read()方法从Channel写到ByteBuffer
+2.通过XxxBuffer的各种put()方法写到XxxBuffer里
+注：put方法会移动position，每次写一个，也可以指定写入的位置，详参API
+如果是文件写入buffer，一般是通过文件的Channel
+
+从Buffer中读取数据有两种方式：
+1.通过Channel的各种write()方法从ByteBuffer读取数据到Channel
+2.通过XxxBuffer的各种get()方法从XxxBuffer中读取数据
+注：get方法会移动position，每次读一个，也可以指定读取的位置，详参API
+如果是buffer写入文件，一般是通过文件的Channel
+
+【Buffer的复读】
+Buffer.rewind()将position设回0，而limit保持不变
+因此可以重读Buffer中的所有数据
+这不同于流，流只能读一次，读完就没有指针供复读了
+
+【Buffer的位置标记和重置】
+通过调用Buffer.mark()方法，可以标记Buffer中的一个特定position
+之后可以通过调用Buffer.reset()方法恢复到这个position
+
+
+
+
+

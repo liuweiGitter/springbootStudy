@@ -1,0 +1,32 @@
+可以从Channel中读取数据分散写入到多个Buffer中
+也可以将多个Buffer中的数据聚集写入到Channel中
+
+分散和聚集常用于需要将传输的数据分开处理的场合
+如传输一个由消息头和消息体组成的消息，如果将消息体和消息头分散到不同的buffer中，就可以方便地单独处理它们
+同样地，也可以将消息头和消息体合并写入通道
+
+【通道分散写入缓冲】
+ByteBuffer header = ByteBuffer.allocate(128);
+ByteBuffer body   = ByteBuffer.allocate(1024);
+ByteBuffer[] bufferArray = { header, body };
+
+channel.read(bufferArray);
+
+实际是将通道数据按Buffer数组顺序依次写入预定义的缓冲中
+当一个buffer被写满后，channel才会向下一个buffer中写入
+因此，分散写入的数据，必须是具有严格固定格式的，而不能是动态任意格式的
+本例中，如果消息头超过128字节或者不足128字节，都会导致分散写入的两个缓冲对象读不到正确格式的数据
+
+【缓冲合并写入通道】
+ByteBuffer header = ByteBuffer.allocate(128);
+ByteBuffer body   = ByteBuffer.allocate(1024);
+ByteBuffer[] bufferArray = { header, body };
+
+channel.write(bufferArray);
+
+实际是将Buffer数组数据按顺序依次写入通道中
+当一个buffer读完后，才会从下一个buffer中读入通道
+由于读每个buffer数据时只会读到其limit位置，因此，合并写入的数据，可以是动态任意格式的
+只要每个缓冲对象能容纳该部分的数据即可
+本例中，不管什么格式，只要消息头不超过128字节，读入到通道中的数据都是格式正确的
+

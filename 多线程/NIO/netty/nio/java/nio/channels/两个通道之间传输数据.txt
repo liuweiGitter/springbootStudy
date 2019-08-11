@@ -1,0 +1,41 @@
+如果两个通道有一个是FileChannel，则两者之间可以互相传输数据
+注：并不是所有通道都像FileChannel一样具有transferFrom和transferTo方法
+
+【FileChannel读取来自另一个通道的数据】
+
+//源通道
+RandomAccessFile fromFile = new RandomAccessFile("fromFile.txt", "rw");
+FileChannel fromChannel = fromFile.getChannel();
+
+//本通道
+RandomAccessFile toFile = new RandomAccessFile("toFile.txt", "rw");
+FileChannel toChannel = toFile.getChannel();
+
+long position = 0;
+long count = fromChannel.size();
+
+//本通道读取来自源通道的数据
+//需要选择读取来自源通道的哪些数据，可以根据需要只读取部分数据
+//本例选择读取源通道的所有数据
+toChannel.transferFrom(position, count, fromChannel);
+
+如果源通道为SoketChannel，SocketChannel只会传输此刻准备好的数据，而可能不是全部源文件的数据
+
+【FileChannel数据写入另一个通道】
+
+//本通道
+RandomAccessFile fromFile = new RandomAccessFile("fromFile.txt", "rw");
+FileChannel fromChannel = fromFile.getChannel();
+
+//目标通道
+RandomAccessFile toFile = new RandomAccessFile("toFile.txt", "rw");
+FileChannel toChannel = toFile.getChannel();
+
+long position = 0;
+long count = fromChannel.size();
+
+//本通道数据写入目标通道
+//需要选择哪些数据写入目标通道，可以根据需要只写入部分数据
+//本例选择所有数据写入目标通道
+fromChannel.transferTo(position, count, toChannel);
+
