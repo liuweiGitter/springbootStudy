@@ -11,11 +11,16 @@ Selector选择器使得一个单独的线程可以同时管理多个Channel
 【基本使用步骤】
 //1.套接字通道客户端
 0.创建一个Selector
-1.创建多个SocketChannel
-2.每个SocketChannel通道向Selector注册自己
-3.TODO
+1.创建一个SocketChannel
+2.SocketChannel通道向Selector注册自己
+3.运行Selector线程，处理通道read事件的IO
 
 //2.套接字通道服务端
+0.创建一个Selector
+1.创建一个ServerSocketChannel
+2.ServerSocketChannel通道向Selector注册自己
+3.运行Selector线程，处理通道accept/read事件的IO TODO
+
 08.13：NIO完成，十二章节
 08.14起：netty
 

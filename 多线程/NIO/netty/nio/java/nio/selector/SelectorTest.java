@@ -9,7 +9,7 @@ import java.io.IOException;
  */
 public class SelectorTest {
 	
-	参考https://ifeve.com/selectors/
+	//参考https://ifeve.com/selectors/
 		
 	public static void main(String[] args) throws IOException {
 		execute();
