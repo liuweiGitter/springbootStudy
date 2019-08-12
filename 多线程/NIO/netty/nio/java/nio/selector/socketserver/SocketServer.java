@@ -52,7 +52,7 @@ public class SocketServer {
 		// 绑定本地监听端口
 		listenerChannel.socket().bind(new InetSocketAddress(listenPort));
 
-		// 设置通道为非阻塞模式(只有非阻塞信道才可以注册选择器)
+		// 设置通道为非阻塞模式(只有非阻塞通道才可以注册选择器)
 		listenerChannel.configureBlocking(false);
 
 		/**

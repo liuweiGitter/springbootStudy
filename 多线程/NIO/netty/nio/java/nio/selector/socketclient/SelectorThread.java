@@ -45,9 +45,9 @@ public class SelectorThread implements Runnable{
                         System.out.println("接收到来自服务器"+sc.socket().getRemoteSocketAddress()+"的信息:\n"+receivedString);
                     }
                     /**
-                     * 在当前选中的SelectionKey集合中删除已处理的key：在注册集合中仍存在
-                     * A key is valid upon creation and remains so
-                     * until it is cancelled, its channel is closed, or its selector is closed.
+                     * 在当前选中的SelectionKey集合中删除已处理的key
+                     * 注意，只是删除已选中的key，在注册集合中该key仍存在
+                     * 实际上，此步骤完全没有必要，因为迭代器本轮遍历完以后，下一次会被重新赋值
                      */
                     selector.selectedKeys().remove(sk);
                 }

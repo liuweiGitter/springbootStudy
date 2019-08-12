@@ -15,6 +15,10 @@ import java.time.LocalDateTime;
  * @date 2019-08-09 17:30
  * @desc 文件通道
  * 示例最常见的字节缓冲和字符缓冲的读写
+ * 
+ * FileChannel是一个连接到文件的通道
+ * 可以通过文件通道读写文件
+ * FileChannel无法设置为非阻塞模式，它总是运行在阻塞模式下
  */
 public class FileChannelDemo {
 	

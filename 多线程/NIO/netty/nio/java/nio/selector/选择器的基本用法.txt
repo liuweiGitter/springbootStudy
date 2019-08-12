@@ -19,8 +19,152 @@ Selector选择器使得一个单独的线程可以同时管理多个Channel
 0.创建一个Selector
 1.创建一个ServerSocketChannel
 2.ServerSocketChannel通道向Selector注册自己
-3.运行Selector线程，处理通道accept/read事件的IO TODO
+3.运行Selector线程，处理通道accept/read事件的IO
 
-08.13：NIO完成，十二章节
-08.14起：netty
+【向Selector注册通道和事件】
+// 设置通道为非阻塞模式(只有非阻塞通道才可以注册选择器)
+channel.configureBlocking(false);
+// 通道注册到Selector(只有注册到选择器，才能在选择器线程中处理该通道)
+SelectionKey key = channel.register(selector,Selectionkey.OP_READ);
+
+register()方法的第二个参数是一个"interest集合"，表示Selector监听Channel时对什么事件感兴趣
+可以监听4种不同类型的事件：
+1.Connect
+2.Accept
+3.Read
+4.Write
+
+通道触发了一个事件时表明该事件已经就绪
+一个socket channel成功连接到服务器称为"连接就绪"
+一个server socket channel准备好接收新进入的连接称为"接收就绪"
+一个通道有数据可读称为"读就绪"
+一个通道可以写入数据称为"写就绪"
+
+这4种事件分别用SelectionKey的4个常量来表示：
+SelectionKey.OP_CONNECT
+SelectionKey.OP_ACCEPT
+SelectionKey.OP_READ
+SelectionKey.OP_WRITE
+
+如果通道对不止一种事件感兴趣，那么可以用"按位或"操作符将常量连接起来，举例如下：
+int interestSet = SelectionKey.OP_READ | SelectionKey.OP_WRITE;
+为什么使用"按位或"算法可以得到一个集合？这是因为每个事件和其它事件都是可以按位运算的
+查看SelectionKey的源码可以看到4个事件的定义如下：
+public static final int OP_READ = 1 << 0;//即00001
+public static final int OP_WRITE = 1 << 2;//即00100
+public static final int OP_CONNECT = 1 << 3;//即01000
+public static final int OP_ACCEPT = 1 << 4;//即10000
+
+【SelectionKey对象的基本属性】
+当向Selector注册Channel时，register()方法会返回一个SelectionKey对象
+这个对象包含了一些重要的属性：
+interest集合
+ready集合
+Channel通道
+Selector选择器
+attachment附加对象
+
+1.interest集合
+interest集合是通道注册时感兴趣的事件集合
+int interestSet = selectionKey.interestOps();
+可以判断感兴趣的集合中是否包含某个具体的事件，使用"按位与"算法即可，举例如下：
+boolean isInterestedInAccept  = interestSet & SelectionKey.OP_ACCEPT !=0;
+boolean isInterestedInConnect = interestSet & SelectionKey.OP_CONNECT !=0;
+boolean isInterestedInRead    = interestSet & SelectionKey.OP_READ !=0;
+boolean isInterestedInWrite   = interestSet & SelectionKey.OP_WRITE !=0;
+
+2.ready集合
+通道在注册时可能对多个事件感兴趣，ready集合是通道已经准备就绪的操作的集合
+int readySet = selectionKey.readyOps();
+同样地，这个集合也是一组已经就绪的事件的"按位或"算法的结果，可以据此判断哪些具体的事件就绪了，方法同上
+也可以直接使用以下方法来判断
+selectionKey.isAcceptable();
+selectionKey.isConnectable();
+selectionKey.isReadable();
+selectionKey.isWritable();
+
+实际上，查看isAcceptable()方法源码可以看到，也是在使用"按位与"算法
+	public final boolean isAcceptable() {
+        return (readyOps() & OP_ACCEPT) != 0;
+    }
+
+3.Channel通道和Selector选择器
+Channel  channel  = selectionKey.channel();
+Selector selector = selectionKey.selector();
+
+4.attachment附加对象
+可以将任意一个对象附加到SelectionKey上
+这个附加对象可以是通道的一些介绍或标识、通道关联的一个或一组ByteBuffer对象等
+举例如下：
+//对SelectionKey附加一个ByteBuffer对象
+selectionKey.attach(ByteBuffer.allocate(bufferSize));
+//取出附加的ByteBuffer对象
+ByteBuffer buffer = (ByteBuffer)selectionKey.attachment();
+
+也可以直接在注册Channel的时候附加对象，如：
+channel.register(selector, SelectionKey.OP_READ, 
+	ByteBuffer.allocate(bufferSize));
+
+【通过Selector选择通道和处理通道IO】
+1.等待注册的通道就绪
+向Selector注册了一个或多个通道后，可以调用select()方法来获取注册的通道中已经准备就绪的通道数量
+select()方法会阻塞线程，持续轮询所有通道，直到至少有一个通道在其注册的事件上就绪了才返回
+也就是说，select()方法一旦正常返回，结果总是大于0的
+返回之后，就可以选择通道并处理通道IO了
+
+select除了无参方法之外，还有一个有参重载方法int select(long timeout)
+select(long timeout)也会阻塞线程，在阻塞期间也是持续轮询所有通道，但最多只会阻塞timeout就返回
+也就是说select(long timeout)方法如果正常返回，分2种情况：有通道就绪，或者阻塞超时(都没有通道就绪)
+有通道就绪时，返回结果大于0，阻塞超时时，返回结果等于0
+因此，调用select(long timeout)方法需要判断返回结果，结果大于0才可以选择通道并处理通道IO
+
+2.选择通道和处理通道IO
+一旦调用了select()或select(long timeout)方法，且返回值表明有一个或更多个通道就绪了
+就可以遍历"已选择键集(selected key set)"中的就绪通道，并处理每一个通道的IO了
+
+//获取已就绪的通道的SelectionKey的集合
+Set<SelectionKey> selectedKeys = selector.selectedKeys();
+//遍历每一个就绪的通道，判断就绪的是哪一个事件，并做出相应处理(具体参见同层SelectorThread.java)
+Iterator keyIterator = selectedKeys.iterator();
+while(keyIterator.hasNext()) {
+    SelectionKey key = keyIterator.next();
+    if(key.isAcceptable()) {
+        // a connection was accepted by a ServerSocketChannel.
+    } else if (key.isConnectable()) {
+        // a connection was established with a remote server.
+    } else if (key.isReadable()) {
+        // a channel is ready for reading
+    } else if (key.isWritable()) {
+        // a channel is ready for writing
+    }
+    keyIterator.remove();
+}
+
+
+【Selector的唤醒】
+某个线程A中使用selector对象调用select()方法后，该线程就被阻塞了，直到方法有返回值
+除了等待通道就绪唤醒线程，还可以使用同一个selector对象调用其wakeup()方法来结束该selector对象上的所有线程阻塞而使得select()方法直接返回结果
+也就是说，select()方法一旦被强制唤醒返回，结果可能等于0
+
+由于线程A已经被阻塞，因此，唤醒的工作需要在另一个线程B中进行
+只要线程B可以获取到同一个selector对象，就可以唤醒该对象上的所有阻塞，从而放行线程A的select()方法
+
+如果有其它线程调用了wakeup()方法，而当前没有线程阻塞在select()方法上，
+则下一个调用select()方法的线程会立即"醒来(wake up)"
+
+慎用唤醒！
+
+【Selector的关闭】
+用完Selector后调用其close()方法会关闭该Selector，但通道本身并不会因此关闭
+通道需要自行关闭
+
+
+
+
+
+
+
+
+
+
 

@@ -51,10 +51,8 @@ public class SelectorThread implements Runnable{
             } catch (IOException e) {
                 log.info(""+e);
             }
-
             // 取得selectedKeys()的迭代器，遍历每一个已经准备就绪的通道
             keyIter = selector.selectedKeys().iterator();
-
             try{
                 while (keyIter.hasNext()) {
                     key = keyIter.next();
@@ -72,7 +70,11 @@ public class SelectorThread implements Runnable{
                         eventHandler.handleWrite(key);
                     }
 
-                    // 在当前选中的SelectionKey集合中删除已处理的key：在注册集合中仍存在
+                    /**
+                     * 在当前选中的SelectionKey集合中删除已处理的key
+                     * 注意，只是删除已选中的key，在注册集合中该key仍存在
+                     * 实际上，此步骤完全没有必要，因为迭代器本轮遍历完以后，下一次会被重新赋值
+                     */
                     keyIter.remove();
 
                 }

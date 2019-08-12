@@ -1,7 +1,5 @@
 package netty.nio.java.nio.selector.socketclient;
 
-import lombok.extern.slf4j.Slf4j;
-
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
@@ -13,7 +11,6 @@ import java.nio.channels.SocketChannel;
  * @date 2019-08-11 23:31:07
  * @desc socket客户端
  */
-@Slf4j
 public class SocketClient {
 	// 通道选择器
 	private Selector selector;
