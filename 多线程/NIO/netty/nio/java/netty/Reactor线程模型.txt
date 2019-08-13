@@ -1,0 +1,30 @@
+引用自https://blog.csdn.net/king866/article/details/54427447并做了部分改动
+
+Netty支持3种NIO线程模型，这些线程模型使用一个或一组称之为Reactor的线程来分发请求事件，因此又称为Reactor线程模型
+
+【Reactor单线程模型】
+一个NIO线程(单线程)来处理connect事件(Acceptor)
+一个NIO线程池（多线程）来处理read事件
+一个NIO线程池（多线程）来处理write事件
+一个Reactor线程(单线程)来分发所有的请求事件
+处理各类事件的线程统称为Request Handler线程
+
+Reactor Thread以及所有的Request Handler Thread都是异步的
+所有的IO操作都是非阻塞的且多线程的
+
+
+【Reactor多线程模型】
+和单线程模型的区别是，使用一个Reactor线程池(多线程)来分发所有的请求事件
+分发事件的能力得到提高
+
+
+【Reactor主从模型】
+使用两类Reactor线程(或线程池)来处理所有的请求事件
+两类Reactor线程(或线程池)分别称为主Reactor和从Reactor
+每一类Reactor既可以是一个单线程，也可以是一组线程池
+
+主Reactor用以分发connect事件
+从Reactor用以分发read和write事件
+
+通常，主Reactor是单线程，从主Reactor是多线程，线程数一般可以设置为和CPU核数相同
+

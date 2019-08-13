@@ -1,0 +1,25 @@
+Channel通道是文件和Java程序之间或通信双方之间的双向数据连接
+Pipe管道则是2个线程之间的双向数据连接
+一个Pipe管道有一个sink通道和一个source通道，数据被写入sink通道，读取自source通道
+
+【管道的基本用法】
+//线程共享区域打开管道
+Pipe pipe = Pipe.open();
+
+//////////线程1向管道写入数据
+//获取管道的sink通道
+Pipe.SinkChannel sinkChannel = pipe.sink();
+//像普通通道一样写入sink通道数据
+String newData = "New String to write to file..." + System.currentTimeMillis();
+ByteBuffer buf = ByteBuffer.allocate(128);
+buf.put(newData.getBytes());
+buf.flip();
+sinkChannel.write(buf);
+
+//////////线程2从管道读取数据
+//获取管道的source通道
+Pipe.SourceChannel sourceChannel = pipe.source();
+//像普通通道一样读取source通道数据
+ByteBuffer buf = ByteBuffer.allocate(128);
+int bytesRead = sourceChannel.read(buf);
+

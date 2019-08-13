@@ -1,0 +1,63 @@
+引用自https://blog.csdn.net/ClementAD/article/details/47045673并做了勘误和部分改动
+
+注：org.apache.coyote包位于Tomcat的tomcat-coyote.jar中
+
+【BIO】
+一个线程处理一个请求
+缺点：并发量高时，线程数较多，资源消耗较大，性能下降
+Tomcat6及以下，Linux/Windows系统中默认的连接方式
+Tomcat7及以上已经不支持BIO了
+
+在Tomcat8版本，如果查看org.apache.coyote.http11.Http11Protocol可以看到其继承了Http11NioProtocol，其构造函数为
+    public Http11Protocol(){
+        log.warn(sm.getString("http11protocol.noBio"));
+    }
+
+【NIO】
+一个或少量的线程处理大量的请求
+Tomcat7及以上，Linux/Windows系统中默认的连接方式
+Tomcat6及以下，可以修改Connector的protocol值来启动NIO，如下：
+<Connector port="8080" protocol="org.apache.coyote.http11.Http11NioProtocol" 
+    connectionTimeout="20000" redirectPort="8443"/>
+
+NIO支持线程池，为了提高线程性能，可以对Connector配置线程池，如
+<Connector executor="tomcatThreadPool" port="8080" protocol="org.apache.coyote.http11.Http11NioProtocol"
+    connectionTimeout="20000" redirectPort="8443"
+    maxThreads="150" SSLEnabled="true" scheme="https" secure="true" clientAuth="false" sslProtocol="TLS" />
+
+【APR】
+即Apache Portable Runtime，从操作系统层面解决io阻塞问题
+Tomcat7及以上，Windows系统中可以修改Connector的protocol值来启动APR，如下：
+<Connector port="8080" protocol="org.apache.coyote.http11.Http11AprProtocol" 
+    connectionTimeout="20000" redirectPort="8443"/>
+
+Tomcat5.5及以上，Linux系统中除了修改Connector配置，还需要安装apr和native才能启动APR（安装方法：http://my.oschina.net/lsw90/blog/181161）
+
+同样地，APR也支持线程池，配置参考上文
+
+【运行模式比较】
+官方对这三种的区别的详细说明：
+                  Java Blocking Connector   Java Nio Blocking Connector   APR/native Connector 
+                             BIO                         NIO                       APR 
+Classname                AjpProtocol               AjpNioProtocol           AjpAprProtocol 
+Tomcat Version           3.x onwards                 7.x onwards              5.5.x onwards 
+Support Polling              NO                          YES                       YES 
+Polling Size                 N/A                   maxConnections             maxConnections 
+Read Request Headers      Blocking                  Sim Blocking                   Blocking 
+Read Request Body         Blocking                  Sim Blocking                   Blocking 
+Write Response            Blocking                  Sim Blocking                   Blocking 
+Wait for next Request     Blocking                  Non Blocking               Non Blocking 
+Max Connections        maxConnections              maxConnections             maxConnections 
+
+Tomcat启动的时候，可以通过log看到Connector使用的是哪一种运行模式：
+Starting ProtocolHandler ["http-bio-8080"]
+Starting ProtocolHandler ["ajp-bio-8009"]
+
+Starting ProtocolHandler ["http-nio-8080"]
+Starting ProtocolHandler ["ajp-nio-8009"]
+
+Starting ProtocolHandler ["http-apr-8080"]
+Starting ProtocolHandler ["ajp-nio-8009"]//注：ajp协议仍然是nio模式
+
+nio的整体性能是优于bio的，tomcat8及以上的版本已经不再支持bio(tomcat7未验证，或许也不支持bio)
+apr在处理静态资源时性能比nio更优，动态资源时性能也不弱于nio，是tomcat首选的连接方式
