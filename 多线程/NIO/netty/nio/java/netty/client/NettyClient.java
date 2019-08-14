@@ -8,6 +8,9 @@ import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
+import io.netty.handler.codec.LineBasedFrameDecoder;
+import io.netty.handler.codec.string.StringDecoder;
+import netty.nio.java.netty.constant.CodeConstant;
 
 /**
  * @author liuwei
@@ -41,7 +44,10 @@ public class NettyClient implements Runnable {
 			.handler(new ChannelInitializer<SocketChannel>() {
 						@Override
 						public void initChannel(SocketChannel ch) throws Exception {
-							ch.pipeline().addLast(new CCEventHandler());
+							//和服务端一样，添加责任链进行粘包解码、字符串解码和事件处理
+							ch.pipeline().addLast(new LineBasedFrameDecoder(1024))
+							.addLast(new StringDecoder(CodeConstant.UTF8_CHAR))
+							.addLast(new CCEventHandler());
 						}
 					});
 

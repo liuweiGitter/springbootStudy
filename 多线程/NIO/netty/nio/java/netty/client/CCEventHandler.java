@@ -5,6 +5,8 @@ import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import lombok.extern.slf4j.Slf4j;
+import netty.nio.java.netty.constant.CodeConstant;
+import netty.nio.java.netty.constant.SystemConstant;
 
 /**
  * @author liuwei
@@ -18,8 +20,8 @@ public class CCEventHandler extends ChannelInboundHandlerAdapter {
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
     	//消息写入缓冲区
-        String reqMsg = "我是客户端 " + Thread.currentThread().getName();
-        byte[] reqMsgByte = reqMsg.getBytes("UTF-8");
+        String reqMsg = "我是客户端 " + Thread.currentThread().getName()+SystemConstant.LINE_SEPARATOR;
+        byte[] reqMsgByte = reqMsg.getBytes(CodeConstant.UTF8_STR);
         ByteBuf reqByteBuf = Unpooled.buffer(reqMsgByte.length);
         reqByteBuf.writeBytes(reqMsgByte);
         //通道写入并刷新(发送)消息到服务器
@@ -34,10 +36,7 @@ public class CCEventHandler extends ChannelInboundHandlerAdapter {
 	 */
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
-        ByteBuf buf = (ByteBuf) msg;
-        byte[] req = new byte[buf.readableBytes()];
-        buf.readBytes(req);
-        String recive = new String(req, "UTF-8");
+        String recive = (String) msg;
         System.out.println("通道Handler线程名称："+Thread.currentThread().getName());
 		System.out.println("接收到的服务端消息为：" + recive);
 		ctx.close();

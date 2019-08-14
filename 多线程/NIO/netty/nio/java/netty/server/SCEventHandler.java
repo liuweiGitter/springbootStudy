@@ -7,6 +7,8 @@ import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import lombok.extern.slf4j.Slf4j;
+import netty.nio.java.netty.constant.CodeConstant;
+import netty.nio.java.netty.constant.SystemConstant;
 
 /**
  * @author liuwei
@@ -19,18 +21,16 @@ public class SCEventHandler extends ChannelInboundHandlerAdapter {
 	/**
 	 * 通道读事件就绪后的处理器
 	 * @param ctx 通道上下文对象
-	 * @param msg 通道中接收到的客户端消息的缓冲区对象载体
+	 * @param msg 通道中接收到的客户端消息的缓冲区数据对象
+	 * 	注：这个msg指的并不是客户端发来的原始消息，而是原始消息经过协议包装后的数据包消息
+	 * 	如果这个协议消息经过粘包解码、字符串解码等操作，就可以还原出原始消息
+	 * 	本例中服务器的通道事件处理器类在处理器责任链中添加了解码操作，因此还原出了原始消息
 	 * @throws Exception
 	 */
 	@Override
 	public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
-		//获取通道的缓冲区对象
-		ByteBuf buf = (ByteBuf) msg;
-		//获取缓冲区可读字节数，动态创建字节数组，并将缓冲区数据写入字节数组
-		byte[] reg = new byte[buf.readableBytes()];
-		buf.readBytes(reg);
 		//打印接收到的客户端消息
-		String recive = new String(reg, "UTF-8");
+		String recive = (String) msg;
 		System.out.println("通道Handler线程名称："+Thread.currentThread().getName());
 		System.out.println("接收到的客户端消息为：" + recive);
 
@@ -38,8 +38,8 @@ public class SCEventHandler extends ChannelInboundHandlerAdapter {
 		 * 创建一个新的缓冲区，写入服务器的响应信息，然后将缓冲区写入通道发送到客户端
 		 * 通道写入缓冲区数据的操作是异步非阻塞的
 		 */
-		String respMsg = LocalDateTime.now()+" 服务器接收消息成功！";
-		ByteBuf respByteBuf = Unpooled.copiedBuffer(respMsg.getBytes());
+		String respMsg = LocalDateTime.now()+" 服务器接收消息成功！"+SystemConstant.LINE_SEPARATOR;
+		ByteBuf respByteBuf = Unpooled.copiedBuffer(respMsg.getBytes(CodeConstant.UTF8_STR));
 		ctx.write(respByteBuf);
 	}
 
