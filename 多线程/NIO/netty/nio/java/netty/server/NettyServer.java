@@ -10,9 +10,16 @@ import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
+import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.codec.DelimiterBasedFrameDecoder;
 import io.netty.handler.codec.FixedLengthFrameDecoder;
 import io.netty.handler.codec.LineBasedFrameDecoder;
+import io.netty.handler.codec.compression.Bzip2Decoder;
+import io.netty.handler.codec.compression.Bzip2Encoder;
+import io.netty.handler.codec.protobuf.ProtobufDecoder;
+import io.netty.handler.codec.protobuf.ProtobufEncoder;
+import io.netty.handler.codec.protobuf.ProtobufVarint32FrameDecoder;
+import io.netty.handler.codec.protobuf.ProtobufVarint32LengthFieldPrepender;
 import io.netty.handler.codec.string.StringDecoder;
 import lombok.extern.slf4j.Slf4j;
 import netty.nio.java.netty.constant.CodeConstant;
@@ -87,11 +94,12 @@ public class NettyServer {
 			arg0.pipeline().addLast(new LineBasedFrameDecoder(1024))
 			.addLast(new StringDecoder(CodeConstant.UTF8_CHAR))
 			.addLast(new SCEventHandler());
-			justDemo(true);
+			justDemo1(true);
+			justDemo2(true);
 		}
 		
 		//分隔符解码器和定长解码器
-		private void justDemo(boolean stop) {
+		private void justDemo1(boolean stop) {
 			if (stop) {
 				return;
 			}
@@ -113,6 +121,54 @@ public class NettyServer {
 			 * 如果发送的消息长度大于约定长度，则将最后的余数视作半包
 			 */
 			new FixedLengthFrameDecoder(64);
+		}
+		
+		//消息长度编码器和解码器
+		private void justDemo2(boolean stop) {
+			if (stop) {
+				return;
+			}
+			/**
+			 * 消息长度编码器和解码器要配套使用
+			 * 
+			 * 一个消息可以经过重重编码，再发送出去
+			 * 如先进行二进制(即字节)编码，然后进行消息长度编码，然后压缩码流，最后才发出
+			 * 那么这条消息在接收方，必须重重逆序解码，才能被还原
+			 * 如先进行码流的解压缩，然后进行消息长度解码，然后进行二进制(即字节)解码，最后才还原出源消息
+			 * 
+			 * 大多数编码方案不像定长、换行、分隔符那样简单到只需要双方约定简单的编码协议后添加对应的解码器即可
+			 * 这些编码方案需要靠编码器来实现，而不仅仅是靠私有实现
+			 * 因此这些方案需要编码器和解码器的配套使用
+			 * 具体表现在，处理器责任链中要同时注册相对应的编码器和解码器
+			 * 
+			 * ☆五星注意☆
+			 * 当需要多重编码时，编码器和解码器的顺序至关重要
+			 * 为维持顺序并增强可读性，现约定，责任链的顺序为：
+			 * 解码器n-->...-->解码器1-->编码器n-->...-->编码器1-->通道事件处理器ChannelInboundHandlerAdapter
+			 * 这是因为发送消息时，责任链逆序执行，先走通道事件处理器，然后编码器1，一路逆行，直到所有编码完成后，通道再发出消息
+			 * 而接收消息时，责任链顺序执行，通道接收到消息后，先走解码器n，然后解码器n-1，一路顺行，直到所有解码完成然后来到通道事件处理器
+			 * 通道的管道能自动区分责任链环是属于编码器、解码器或是通道事件处理器，编码时跳过解码器，解码时跳过编码器
+			 * 
+			 * ☆五星注意☆
+			 * 除了以上责任链顺序，务必需要注意的是，编码时必须要有编码器能对半包进行标记，即能处理粘包问题
+			 * 有些编码器仅负责编码而不处理粘包，如一些不带定长、换行、分隔符、消息长度的二进制字节编码/压缩编码等
+			 * 编码链上必须注意这一点
+			 * 
+			 * 本例中使用了protobuf32位消息长度编码器和解码器
+			 * Netty中还有其它的消息长度编码解码器类，如最通用的LengthFieldPrepender和LengthFieldBasedFrameDecoder，不赘述
+			 * 
+			 * 本例对ProtobufDecoder构造时传参为null，仅做示例
+			 * ProtoBuf编解码需要特殊格式的类支持，具体内容，参见《Netty权威指南》
+			 */
+			SocketChannel channel = new NioSocketChannel();
+			channel.pipeline()
+			.addLast("bzip解压码流",new Bzip2Decoder())
+			.addLast("protobuf消息长度解码",new ProtobufVarint32FrameDecoder())
+			.addLast("protobuf二进制解码",new ProtobufDecoder(null))
+			.addLast("bzip压缩码流",new Bzip2Encoder())
+			.addLast("protobuf消息长度编码，消息前缀添加32bit表征长度",new ProtobufVarint32LengthFieldPrepender())
+			.addLast("protobuf二进制编码",new ProtobufEncoder())
+			.addLast(new SCEventHandler());
 		}
 		
 	}
