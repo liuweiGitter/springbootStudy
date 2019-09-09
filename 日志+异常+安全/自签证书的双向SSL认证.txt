@@ -1,0 +1,167 @@
+
+自签证书可用于开发环境自测Https协议加密通信时的公钥认证，即SSL认证
+在做证书认证时，即使没有强制规定，也应该进行双向的SSL认证
+
+当自签证书换成三方CA证书时，即为实际应用中的SSL双向认证
+如果使用Nginx做反向代理，服务端认证的则是Nginx服务器的证书
+如果客户端为另一台JVM，客户端认证的则是客户端JVM的证书
+ 
+【生成服务器端证书】
+E:\java\jdk1.8.0_191\bin>keytool -genkey -v -alias tomcat -keyalg RSA -storetype PKCS12 ^
+-storepass tomcat2019 -keystore E:\java\tomcat.jks -validity 36500 ^
+-dname "CN=liuwei, OU=jshx, O=noc, L=nj, ST=js, C=cn"
+正在为以下对象生成 2,048 位RSA密钥对和自签名证书 (SHA256withRSA) (有效期为 36,500 天):
+         CN=liuwei, OU=jshx, O=noc, L=nj, ST=js, C=cn
+[正在存储E:\java\tomcat.jks]
+ 
+【生成客户端(即浏览器)证书】
+使用keytool为浏览器生成证书，生成后导入浏览器，IE、Firefox等浏览器识别的证书格式为PKCS12
+
+1.生成client.p12证书
+E:\java\jdk1.8.0_191\bin>keytool -genkey -v -alias client -keyalg RSA -storetype PKCS12 ^
+-storepass client2019 -keystore E:\java\client.p12 -validity 36500 ^
+-dname "CN=liuwei, OU=jshx, O=noc, L=nj, ST=js, C=cn"
+正在为以下对象生成 2,048 位RSA密钥对和自签名证书 (SHA256withRSA) (有效期为 36,500 天):
+         CN=liuwei, OU=jshx, O=noc, L=nj, ST=js, C=cn
+[正在存储E:\java\client.p12]
+
+2.将client.p12证书导入到个人证书
+浏览器：Internet属性>内容>证书>个人>导入>E:\java\client.p12
+
+【让服务器信任客户端(即浏览器)证书】
+客户端证书格式为PKCS12，可以被浏览器识别，导入浏览器
+除此之外，如果需要服务器信任客户端证书，需要将客户端证书导入服务器
+当导入服务器端时，证书需要先转换为cer格式
+
+1.将client.p12转换成client.cer
+E:\java\jdk1.8.0_191\bin>keytool -export -alias client -keystore E:\java\client.p12 -storetype PKCS12 -rfc -file E:\java\client.cer
+输入密钥库口令:
+存储在文件 <E:\java\client.cer> 中的证书
+
+2.将client.cer导入到tomcat的信任证书链中
+E:\java\jdk1.8.0_191\bin>keytool -import -alias client -v -file E:\java\client.cer -keystore E:\java\tomcat.jks
+输入密钥库口令:
+所有者: CN=liuwei, OU=jshx, O=noc, L=nj, ST=js, C=cn
+发布者: CN=liuwei, OU=jshx, O=noc, L=nj, ST=js, C=cn
+序列号: 6f364f01
+有效期为 Sun Sep 08 10:14:54 CST 2019 至 Tue Aug 15 10:14:54 CST 2119
+证书指纹:
+         MD5:  F9:E5:CE:58:98:C9:93:CE:ED:4B:5B:8F:2A:E8:DF:6A
+         SHA1: B8:82:82:12:DB:32:7B:EF:42:8A:0F:64:AD:EC:1A:74:D2:29:BD:37
+         SHA256: B2:97:74:E5:9F:DA:C0:A7:5A:01:BE:33:1E:8F:CA:02:F7:BE:0E:7C:D2:57:0C:F8:CD:A7:E6:89:36:0F:5A:4A
+签名算法名称: SHA256withRSA
+主体公共密钥算法: 2048 位 RSA 密钥
+版本: 3
+
+扩展:
+
+#1: ObjectId: 2.5.29.14 Criticality=false
+SubjectKeyIdentifier [
+KeyIdentifier [
+0000: D8 7F 15 9D 67 6F E7 6A   C7 6B 5A 33 8D 6C F2 EB  ....go.j.kZ3.l..
+0010: DB 76 BB 3C                                        .v.<
+]
+]
+
+是否信任此证书? [否]:  y
+证书已添加到密钥库中
+[正在存储E:\java\tomcat.jks]
+
+【让客户端(即浏览器)信任服务器证书】
+服务端证书格式为PKCS12，如果需要客户端信任服务端证书，需要将服务端证书导入浏览器
+当导入浏览器时，证书需要先转换为cer格式
+
+1.tomcat.jks转换成tomcat.cer
+E:\java\jdk1.8.0_191\bin>keytool -export -alias tomcat -keystore E:\java\tomcat.jks -storetype PKCS12 -rfc -file E:\java\tomcat.cer
+输入密钥库口令:
+存储在文件 <E:\java\tomcat.cer> 中的证书
+
+2.将tomcat.cer证书导入到受信任的根证书颁发机构
+浏览器：Internet属性>内容>证书>受信任的根证书颁发机构>导入>E:\java\tomcat.cer
+
+【修改server.xml文件并启动Tomcat】
+
+1.修改server.xml文件以支持SSL和双向认证 
+    <Connector port="8080" redirectPort="8443" connectionTimeout="20000" protocol="org.apache.coyote.http11.Http11NioProtocol"
+               maxThreads="150" SSLEnabled="true" clientAuth="true" 
+			   keystoreFile="E:\java\tomcat.jks" keystorePass="tomcat2019"
+               truststoreFile="E:\java\tomcat.jks" truststorePass="tomcat2019"
+			   />
+允许浏览器通过https/1.1协议在8080端口访问服务器
+SSLEnabled值为true使用SSL协议
+clientAuth值为true启用SSL双向认证，为false启用单向认证(认证客户端)
+keystoreFile服务器证书文件路径
+keystorePass服务器证书密码
+truststoreFile用来验证客户端证书的根证书，此例中就是服务器证书
+truststorePass根证书密码
+
+2.启动Tomcat
+启动关键日志如下：
+09-Sep-2019 21:59:09.941 信息 [main] org.apache.catalina.core.AprLifecycleListener.lifecycleEvent Loaded APR based Apache Tomcat Native library [1.2.23] using APR version [1.7.0].
+09-Sep-2019 21:59:09.943 信息 [main] org.apache.catalina.core.AprLifecycleListener.lifecycleEvent APR capabilities: IPv6 [true], sendfile [true], accept filters [false], random [true].
+09-Sep-2019 21:59:09.945 信息 [main] org.apache.catalina.core.AprLifecycleListener.lifecycleEvent APR/OpenSSL configuration: useAprConnector [false], useOpenSSL [true]
+09-Sep-2019 21:59:09.973 信息 [main] org.apache.catalina.core.AprLifecycleListener.initializeSSL OpenSSL successfully initialized [OpenSSL 1.1.1c  28 May 2019]
+09-Sep-2019 21:59:10.308 信息 [main] org.apache.coyote.AbstractProtocol.init Initializing ProtocolHandler ["https-openssl-nio-8080"]
+09-Sep-2019 21:59:12.582 信息 [main] org.apache.tomcat.util.net.NioSelectorPool.getSharedSelector Using a shared selector for servlet write/read
+09-Sep-2019 21:59:12.637 信息 [main] org.apache.coyote.AbstractProtocol.init Initializing ProtocolHandler ["ajp-nio-8009"]
+09-Sep-2019 21:59:12.654 信息 [main] org.apache.tomcat.util.net.NioSelectorPool.getSharedSelector Using a shared selector for servlet write/read
+09-Sep-2019 21:59:12.656 信息 [main] org.apache.catalina.startup.Catalina.load Initialization processed in 3873 ms
+
+可以看到，在8080端口启用了基于nio模型openssl协议的https服务：https-openssl-nio-8080
+
+【Https访问服务器】
+1.http://localhost:8080
+Bad Request
+This combination of host and port requires TLS.
+
+2.https://localhost:8080
+选择信任证书后可正常访问，由于使用非权威CA机构认证的证书，一些浏览器会在地址栏提示用户地址不安全，但不影响服务器的访问
+
+
+附注：
+I.本例中在E:\java目录下生成了4个证书文件，如下：
+	tomcat.jks、tomcat.cer、client.p12、client.cer
+II.keytool.exe为JDK内置密钥和证书管理工具，位于bin目录下，其常用命令参数如下：
+	E:\java\jdk1.8.0_191\bin>keytool.exe
+	密钥和证书管理工具
+
+	命令:
+
+	 -certreq            生成证书请求
+	 -changealias        更改条目的别名
+	 -delete             删除条目
+	 -exportcert         导出证书
+	 -genkeypair         生成密钥对
+	 -genseckey          生成密钥
+	 -gencert            根据证书请求生成证书
+	 -importcert         导入证书或证书链
+	 -importpass         导入口令
+	 -importkeystore     从其他密钥库导入一个或所有条目
+	 -keypasswd          更改条目的密钥口令
+	 -list               列出密钥库中的条目
+	 -printcert          打印证书内容
+	 -printcertreq       打印证书请求的内容
+	 -printcrl           打印 CRL 文件的内容
+	 -storepasswd        更改密钥库的存储口令
+
+	使用 "keytool -command_name -help" 获取 command_name 的用法
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
