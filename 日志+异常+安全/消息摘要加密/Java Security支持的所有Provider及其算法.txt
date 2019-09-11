@@ -1,0 +1,262 @@
+Provider: SUN
+  Algorithm: SHA1PRNG
+  Algorithm: SHA1withDSA
+  Algorithm: NONEwithDSA
+  Algorithm: SHA224withDSA
+  Algorithm: SHA256withDSA
+  Algorithm: DSA
+  Algorithm: MD2
+  Algorithm: MD5
+  Algorithm: SHA
+  Algorithm: SHA-224
+  Algorithm: SHA-256
+  Algorithm: SHA-384
+  Algorithm: SHA-512
+  Algorithm: DSA
+  Algorithm: DSA
+  Algorithm: DSA
+  Algorithm: X.509
+  Algorithm: JKS
+  Algorithm: CaseExactJKS
+  Algorithm: DKS
+  Algorithm: JavaPolicy
+  Algorithm: JavaLoginConfig
+  Algorithm: PKIX
+  Algorithm: PKIX
+  Algorithm: LDAP
+  Algorithm: Collection
+  Algorithm: com.sun.security.IndexedCollection
+
+
+Provider: SunRsaSign
+  Algorithm: RSA
+  Algorithm: RSA
+  Algorithm: MD2withRSA
+  Algorithm: MD5withRSA
+  Algorithm: SHA1withRSA
+  Algorithm: SHA224withRSA
+  Algorithm: SHA256withRSA
+  Algorithm: SHA384withRSA
+  Algorithm: SHA512withRSA
+
+
+Provider: SunEC
+  Algorithm: EC
+  Algorithm: EC
+  Algorithm: NONEwithECDSA
+  Algorithm: SHA1withECDSA
+  Algorithm: SHA224withECDSA
+  Algorithm: SHA256withECDSA
+  Algorithm: SHA384withECDSA
+  Algorithm: SHA512withECDSA
+  Algorithm: EC
+  Algorithm: ECDH
+
+
+Provider: SunJSSE
+  Algorithm: RSA
+  Algorithm: RSA
+  Algorithm: MD2withRSA
+  Algorithm: MD5withRSA
+  Algorithm: SHA1withRSA
+  Algorithm: MD5andSHA1withRSA
+  Algorithm: SunX509
+  Algorithm: NewSunX509
+  Algorithm: SunX509
+  Algorithm: PKIX
+  Algorithm: TLSv1
+  Algorithm: TLSv1.1
+  Algorithm: TLSv1.2
+  Algorithm: TLS
+  Algorithm: Default
+  Algorithm: PKCS12
+
+
+Provider: SunJCE
+  Algorithm: RSA
+  Algorithm: DES
+  Algorithm: DESede
+  Algorithm: DESedeWrap
+  Algorithm: PBEWithMD5AndDES
+  Algorithm: PBEWithMD5AndTripleDES
+  Algorithm: PBEWithSHA1AndDESede
+  Algorithm: PBEWithSHA1AndRC2_40
+  Algorithm: PBEWithSHA1AndRC2_128
+  Algorithm: PBEWithSHA1AndRC4_40
+  Algorithm: PBEWithSHA1AndRC4_128
+  Algorithm: PBEWithHmacSHA1AndAES_128
+  Algorithm: PBEWithHmacSHA224AndAES_128
+  Algorithm: PBEWithHmacSHA256AndAES_128
+  Algorithm: PBEWithHmacSHA384AndAES_128
+  Algorithm: PBEWithHmacSHA512AndAES_128
+  Algorithm: PBEWithHmacSHA1AndAES_256
+  Algorithm: PBEWithHmacSHA224AndAES_256
+  Algorithm: PBEWithHmacSHA256AndAES_256
+  Algorithm: PBEWithHmacSHA384AndAES_256
+  Algorithm: PBEWithHmacSHA512AndAES_256
+  Algorithm: Blowfish
+  Algorithm: AES
+  Algorithm: AES_128/ECB/NoPadding
+  Algorithm: AES_128/CBC/NoPadding
+  Algorithm: AES_128/OFB/NoPadding
+  Algorithm: AES_128/CFB/NoPadding
+  Algorithm: AES_128/GCM/NoPadding
+  Algorithm: AES_192/ECB/NoPadding
+  Algorithm: AES_192/CBC/NoPadding
+  Algorithm: AES_192/OFB/NoPadding
+  Algorithm: AES_192/CFB/NoPadding
+  Algorithm: AES_192/GCM/NoPadding
+  Algorithm: AES_256/ECB/NoPadding
+  Algorithm: AES_256/CBC/NoPadding
+  Algorithm: AES_256/OFB/NoPadding
+  Algorithm: AES_256/CFB/NoPadding
+  Algorithm: AES_256/GCM/NoPadding
+  Algorithm: AESWrap
+  Algorithm: AESWrap_128
+  Algorithm: AESWrap_192
+  Algorithm: AESWrap_256
+  Algorithm: RC2
+  Algorithm: ARCFOUR
+  Algorithm: DES
+  Algorithm: DESede
+  Algorithm: Blowfish
+  Algorithm: AES
+  Algorithm: RC2
+  Algorithm: ARCFOUR
+  Algorithm: HmacMD5
+  Algorithm: HmacSHA1
+  Algorithm: HmacSHA224
+  Algorithm: HmacSHA256
+  Algorithm: HmacSHA384
+  Algorithm: HmacSHA512
+  Algorithm: DiffieHellman
+  Algorithm: DiffieHellman
+  Algorithm: DiffieHellman
+  Algorithm: DiffieHellman
+  Algorithm: DES
+  Algorithm: DESede
+  Algorithm: PBE
+  Algorithm: PBEWithMD5AndDES
+  Algorithm: PBEWithMD5AndTripleDES
+  Algorithm: PBEWithSHA1AndDESede
+  Algorithm: PBEWithSHA1AndRC2_40
+  Algorithm: PBEWithSHA1AndRC2_128
+  Algorithm: PBEWithSHA1AndRC4_40
+  Algorithm: PBEWithSHA1AndRC4_128
+  Algorithm: PBES2
+  Algorithm: PBEWithHmacSHA1AndAES_128
+  Algorithm: PBEWithHmacSHA224AndAES_128
+  Algorithm: PBEWithHmacSHA256AndAES_128
+  Algorithm: PBEWithHmacSHA384AndAES_128
+  Algorithm: PBEWithHmacSHA512AndAES_128
+  Algorithm: PBEWithHmacSHA1AndAES_256
+  Algorithm: PBEWithHmacSHA224AndAES_256
+  Algorithm: PBEWithHmacSHA256AndAES_256
+  Algorithm: PBEWithHmacSHA384AndAES_256
+  Algorithm: PBEWithHmacSHA512AndAES_256
+  Algorithm: Blowfish
+  Algorithm: AES
+  Algorithm: GCM
+  Algorithm: RC2
+  Algorithm: OAEP
+  Algorithm: DiffieHellman
+  Algorithm: DES
+  Algorithm: DESede
+  Algorithm: PBEWithMD5AndDES
+  Algorithm: PBEWithMD5AndTripleDES
+  Algorithm: PBEWithSHA1AndDESede
+  Algorithm: PBEWithSHA1AndRC2_40
+  Algorithm: PBEWithSHA1AndRC2_128
+  Algorithm: PBEWithSHA1AndRC4_40
+  Algorithm: PBEWithSHA1AndRC4_128
+  Algorithm: PBEWithHmacSHA1AndAES_128
+  Algorithm: PBEWithHmacSHA224AndAES_128
+  Algorithm: PBEWithHmacSHA256AndAES_128
+  Algorithm: PBEWithHmacSHA384AndAES_128
+  Algorithm: PBEWithHmacSHA512AndAES_128
+  Algorithm: PBEWithHmacSHA1AndAES_256
+  Algorithm: PBEWithHmacSHA224AndAES_256
+  Algorithm: PBEWithHmacSHA256AndAES_256
+  Algorithm: PBEWithHmacSHA384AndAES_256
+  Algorithm: PBEWithHmacSHA512AndAES_256
+  Algorithm: PBKDF2WithHmacSHA1
+  Algorithm: PBKDF2WithHmacSHA224
+  Algorithm: PBKDF2WithHmacSHA256
+  Algorithm: PBKDF2WithHmacSHA384
+  Algorithm: PBKDF2WithHmacSHA512
+  Algorithm: HmacMD5
+  Algorithm: HmacSHA1
+  Algorithm: HmacSHA224
+  Algorithm: HmacSHA256
+  Algorithm: HmacSHA384
+  Algorithm: HmacSHA512
+  Algorithm: HmacPBESHA1
+  Algorithm: PBEWithHmacSHA1
+  Algorithm: PBEWithHmacSHA224
+  Algorithm: PBEWithHmacSHA256
+  Algorithm: PBEWithHmacSHA384
+  Algorithm: PBEWithHmacSHA512
+  Algorithm: SslMacMD5
+  Algorithm: SslMacSHA1
+  Algorithm: JCEKS
+  Algorithm: SunTlsPrf
+  Algorithm: SunTls12Prf
+  Algorithm: SunTlsMasterSecret
+  Algorithm: SunTlsKeyMaterial
+  Algorithm: SunTlsRsaPremasterSecret
+
+
+Provider: SunJGSS
+  Algorithm: 1.2.840.113554.1.2.2
+  Algorithm: 1.3.6.1.5.5.2
+
+
+Provider: SunSASL
+  Algorithm: DIGEST-MD5
+  Algorithm: NTLM
+  Algorithm: GSSAPI
+  Algorithm: EXTERNAL
+  Algorithm: PLAIN
+  Algorithm: CRAM-MD5
+  Algorithm: CRAM-MD5
+  Algorithm: GSSAPI
+  Algorithm: DIGEST-MD5
+  Algorithm: NTLM
+
+
+Provider: XMLDSig
+  Algorithm: http://www.w3.org/2006/12/xml-c14n11#WithComments
+  Algorithm: http://www.w3.org/2000/09/xmldsig#base64
+  Algorithm: http://www.w3.org/TR/1999/REC-xslt-19991116
+  Algorithm: http://www.w3.org/2001/10/xml-exc-c14n#
+  Algorithm: http://www.w3.org/TR/2001/REC-xml-c14n-20010315#WithComments
+  Algorithm: http://www.w3.org/2000/09/xmldsig#enveloped-signature
+  Algorithm: http://www.w3.org/2002/06/xmldsig-filter2
+  Algorithm: DOM
+  Algorithm: http://www.w3.org/TR/2001/REC-xml-c14n-20010315
+  Algorithm: http://www.w3.org/2001/10/xml-exc-c14n#WithComments
+  Algorithm: http://www.w3.org/2006/12/xml-c14n11
+  Algorithm: http://www.w3.org/TR/1999/REC-xpath-19991116
+  Algorithm: DOM
+
+
+Provider: SunPCSC
+  Algorithm: PC/SC
+
+
+Provider: SunMSCAPI
+  Algorithm: Windows-PRNG
+  Algorithm: Windows-MY
+  Algorithm: Windows-ROOT
+  Algorithm: NONEwithRSA
+  Algorithm: SHA1withRSA
+  Algorithm: SHA256withRSA
+  Algorithm: SHA384withRSA
+  Algorithm: SHA512withRSA
+  Algorithm: MD5withRSA
+  Algorithm: MD2withRSA
+  Algorithm: RSA
+  Algorithm: RSA
+  Algorithm: RSA/ECB/PKCS1Padding
+
+
