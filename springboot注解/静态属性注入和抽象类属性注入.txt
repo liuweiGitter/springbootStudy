@@ -1,0 +1,38 @@
+
+类头添加@Component、@Service、@Controller等注解后，Spring都会进一步扫描这些类中的属性注解，并为之注入依赖
+基本类型数据是不需要注入的，无论是实例属性还是静态属性，实际都是引用类型对象
+Class对象扫描时，Spring通过约定注解识别其中需要注入Bean的属性，并从其容器中选择所需的Bean注入到目标属性中
+
+【静态属性注入】
+
+静态属性注入最常用的方法有2种：
+1.方法入参注入
+	private static TargetObject targetObject;
+	@Autowired
+	private void initTarget(TargetObject targetObject){
+		Xxx.targetObject = targetObject;
+	}
+
+2.重复变量定义
+	private static TargetObject targetObjectStatic;
+	@Autowired
+	private TargetObject targetObject;
+	@PostConstruct
+	private void initTarget(){
+		targetObjectStatic = targetObject;
+	}
+	
+建议使用方法入参注入
+
+
+【抽象类属性注入】
+Spring只会对类头约定注解的类创建Bean并扫描注入其中的属性依赖
+抽象类不允许创建对象，因此不能添加类头注解，进而不能被注入依赖
+
+但通过对抽象类属性访问权限放开至子类，即protected，子类即可继承该属性
+子类添加类头注解后，Spring同样会为该继承的属性注入依赖
+也就是说，抽象类的属性注入是通过子类继承间接实现的
+
+抽象类属性注入，同样是使用@Autowired注解注入，形式上与普通类注入没有任何区别
+
+

@@ -1,0 +1,29 @@
+Spring容器中存储了启动过程中加载到的所有Bean对象，无论是来自Spring框架，还是三方依赖，或者是本地项目
+在实际编程中，除了可以通过依赖注入引用到Bean对象，还可以通过Spring上下文更灵活自主地访问Bean对象
+
+Spring上下文org.springframework.context.ApplicationContext接口继承了多个父接口，其中一个为BeanFactory
+通过BeanFactory即可获取到容器中的Bean对象，该接口定义了多个获取Bean实例的方法，如下：
+
+    Object getBean(String var1) throws BeansException;
+
+    <T> T getBean(String var1, Class<T> var2) throws BeansException;
+
+    Object getBean(String var1, Object... var2) throws BeansException;
+
+    <T> T getBean(Class<T> var1) throws BeansException;
+
+    <T> T getBean(Class<T> var1, Object... var2) throws BeansException;
+	
+其中的String参数为Bean的name，Class参数为Bean的类型，Object参数在BeanFactory几乎所有的Spring内部实现类中都不支持，该参数不为null时会抛出异常
+除此之外，还有一些方法用于判断Bean是否存在、是否单例模式、是否属于某一类型等，不详述
+
+Spring上下文对象本身也被注册为Bean，具体使用方法示例如下：
+
+//注入Spring上下文对象
+@Autowired
+private ApplicationContext applicationContext;
+//获取目标Bean对象
+TargetObject target = (TargetObject) applicationContext.getBean("targetObject");
+TargetObject target = applicationContext.getBean(TargetObject.class);
+
+当许多类需要注入多个静态属性时，除了可以使用普通的依赖注入方式，如果这些静态属性是public属性的话，还可以创建一个统一的独立的辅助注入类，在其中使用Spring上下文为这些静态属性赋值相应的Bean
