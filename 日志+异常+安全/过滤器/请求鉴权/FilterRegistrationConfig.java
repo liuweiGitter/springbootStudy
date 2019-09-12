@@ -24,6 +24,7 @@ public class FilterRegistrationConfig {
         registration.addUrlPatterns("/*");
         registration.addInitParameter("author", "liuwei");
         registration.setName("authFilter");
+		//设置过滤器顺序
         registration.setOrder(1);
         return registration;
     }
