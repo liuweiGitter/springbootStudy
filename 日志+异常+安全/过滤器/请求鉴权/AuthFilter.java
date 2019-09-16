@@ -1,11 +1,10 @@
 package com.telecom.js.noc.hxtnms.operationplan.filter;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.env.Environment;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.util.StringUtils;
-
-import lombok.extern.slf4j.Slf4j;
 
 import javax.annotation.PostConstruct;
 import javax.servlet.*;
@@ -25,10 +24,7 @@ import java.util.concurrent.TimeUnit;
  * @author Dingpeng
  * @since 2019-06-26
  */
-//@Order(1)//设置过滤器顺序
-//@WebFilter(filterName = "authFilter", urlPatterns = {"/*"})
-//@Component
-//本例没有使用注解，而是选择在配置类中注册过滤器，详参FilterRegistrationConfig
+//此处使用FilterRegistrationConfig注册过滤器
 @Slf4j
 public class AuthFilter implements Filter {
 
@@ -40,30 +36,19 @@ public class AuthFilter implements Filter {
     private static final String AUTH_FAILED_DISPATCH = "/authFailed";
     //默认超时10min
     private Long expireTime = 600L;
-    
-    //例外过滤路径
-    private final Set<String> excludeEqualPaths = new HashSet<String>();
-	private final Set<String> excludeLikePaths = new HashSet<String>();
+
+    //免过滤的like路径set
+    private static final Set<String> FREE_FILTER_LIKE = new HashSet<String>();
+
+    static {
+        FREE_FILTER_LIKE.add("/api");
+    }
 
     @PostConstruct
     private void initParam(){
-    	//超时时间
         String expireTimeLogin = environment.getProperty("expireTimeLogin");
         if (!StringUtils.isEmpty(expireTimeLogin)){
             expireTime = Long.valueOf(expireTimeLogin);
-        }
-        //例外过滤路径
-        String excludeEqualPaths = environment.getProperty("excludeEqualPaths");
-        if (!StringUtils.isEmpty(excludeEqualPaths)){
-        	for (String excludeEqualPath : excludeEqualPaths.split(",")) {
-        		this.excludeEqualPaths.add(excludeEqualPath);
-			}
-        }
-        String excludeLikePaths = environment.getProperty("excludeLikePaths");
-        if (!StringUtils.isEmpty(excludeLikePaths)){
-        	for (String excludeLikePath : excludeLikePaths.split(",")) {
-        		this.excludeLikePaths.add(excludeLikePath);
-			}
         }
     }
 
@@ -73,24 +58,17 @@ public class AuthFilter implements Filter {
 
     @Override
     public void doFilter(ServletRequest servletRequest, ServletResponse servletResponse, FilterChain filterChain) throws IOException, ServletException {
-        /**
-         * 例外路径不过滤，直接放行
-         */
+        log.info("AuthFilter");
+        //免过滤的url路径直接放行
         HttpServletRequest request = ((HttpServletRequest) servletRequest);
-        //以/开头的工程名(不包括)之后?之前的请求路径
-		String path = request.getServletPath();
-		System.out.println("path:"+path);
-		if (excludeEqualPaths.contains(path)) {
-			filterChain.doFilter(servletRequest, servletResponse);
-			return;
-		}
-		for (String likePath : excludeLikePaths) {
-			if (path.startsWith(likePath.substring(0, likePath.length()-1))) {
-				filterChain.doFilter(servletRequest, servletResponse);
-				return;
-			}
-		}
-		/***
+        String requestPath = request.getServletPath();
+        for (String likePath : FREE_FILTER_LIKE) {
+            if (requestPath.startsWith(likePath)){
+                filterChain.doFilter(servletRequest, servletResponse);
+                return;
+            }
+        }
+        /***
          * 从请求的header中或url中获取登录凭证token
          * post请求取header
          * get请求优先从header中取，如果取不到，再从url中取
