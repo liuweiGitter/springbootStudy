@@ -1,0 +1,146 @@
+一般跨域问题由前端解决，在SpringBoot中也提供了多种跨域解决方案
+
+1.控制类或方法加注解@CrossOrigin
+SpringBoot注解org.springframework.web.bind.annotation.CrossOrigin作用于类或方法，在需要跨域的位置添加此注解即可
+
+2.定义配置类
+配置类继承WebMvcConfigurerAdapter或实现WebMvcConfigurer接口
+在相应方法中添加跨域属性配置
+实现应用程序全局跨域配置
+	package com.liuwei.config;
+
+	import org.springframework.context.annotation.Configuration;
+	import org.springframework.web.servlet.config.annotation.CorsRegistry;
+	import org.springframework.web.servlet.config.annotation.WebMvcConfigurerAdapter;
+
+	/**
+	 * @author liuwei
+	 * @date 2019-09-15 22:04:10
+	 * @desc 请求跨域配置类
+	 */
+	@Configuration
+	public class CrossOriginConfig extends WebMvcConfigurerAdapter {
+		
+		/**
+		 * 允许跨域请求的路径
+		 * /**表示允许所有路径被跨域请求
+		 */
+		private static final String PATH = "/**";
+		
+		/**
+		 * 变长参数，允许跨域请求的源ip或域名，可以带端口
+		 * *表示允许所有源跨域请求
+		 */
+		private static final String[] ORIGINS = {"*"};
+		
+		//不向用户发送cookie，也不处理用户请求中的cookie
+		private static final boolean ALLOWED_COOKIE = false;
+
+		//允许跨域请求的方法类型
+		private static final String METHOD[] = 
+				new String[] { "GET", "POST", "PUT", "DELETE", "OPTIONS" };
+		/**
+		 * 预检请求的有效期，单位秒
+		 * 有效期内，不会重复发送预检请求
+		 * 当预检请求通过后，浏览器才会发送真实请求到服务器
+		 */
+		private static final int MAX_AGE = 600;
+
+		@Override
+		public void addCorsMappings(CorsRegistry registry) {
+			registry.addMapping(PATH)
+				.allowedOrigins(ORIGINS)
+				.allowCredentials(ALLOWED_COOKIE)
+				.allowedMethods(METHOD)
+				.maxAge(MAX_AGE);
+		}
+	}
+
+3.定义过滤器
+实现应用程序全局跨域配置
+
+--------------------------------
+----方式1----
+--------------------------------
+	package com.liuwei.config;
+
+	import org.springframework.boot.web.servlet.FilterRegistrationBean;
+	import org.springframework.context.annotation.Bean;
+	import org.springframework.context.annotation.Configuration;
+	import org.springframework.web.cors.CorsConfiguration;
+	import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+	import org.springframework.web.filter.CorsFilter;
+
+	/**
+	 * @author liuwei
+	 * @date 2019-09-15 22:48:31
+	 * @desc 跨域请求过滤器方式1
+	 * 跨域请求过滤器配置类
+	 */
+	@Configuration
+	public class CrossOriginConfig {
+		@Bean
+		public FilterRegistrationBean corsFilter() {
+			UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+			CorsConfiguration config = new CorsConfiguration();
+			config.setAllowCredentials(false);
+			config.addAllowedOrigin("*");
+			config.addAllowedHeader("*");
+			config.addAllowedMethod("*");
+			source.registerCorsConfiguration("/**", config);
+			FilterRegistrationBean bean = new FilterRegistrationBean(new CorsFilter(source));
+			//过滤器顺序在第一位
+			bean.setOrder(0);
+			return bean;
+		}
+	}
+--------------------------------
+----方式2----
+--------------------------------
+	package com.liuwei.filter;
+
+	import java.io.IOException;
+
+	import javax.servlet.Filter;
+	import javax.servlet.FilterChain;
+	import javax.servlet.FilterConfig;
+	import javax.servlet.ServletException;
+	import javax.servlet.ServletRequest;
+	import javax.servlet.ServletResponse;
+	import javax.servlet.annotation.WebFilter;
+	import javax.servlet.http.HttpServletResponse;
+
+	import org.springframework.core.annotation.Order;
+
+	/**
+	 * @author liuwei
+	 * @date 2019-09-15 23:00:41
+	 * @desc 跨域请求过滤器方式2
+	 * 后端进行跨越处理的根本操作正是在请求头添加各种准入属性
+	 * 注意跨域过滤器级别应该设为第一位
+	 */
+	@WebFilter
+	@Order(0)
+	public class CORSFilter implements Filter {
+
+		@Override
+		public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
+				throws IOException, ServletException {
+			HttpServletResponse res = (HttpServletResponse) response;
+			res.addHeader("Access-Control-Allow-Credentials", "false");
+			res.addHeader("Access-Control-Allow-Origin", "*");
+			res.addHeader("Access-Control-Allow-Methods", "GET, POST, DELETE, PUT");
+			res.addHeader("Access-Control-Allow-Headers",
+					"Content-Type,X-CAF-Authorization-Token,sessionToken,X-TOKEN,token");
+			chain.doFilter(request, response);
+		}
+
+		@Override
+		public void destroy() {
+		}
+
+		@Override
+		public void init(FilterConfig filterConfig) throws ServletException {
+		}
+	}
+
