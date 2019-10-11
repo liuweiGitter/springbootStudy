@@ -1,0 +1,26 @@
+tomcat禁用PUT、DELETE等请求方法
+
+web.xml增加
+<security-constraint>
+	<web-resource-collection>
+		<url-pattern>/*</url-pattern>
+		<http-method>PUT</http-method>
+		<http-method>DELETE</http-method>
+		<http-method>SEARCH</http-method>
+		<http-method>COPY</http-method>
+		<http-method>PROPFIND</http-method>
+		<http-method>MOVE</http-method>
+		<http-method>PROPPATCH</http-method>
+		<http-method>MKCOL</http-method>
+		<http-method>LOCK</http-method>
+		<http-method>UNLOCK</http-method>
+		<http-method>HEAD</http-method> 
+		<http-method>OPTIONS</http-method>
+		<http-method>TRACE</http-method>
+	</web-resource-collection>
+	<auth-constraint> 
+	</auth-constraint>
+</security-constraint>
+
+server.xml修改
+<Connector allowTrace="true"/>
