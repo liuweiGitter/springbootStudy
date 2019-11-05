@@ -1,34 +1,35 @@
-package com.liuwei.interceptor;
+package com.telecom.js.noc.hxtnms.operationplan.interceptor;
 
-import java.util.HashSet;
-import java.util.Set;
-import java.util.concurrent.TimeUnit;
-
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.env.Environment;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.servlet.HandlerInterceptor;
 import org.springframework.web.servlet.ModelAndView;
 
-import lombok.extern.slf4j.Slf4j;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
 /**
  * @author liuwei
  * @date 2019-11-03 23:23:35
- * @desc 鉴权拦截器
- * 拦截器属于spring组件，调用于DispatchServlet之后
- * 待续：验证调用顺序，整理过滤器-拦截器顺序图，整理过滤器-拦截器异同
- * 参见
- * https://blog.csdn.net/weixin_36927395/article/details/81067146
- * https://www.cnblogs.com/geektcp/p/10061908.html
- * 后续：spring事件监听器、参数校验器、切面、定时任务、限流、熔断等
+ * @desc 鉴权拦截器：内部请求的通用鉴权拦截
+ * 拦截器属于spring组件，调用于DispatchServlet之后，controller方法之前后
+ * (当preHandle返回true时)一个拦截器的执行顺序是preHandle--controller--postHandle--afterCompletion
+ * (当所有preHandle返回true时)多个拦截器的执行顺序是preHandle1--preHandle2--controller--postHandle2--postHandle1--afterCompletion2--afterCompletion1
+ * (当过滤通过时)一个过滤器的执行顺序是doFilterBefore--controller--doFilterAfter
+ * (当所有过滤通过时)多个过滤器的执行顺序是doFilterBefore1--doFilterBefore2--controller--doFilterAfter2--doFilterAfter1
+ * 一个过滤器+一个拦截器的执行顺序是doFilterBefore--preHandle--controller--postHandle--afterCompletion--doFilterAfter
+ * 多个过滤器+多个拦截器的执行顺序是doFilterBefore1--doFilterBefore2--preHandle1--preHandle2--controller--postHandle2--postHandle1--afterCompletion2--afterCompletion1--doFilterAfter2--doFilterAfter1
  */
 @Slf4j
-public class AuthorityInterceptor implements HandlerInterceptor{
+@Component
+public class AuthorityInterceptor implements HandlerInterceptor {
 
     @Autowired
     private Environment environment;
@@ -44,8 +45,12 @@ public class AuthorityInterceptor implements HandlerInterceptor{
     private static final Set<String> FREE_INTER_LIKE = new HashSet<String>();
 
     static {
+        //对外接口、单点登录等开放接口：进入自定义的鉴权方式
     	FREE_INTER_LIKE.add("/api");
     	FREE_INTER_LIKE.add("/sso");
+    	//请求转发、内部错误等：放开鉴权，防止死循环false
+    	FREE_INTER_LIKE.add("/error");
+    	FREE_INTER_LIKE.add(AUTH_FAILED_DISPATCH);
     }
     
 	/**
@@ -94,12 +99,14 @@ public class AuthorityInterceptor implements HandlerInterceptor{
 	}
 
 	/**
-	 * @desc 请求的后处理，controller方法执行完成后，返回响应结果之前被调用
+	 * @desc 请求的后处理，在controller方法执行完成后调用
+     * 如果返回视图，在返回响应结果之前被调用
+     * 如果返回数据对象，在返回响应结果之后被调用
 	 */
 	@Override
 	public void postHandle(HttpServletRequest request, HttpServletResponse response, Object handler,
-			ModelAndView modelAndView) throws Exception {
-		log.info("AuthorityInterceptor响应前处理");
+                           ModelAndView modelAndView) throws Exception {
+		log.info("AuthorityInterceptor视图响应前或数据对象响应后处理");
 		
 	}
 
@@ -109,7 +116,7 @@ public class AuthorityInterceptor implements HandlerInterceptor{
 	@Override
 	public void afterCompletion(HttpServletRequest request, HttpServletResponse response, Object handler, Exception ex)
 			throws Exception {
-		log.info("AuthorityInterceptor响应后处理");
+		log.info("AuthorityInterceptor响应完成后处理");
 		
 	}
 

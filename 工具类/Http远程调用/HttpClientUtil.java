@@ -1,4 +1,4 @@
-package com.telecom.js.noc.hxtnms.operationplan.utils;
+package cn.js189.cloud.util;
 
 import com.alibaba.fastjson.JSON;
 import lombok.extern.slf4j.Slf4j;
@@ -17,6 +17,7 @@ import org.apache.http.util.EntityUtils;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.URISyntaxException;
+import java.nio.charset.Charset;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -40,21 +41,17 @@ public class HttpClientUtil {
      * @param headerMap
      * @return
      */
-    public static HttpPost getHttpPost(String uri,String jsonPost,Map<String,String> headerMap){
+    public static HttpPost getHttpPost(String uri, String jsonPost, Map<String,String> headerMap){
         HttpPost httpPost = new HttpPost(uri);
         //设置请求的json参数
-        StringEntity se;
-        try {
-            se = new StringEntity(jsonPost);
-        } catch (UnsupportedEncodingException e) {
-            log.error("json syntax error!", e);
-            return null;
-        }
-        se.setContentType("text/json");
+        StringEntity se = new StringEntity(jsonPost, Charset.forName("UTF-8"));
+        se.setContentType("application/json;charset=UTF-8");
         httpPost.setEntity(se);
         //设置请求header
-        for (Map.Entry<String,String> entry:headerMap.entrySet()) {
-            httpPost.setHeader(entry.getKey(),entry.getValue());
+        if (headerMap != null) {
+            for (Map.Entry<String,String> entry:headerMap.entrySet()) {
+                httpPost.setHeader(entry.getKey(),entry.getValue());
+            }
         }
         httpPost.setHeader("Content-Type","application/json;charset=UTF-8");
         return httpPost;
@@ -67,7 +64,7 @@ public class HttpClientUtil {
      * @param headerMap
      * @return
      */
-    public static HttpPost getHttpPost(String uri,Map<String, String> paramPost,Map<String,String> headerMap){
+    public static HttpPost getHttpPost(String uri, Map<String, String> paramPost, Map<String,String> headerMap){
         //设置请求的param参数
         URIBuilder uriBuilder;
         try {
@@ -102,7 +99,7 @@ public class HttpClientUtil {
      * @return
      */
     public static String executeAnHttpPost(HttpPost httpPost) {
-        String body = null;
+        String body = "";
         CloseableHttpResponse httpResponse = null;
         try {
             //获取httpClient
