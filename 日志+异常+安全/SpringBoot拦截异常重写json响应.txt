@@ -46,12 +46,16 @@ package com.telecom.js.noc.hxtnms.operationplan.configure;
 import com.telecom.js.noc.hxtnms.operationplan.utils.ExceptionJson;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.validation.BindingResult;
+import org.springframework.validation.ObjectError;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseBody;
 
 import javax.servlet.http.HttpServletRequest;
 import java.sql.SQLException;
+import java.util.List;
 
 /**
  * Author: liuwei
@@ -68,7 +72,8 @@ public class GlobalExceptionHandler {
      * 若是ajax请求或请求端接受json数据则返回json信息，否则转发（forward）到templates下的/error/error映射，error.html页面展示信息
      */
     /**
-     * 捕获特定的sql异常进行自定义的处理
+     * 捕获参数校验异常并返回前端
+     * 捕获特定的sql异常进行自定义的处理，屏蔽具体的异常信息
      */
     /**
      * 注解@ExceptionHandler的value不能重复，否则报错
@@ -76,10 +81,28 @@ public class GlobalExceptionHandler {
      * 对于前后端分离项目，后端不会响应视图，只会响应json
      */
 
+    //json响应：参数校验错误响应
+    @ExceptionHandler(value = {MethodArgumentNotValidException.class})
+    @ResponseBody
+    public ExceptionJson jsonBindErrorHandler(HttpServletRequest req, MethodArgumentNotValidException e){
+        log.error(">>>>>>"+e);
+        BindingResult bindingResult = e.getBindingResult();
+        List<ObjectError> errors = bindingResult.getAllErrors();
+        StringBuilder builder = new StringBuilder();
+        for (ObjectError error : errors) {
+            builder.append(error.getDefaultMessage()).append(">>>");
+        }
+        //重写响应的json：屏蔽异常栈细节，只响应具体信息
+        ExceptionJson exceptionJson = new ExceptionJson();
+        exceptionJson.setUrl(req.getRequestURL().toString());
+        exceptionJson.setMsg("Occur request param exception , detail : "+builder.toString());
+        return exceptionJson;
+    }
+
     //json响应：sql错误响应
     @ExceptionHandler(value = {SQLException.class, DataIntegrityViolationException.class})
     @ResponseBody
-    public ExceptionJson jsonSqlErrorHandler(HttpServletRequest req, SQLException e){
+    public ExceptionJson jsonSqlErrorHandler(HttpServletRequest req, Exception e){
         //服务器控制台打印异常详情，如果不主动打印，服务器端不会记录这些信息
         log.error(">>>>>>"+e);
         //重写响应的json
