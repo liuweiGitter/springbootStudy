@@ -1,0 +1,24 @@
+1.pom添加依赖
+	<dependency>
+		<groupId>org.aspectj</groupId>
+		<artifactId>aspectjrt</artifactId>
+		<version>1.9.2</version>
+	</dependency>
+	<dependency>
+		<groupId>org.aspectj</groupId>
+		<artifactId>aspectjweaver</artifactId>
+		<version>1.9.2</version>
+	</dependency>
+springboot中aop相关类通常引入以下依赖即可
+	<dependency>
+		<groupId>org.springframework.boot</groupId>
+		<artifactId>spring-boot-starter-aop</artifactId>
+	</dependency>
+但有时也不会起作用，切面的另外两个依赖最好也加上
+
+2.启动类添加注解
+@EnableAspectJAutoProxy(proxyTargetClass=true)
+理论上，springboot是默认启动切面的，但有时会不起作用，本注解最好加上
+
+3.编写切面类
+参见切面类
