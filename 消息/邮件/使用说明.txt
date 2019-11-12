@@ -1,0 +1,38 @@
+1.pom依赖
+	<dependency>
+		<groupId>org.springframework.boot</groupId>
+		<artifactId>spring-boot-starter-mail</artifactId>
+	</dependency>
+
+2.开启邮件三方登录授权服务
+	邮件的发送方需要登录邮件服务器，才能发送邮件
+	登录邮件服务器需要邮箱账号(邮箱、身份证号、手机号、其它关联账号等)和密码
+	在代码中登录邮箱服务器，则不允许直接使用账号密码(否则报错nested exception is javax.mail.AuthenticationFailedException: 535 Error: authentication failed)，而是使用邮件服务器的客户端授权码
+
+	以网易为例，网易对外提供一个授权码，用户可以通过账号和授权码来登录网易邮箱
+	关于开启网易客户端授权码，参见 https://www.jianshu.com/p/5eb000544dd7
+
+3.application配置文件
+	添加以下配置，根据需要修改
+
+	#SMTP服务器地址
+	spring.mail.host=smtp.163.com
+	#登陆账号
+	spring.mail.username=马赛克
+	#登陆授权码(必须是授权码，不能是邮箱的密码)
+	spring.mail.password=马赛克
+
+	#邮件发信人(即真实邮箱)
+	spring.mail.properties.from=马赛克@163.com
+
+	spring.thymeleaf.cache=false
+	spring.thymeleaf.prefix=classpath:/views/
+
+	spring.servlet.multipart.enabled=true
+	#限制单个文件大小
+	spring.servlet.multipart.max-file-size=10MB
+	#限制请求总量
+	spring.servlet.multipart.max-request-size=50MB
+
+4.编写邮件对象类MailBean、邮件服务类MailService、邮件控制类MailController等
+	参见同目录下相关文件
