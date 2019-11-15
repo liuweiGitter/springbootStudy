@@ -15,7 +15,8 @@
 {
     "url": "http://localhost:8088/operationplan/threshold/add",
     "msg": "Occur sql exception , caused by : SQLIntegrityConstraintViolationException",
-    "errorCode": 500
+    "errorCode": 500,
+	"success": false
 }
 
 实现方案：
@@ -38,6 +39,8 @@ public class ExceptionJson {
     private String msg;
     //响应错误码
     private Integer errorCode = 500;
+	//响应错误标记
+    private boolean success = false;
 }
 
 【2.全局异常处理类(作为一个普通bean注入即可)】
