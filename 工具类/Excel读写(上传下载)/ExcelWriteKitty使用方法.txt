@@ -1,3 +1,16 @@
+依赖：
+	<dependency>
+		<groupId>org.apache.poi</groupId>
+		<artifactId>poi</artifactId>
+		<version>3.10-FINAL</version>
+	</dependency>
+	<dependency>
+		<groupId>org.apache.poi</groupId>
+		<artifactId>poi-ooxml</artifactId>
+		<version>3.10-FINAL</version>
+	</dependency>
+
+
 综述：
 mapper层(含mapper.xml)
 	检索出List<Map<String columnName, Object columnValue>>格式数据，其中Map为LinkedHashMap类型
@@ -55,6 +68,9 @@ entity类
 
 	<!--导出列表：按id列表查询-->
     <!--返回类型为Map时将不保证字段的查询顺序为返回顺序，应使用LinkedHashMap，且必须对null字段进行非null处理-->
+    <!--☆☆☆如果在使用ExcelWriteKitty时指定表头名和列名的对应关系，则此处只需要返回map即可，详见该类的相关代码和注释-->
+    <!--☆☆☆强烈建议在使用ExcelWriteKitty时指定表头名和列名的对应关系-->
+    <!--☆☆☆实际上也允许返回一个Java Bean对象，然后调用ExcelExportMan.downloadExcelByBean导出，此时要求必须指定列名数组-->
     <select id="queryPlansMapByIds" parameterType="java.util.List" resultType="java.util.LinkedHashMap">
         select plan.id,plan.plan_name,man.cn_name as owner_id,plan.location,plan.model_name,
 			case plan.status when 0 then '草稿' when 1 then '激活' when 2 then '挂起' else '异常' end as status

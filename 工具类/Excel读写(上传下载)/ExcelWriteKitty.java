@@ -1,4 +1,4 @@
-package com.telecom.js.noc.hxtnms.operationplan.utils;
+package com.jshx.zq.p2p.util;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.hssf.usermodel.*;
@@ -34,6 +34,12 @@ public class ExcelWriteKitty {
     private String[] headerNames;
     //表头对应的数据库cloumn值(map keyset)，内部使用变量
     private String[] columnNames;
+
+    //判断列名数组是否为空，方法public，以供校验
+    public boolean isColumnNamesNull() {
+        return null==columnNames;
+    }
+
     //表头样式
     private HSSFCellStyle headerStyle;
     //表体样式
@@ -240,7 +246,11 @@ public class ExcelWriteKitty {
             return false;
         }
         try {
-            //workbook.write(new FileOutputStream("E:\\123.xlsx"));//postman传参，本地写入文件测试
+            //postman传参，本地写入文件测试
+            /*OutputStream outLocal = new FileOutputStream("E:\\123.xlsx");
+            workbook.write(outLocal);
+            outLocal.close();*/
+
             workbook.write(out);
             out.close();
         } catch (IOException e) {

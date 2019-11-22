@@ -33,7 +33,8 @@ xml中parameterType，在单参数时可以不填写，在多参数时不能填�
 
 匿名的多参数，不建议，虽然mybatis也会默认对其按照形参名称命名，但最好还是主动命名
 命名的多参数，取参时按命名去取，除了取参时的第一层为参数名之外，和命名的单参数取值没有区别
-	这其中，可以解决map遍历的问题，示例如下(设map命名为paramMap)：
+	对于集合对象，建议命名与形参名完全一致，否则可能会无法取值
+	另外，可以解决map遍历的问题，示例如下(设map命名为paramMap)：
 	//map并列条件
 		where 1 = 1
 		<foreach collection="paramMap.keys" item="key" open="" close="" separator="">

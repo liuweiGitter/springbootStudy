@@ -14,10 +14,10 @@ import java.lang.reflect.Field;
 @Slf4j
 public class MapperSqlUtil {
 
-    private final String ID_SELECT = "<selectKey resultType=\"int\" order=\"AFTER\" keyProperty=\"id\">\n" +
+    private static final String ID_SELECT = "<selectKey resultType=\"int\" order=\"AFTER\" keyProperty=\"id\">\n" +
             "\tSELECT LAST_INSERT_ID() AS id\n" +
             "</selectKey>";
-    private final String ORDER_BY = "\n        <choose>\n" +
+    private static final String ORDER_BY = "\n        <choose>\n" +
             "            <when test=\"order != null\">\n" +
             "                <!--order by后不允许换行-->\n" +
             "                order by <foreach collection=\"order\" index=\"key\" item=\"value\" open=\"\" close=\"\" separator=\",\">${key} ${value}</foreach>\n" +
@@ -28,7 +28,7 @@ public class MapperSqlUtil {
             "        </choose>\n";
 
     //批量插入id自增长的从表
-    private final String INSERT_BATCH_RELATION_TABLE_AUTO = "<insert id=\"xxx\" parameterType=\"主表类\" useGeneratedKeys=\"true\">\n" +
+    private static final String INSERT_BATCH_RELATION_TABLE_AUTO = "<insert id=\"xxx\" parameterType=\"主表类\" useGeneratedKeys=\"true\">\n" +
             "\t<if test=\"从表list != null\" >\n" +
             "\t\tinsert into 从表名(xxx,xxx,xxx)\n" +
             "\t\tvalues\n" +
@@ -42,7 +42,7 @@ public class MapperSqlUtil {
             "\t</if>\n" +
             "</insert>";
     //批量插入id自定义的从表
-    private final String INSERT_BATCH_RELATION_TABLE ="<insert id=\"xxx\" parameterType=\"主表类\">\n" +
+    private static final String INSERT_BATCH_RELATION_TABLE ="<insert id=\"xxx\" parameterType=\"主表类\">\n" +
             "\t<if test=\"从表list != null\" >\n" +
             "\t\tinsert into 从表名(id,xxx,xxx,xxx)\n" +
             "\t\tvalues\n" +
@@ -57,7 +57,7 @@ public class MapperSqlUtil {
             "\t</if>\n" +
             "</insert>";
 
-    private String[][] getArray(Class clz){
+    private static String[][] getArray(Class clz){
         Field[] fieldArray = clz.getDeclaredFields();
         int size = fieldArray.length;
         String[] fields = new String[size];
@@ -69,7 +69,7 @@ public class MapperSqlUtil {
         return new String[][]{fields,columns};
     }
 
-    private void getMapperSql(String[][] array,String tableName){
+    private static void getMapperSql(String[][] array,String tableName){
         //"xxx,xxx,xxx"
         String column = "";
         //"(#{xxx},#{xxx},#{xxx})"
@@ -126,7 +126,7 @@ public class MapperSqlUtil {
         log.info("- - - - -查询- - - - -");
     }
 
-    private String[] getFieldsByColumns(String[] columns){
+    private static String[] getFieldsByColumns(String[] columns){
         String[] fields = new String[columns.length];
         for (int i = 0; i < columns.length; i++) {
             if (!columns[i].contains("_")){
@@ -142,7 +142,7 @@ public class MapperSqlUtil {
         return fields;
     }
 
-    private void getMapperSqlForeach(String[][] array,String tableName){
+    private static void getMapperSqlForeach(String[][] array,String tableName){
         String[] fields = array[0];
         String[] columns = array[1];
 
@@ -167,7 +167,7 @@ public class MapperSqlUtil {
      * @param clz  实体类class
      * @param tableName  数据表名
      */
-    public void getMapperSql(Class clz,String tableName){
+    public static void getMapperSql(Class clz,String tableName){
         String[][] array = getArray(clz);
         getMapperSql(array,tableName);
     }
@@ -177,7 +177,7 @@ public class MapperSqlUtil {
      * @param tableName  数据表名
      * @param columnsString  数据列字符串，形如"plan_name,updater,owner,period_year"
      */
-    public void getMapperSql(String tableName,String columnsString){
+    public static void getMapperSql(String tableName,String columnsString){
         String[] columns = columnsString.split(",");
         String[] fields = getFieldsByColumns(columns);
         String[][] array = new String[][]{fields,columns};
@@ -189,7 +189,7 @@ public class MapperSqlUtil {
      * @param tableName  数据表名
      * @param columnsString  数据列字符串，形如"plan_name,updater,owner,period_year"
      */
-    public void getMapperSqlForeach(String tableName,String columnsString){
+    public static void getMapperSqlForeach(String tableName,String columnsString){
         String[] columns = columnsString.split(",");
         String[] fields = getFieldsByColumns(columns);
         String[][] array = new String[][]{fields,columns};
