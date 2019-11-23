@@ -1,12 +1,9 @@
-package cn.js189.cloud.data;
+package com.jshx.zq.p2p.data;
 
-import cn.js189.cloud.util.LocalFileReader;
+import com.jshx.zq.p2p.exception.BaseException;
+import com.jshx.zq.p2p.util.LocalFileReader;
 import lombok.extern.slf4j.Slf4j;
-
-import java.io.IOException;
-import java.io.InputStream;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
@@ -19,8 +16,13 @@ import java.util.Properties;
 @Slf4j
 public class MetaDataCache {
 
-    //某业务类型映射表：<third,zd>
-    public static final Map<String,String> BZ_MAP = new HashMap<>();
+    private MetaDataCache(){
+        throw new BaseException("this is util class, you should not create an object!");
+    }
+
+
+    //某业务类型映射表
+    public static final Map<String,String> BILL_MAP = new HashMap<>();
 
     //url.properties属性文件
     public static final Properties URL_PROPERTIES = new Properties();
@@ -31,22 +33,14 @@ public class MetaDataCache {
     }
 
     private static void initBzMap() {
-        String pathRelativeClassPath = "data/bzTypeMap.json";
-        List<Map> list= LocalFileReader.getListMapFromJson(pathRelativeClassPath);
-        for (Map map:list) {
-            BZ_MAP.put(map.get("third").toString(),map.get("zd").toString());
-        }
+        String pathRelativeClassPath = "data/billOperType.json";
+        BILL_MAP.putAll(LocalFileReader.getMapFromJson(pathRelativeClassPath));
         log.info("BZ_MAP init");
     }
 
     private static void initUrlProperties() {
         String pathRelativeClassPath = "url.properties";
-        InputStream is = MetaDataCache.class.getClassLoader().getResourceAsStream(pathRelativeClassPath);
-        try {
-            URL_PROPERTIES.load(is);
-        } catch (IOException e) {
-            log.info(""+e);
-        }
+        LocalFileReader.getPropertiesByJdk(pathRelativeClassPath,URL_PROPERTIES);
         log.info("URL_PROPERTIES init");
     }
 

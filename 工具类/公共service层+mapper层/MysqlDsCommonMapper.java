@@ -51,6 +51,10 @@ public interface MysqlDsCommonMapper {
 
     //逻辑删除时唯一索引列改名
     int deleteWithUniqueIndex(@Param("tableName") String tableName,@Param("uniqueColumn") String uniqueColumn,@Param("idList") List idList);
+	
+	//逻辑删除时唯一索引列改名且依赖状态去删除
+    int deleteWithUIAndStatus(@Param("tableName") String tableName, @Param("uniqueColumn") String uniqueColumn,
+                              @Param("dataId") String dataId, @Param("statusSql") String statusSql);
 
     //删除时检查与之关联的另一张表的关联字段(可能是模糊关联)是否存在
     boolean ifRelationExistOne(@Param("tableName") String tableName,@Param("equalMap") Map<String, Object> equalMap,@Param("likeMap") Map<String, Object> likeMap);
@@ -60,4 +64,47 @@ public interface MysqlDsCommonMapper {
 
     //查询数量操作
     int countQuery(Map<String, String> map);
+	
+	/**
+     * 单表的逻辑操作通用方法：多字段
+     * 逻辑删除、状态修改等
+     * @param tableName
+     * @param dataId
+     * @param updateMap
+     * @return
+     */
+    int columnUpdateMulti(@Param("tableName") String tableName,@Param("dataId") String dataId,@Param("updateMap") Map<String,Object> updateMap);
+
+    /**
+     * 单表的逻辑操作通用方法：单字段
+     * 逻辑删除、状态修改等
+     * @param tableName
+     * @param dataId
+     * @param columnName
+     * @param columnValue
+     * @return
+     */
+    int columnUpdate(@Param("tableName") String tableName,@Param("dataId") String dataId,@Param("columnName") String columnName,@Param("columnValue") Object columnValue);
+
+    /**
+     * 单表的逻辑操作通用方法：多字段
+     * 统计更新
+     * @param tableName
+     * @param dataId
+     * @param addMap
+     * @return
+     */
+    int columnAddMulti(@Param("tableName") String tableName,@Param("dataId") String dataId,@Param("addMap") Map<String,Integer> addMap);
+
+    /**
+     * 单表的逻辑操作通用方法：单字段
+     * 统计更新
+     * @param tableName
+     * @param dataId
+     * @param columnName
+     * @param valueAdd
+     * @return
+     */
+    int columnAdd(@Param("tableName") String tableName,@Param("dataId") String dataId,@Param("columnName") String columnName,@Param("valueAdd") int valueAdd);
+	
 }

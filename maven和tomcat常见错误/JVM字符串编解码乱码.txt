@@ -1,0 +1,53 @@
+package com.jshx.zq.p2p.test;
+
+import lombok.extern.slf4j.Slf4j;
+
+import java.io.UnsupportedEncodingException;
+import java.nio.charset.Charset;
+
+/**
+ * @author liuwei
+ * @date 2019-11-23 15:01
+ * @desc 字符串<-->字节数组 编解码
+ */
+@Slf4j
+public class Test2019 {
+
+    public static void main(String[] args) throws UnsupportedEncodingException {
+        /**
+         * 1.字符串1：使用JVM默认字符集编码为二进制存储
+         * Java程序运行在Java虚拟机，Java虚拟机运行在操作系统，JVM默认字符集和操作系统字符集一致
+         * 操作系统字符集因个人设置而异，以中文地区为例，在安装操作系统时
+         * windows和mac系统默认为GBK(向下完全兼容GB2312)，linux系统则视情况而异
+         * 查看当前用户的默认字符集：windows chcp、linux locale
+         * 查看JVM当前默认字符集：Charset.defaultCharset().name()
+         * 也可以在启动Java虚拟机时指定默认字符集 -Dfile.encoding="GBK"
+         * jvm加载字符集过程很复杂，实际上和操作系统字符集并不一样，本机win10操作系统默认字符集为GBK，而JVM1.8默认字符集为UTF-8
+         */
+        log.info("JVM默认字符集：" + Charset.defaultCharset().name());
+        String str1 = "使用JVM默认字符集编码为二进制存储";
+
+        /**
+         * 2.字节流1：使用GB2312字符集编码为字节流
+         * 可以指定任何合法字符集来编码字符串为字节流，JVM会将字符串转为"正确"编码的字节流
+         * 如果字符集不支持字符串中的字符，自然会出现"错误"编码的字节流
+         * 如中文字符串，如果编码为US-ASCII或iso-8859-1格式字节流，必然会乱码
+         * 但编码为UTF-XXX和GBXXX则不会乱码
+         */
+        byte[] byte1 = str1.getBytes("GB2312");
+
+        /**
+         * 3.字符串2：解码为GBK字符串
+         * 如果字节流解码时的字符集兼容编码时的字符集，则不会乱码
+         * 比如，GBK兼容GB2312，则GBK解码GB2312编码的字符串则不会乱码
+         */
+        String str2 = new String(byte1, "GBK");
+        log.info("[一次编解码转换]" + str2);
+
+        //二次编解码
+        byte[] byte2 = str2.getBytes("UTF-8");
+        String str3 = new String(byte2, "UTF-8");
+        log.info("[二次编解码转换]" + str3);
+    }
+
+}

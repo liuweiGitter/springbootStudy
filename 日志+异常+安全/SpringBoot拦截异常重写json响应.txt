@@ -103,7 +103,7 @@ public class GlobalExceptionHandler {
     }
 
     //json响应：sql错误响应
-    @ExceptionHandler(value = {SQLException.class, DataIntegrityViolationException.class})
+    @ExceptionHandler(value = {SQLException.class})
     @ResponseBody
     public ExceptionJson jsonSqlErrorHandler(HttpServletRequest req, Exception e){
         //服务器控制台打印异常详情，如果不主动打印，服务器端不会记录这些信息
@@ -112,6 +112,17 @@ public class GlobalExceptionHandler {
         ExceptionJson exceptionJson = new ExceptionJson();
         exceptionJson.setUrl(req.getRequestURL().toString());
         exceptionJson.setMsg("Occur sql exception , caused by : "+e.getClass().getSimpleName());
+        return exceptionJson;
+    }
+
+    //json响应：所有主动抛出的BaseException错误响应
+    @ExceptionHandler(value = BaseException.class)
+    @ResponseBody
+    public ExceptionJson baseExceptionHandler(HttpServletRequest req, BaseException e){
+        log.error(">>>>>>"+e);
+        ExceptionJson exceptionJson = new ExceptionJson();
+        exceptionJson.setUrl(req.getRequestURL().toString());
+        exceptionJson.setMsg("Occur server exception , msg : "+e.getMessage());
         return exceptionJson;
     }
 

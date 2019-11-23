@@ -38,11 +38,16 @@
     </select>
 
     <update id="deleteWithUniqueIndex">
-        update ${tableName} set del_flag = 1<if test="#{uniqueColumn} != null">,${uniqueColumn} = concat(${uniqueColumn},'_delete')</if>
+        update ${tableName} set del_flag = 1<if test="#{uniqueColumn} != null">,${uniqueColumn} = concat(${uniqueColumn},'_',now())</if>
         where id in
         <foreach collection="idList" index="index" item="id" open="(" separator="," close=")">
             #{id}
         </foreach>
+    </update>
+	
+	<update id="deleteWithUIAndStatus">
+        update ${tableName} set del_flag = 1,${uniqueColumn} = concat(${uniqueColumn},'_',now())
+        where ${statusSql} and id = #{dataId}
     </update>
 
     <update id="complexOperation">
@@ -66,5 +71,29 @@
         </foreach>
         limit 1) a
     </select>
+	
+	<update id="columnUpdateMulti">
+		update ${tableName} set
+		<foreach collection="updateMap.keys" item="key" open="" close="" separator=",">
+			${key} = #{updateMap[${key}]}
+		</foreach>
+		where id = #{dataId}
+    </update>
+
+    <update id="columnUpdate">
+        update ${tableName} set ${columnName} = #{columnValue} where id = #{dataId}
+    </update>
+
+    <update id="columnAddMulti">
+        update ${tableName} set
+        <foreach collection="addMap.keys" item="key" open="" close="" separator=",">
+            ${key} = ${key}+#{updateMap[${key}]}
+        </foreach>
+        where id = #{dataId}
+    </update>
+
+    <update id="columnAdd">
+        update ${tableName} set ${columnName} = ${columnName}+#{valueAdd} where id = #{dataId}
+    </update>
 
 </mapper>
