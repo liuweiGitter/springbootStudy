@@ -5,6 +5,8 @@ import org.jdom2.Document;
 import org.jdom2.Element;
 import org.jdom2.JDOMException;
 import org.jdom2.input.SAXBuilder;
+import org.springframework.util.StringUtils;
+
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -29,12 +31,13 @@ public class Xml2JsonUtil {
      * 解析结果的顺序不同于xml顺序
      * 如果元素值为空，略过
      * @param xmlStr
+     * @param trans2Camel 是否转为驼峰命名
      * @return
      * @throws JDOMException
      * @throws IOException
      */
-    public static JSONObject ignoreEmpty(String xmlStr) throws JDOMException, IOException {
-        return entrance(getBytesFromXml(xmlStr),"ignoreEmpty");
+    public static JSONObject ignoreEmpty(String xmlStr, boolean trans2Camel) throws JDOMException, IOException {
+        return entrance(getBytesFromXml(xmlStr),trans2Camel,"ignoreEmpty");
     }
 
     /**
@@ -43,12 +46,13 @@ public class Xml2JsonUtil {
      * 如果经过编解码转换，需保证原始解码(byte[] -> string)和再次编码(string -> byte[])使用的字符集兼容
      * 且不会出现中文乱码
      * @param xml
+     * @param trans2Camel 是否转为驼峰命名
      * @return
      * @throws JDOMException
      * @throws IOException
      */
-    public static JSONObject ignoreEmpty(byte[] xml) throws JDOMException, IOException {
-        return entrance(xml,"ignoreEmpty");
+    public static JSONObject ignoreEmpty(byte[] xml, boolean trans2Camel) throws JDOMException, IOException {
+        return entrance(xml,trans2Camel,"ignoreEmpty");
     }
 
     /**
@@ -56,16 +60,17 @@ public class Xml2JsonUtil {
      * 解析结果的顺序不同于xml顺序
      * 如果元素值为空，也被解析为""
      * @param xmlStr
+     * @param trans2Camel 是否转为驼峰命名
      * @return
      * @throws JDOMException
      * @throws IOException
      */
-    public static JSONObject includeEmpty(String xmlStr) throws JDOMException, IOException {
-        return entrance(getBytesFromXml(xmlStr),"includeEmpty");
+    public static JSONObject includeEmpty(String xmlStr, boolean trans2Camel) throws JDOMException, IOException {
+        return entrance(getBytesFromXml(xmlStr),trans2Camel,"includeEmpty");
     }
 
-    public static JSONObject includeEmpty(byte[] xml) throws JDOMException, IOException {
-        return entrance(xml,"includeEmpty");
+    public static JSONObject includeEmpty(byte[] xml, boolean trans2Camel) throws JDOMException, IOException {
+        return entrance(xml,trans2Camel,"includeEmpty");
     }
 
     private static byte[] getBytesFromXml(String xmlStr) throws UnsupportedEncodingException {
@@ -80,16 +85,16 @@ public class Xml2JsonUtil {
         return xml;
     }
 
-    private static JSONObject entrance(byte[] xml,String type) throws JDOMException, IOException {
+    private static JSONObject entrance(byte[] xml,boolean trans2Camel,String type) throws JDOMException, IOException {
         JSONObject json = new JSONObject();
         InputStream is = new ByteArrayInputStream(xml);
         SAXBuilder sb = new SAXBuilder();
         Document doc = sb.build(is);
         Element root = doc.getRootElement();
         if (type.equals("ignoreEmpty")) {
-            json.put(root.getName(), iterateElementIgnore(root));
+            json.put(trans2Camel?getCamelName(root.getName()):root.getName(), iterateElementIgnore(root,trans2Camel));
         }else{
-            json.put(root.getName(), iterateElementInclude(root));
+            json.put(trans2Camel?getCamelName(root.getName()):root.getName(), iterateElementInclude(root,trans2Camel));
         }
         is.close();
         return json;
@@ -100,7 +105,7 @@ public class Xml2JsonUtil {
      * @param element
      * @return
      */
-    private static JSONObject iterateElementIgnore(Element element) {
+    private static JSONObject iterateElementIgnore(Element element,boolean trans2Camel) {
         List node = element.getChildren();
         Element et;
         JSONObject obj = new JSONObject();
@@ -109,9 +114,9 @@ public class Xml2JsonUtil {
             if (et.getTextTrim().equals("")) {
                 if (et.getChildren().size() == 0)
                     continue;
-                obj.put(et.getName(), iterateElementIgnore(et));
+                obj.put(trans2Camel?getCamelName(et.getName()):et.getName(), iterateElementIgnore(et,trans2Camel));
             } else {
-                obj.put(et.getName(), et.getTextTrim());
+                obj.put(trans2Camel?getCamelName(et.getName()):et.getName(), et.getTextTrim());
             }
         }
         return obj;
@@ -122,7 +127,7 @@ public class Xml2JsonUtil {
      * @param element
      * @return
      */
-    private static JSONObject iterateElementInclude(Element element) {
+    private static JSONObject iterateElementInclude(Element element,boolean trans2Camel) {
         List node = element.getChildren();
         Element et;
         JSONObject obj = new JSONObject();
@@ -130,15 +135,36 @@ public class Xml2JsonUtil {
             et = (Element) node.get(i);
             if (et.getTextTrim().equals("")) {
                 if (et.getChildren().size() == 0){
-                    obj.put(et.getName(), et.getTextTrim());
+                    obj.put(trans2Camel?getCamelName(et.getName()):et.getName(), et.getTextTrim());
                 }else{
-                    obj.put(et.getName(), iterateElementInclude(et));
+                    obj.put(trans2Camel?getCamelName(et.getName()):et.getName(), iterateElementInclude(et,trans2Camel));
                 }
             } else {
-                obj.put(et.getName(), et.getTextTrim());
+                obj.put(trans2Camel?getCamelName(et.getName()):et.getName(), et.getTextTrim());
             }
         }
         return obj;
+    }
+
+    //下划线名称转为驼峰名称
+    private static String getCamelName(String underlineName){
+        if (underlineName.contains("_")) {
+            String[] udArr = underlineName.split("_");
+            if (udArr.length > 3) {
+                StringBuilder sb = new StringBuilder(udArr[0]);
+                for (int i = 1; i < udArr.length; i++) {
+                    sb.append(StringUtils.capitalize(udArr[i]));
+                }
+                return sb.toString();
+            }else{
+                String str = udArr[0];
+                for (int i = 1; i < udArr.length; i++) {
+                    str+=StringUtils.capitalize(udArr[i]);
+                }
+                return str;
+            }
+        }
+        return underlineName;
     }
 
 }

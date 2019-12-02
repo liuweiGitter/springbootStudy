@@ -1,0 +1,79 @@
+package com.jshx.zq.p2p.boot;
+
+import com.jshx.zq.p2p.data.MetaDataCache;
+import com.jshx.zq.p2p.service.Impl.DynamicTaskServiceImpl;
+import com.jshx.zq.p2p.service.Impl.WatchServiceImpl;
+import com.jshx.zq.p2p.task.dynamic.*;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.env.Environment;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.scheduling.quartz.SchedulerFactoryBean;
+import org.springframework.stereotype.Component;
+
+import javax.annotation.PostConstruct;
+
+/**
+ * @author liuwei
+ * @date 2019-11-25 14:25
+ * @desc 启动中心类
+ * 在项目启动后，部分任务需要立即被执行(如初始化redis、同步本地文件等)，一些方法因此需要被调用
+ * 所有需要被调用的任务统一在调用中心注册执行
+ */
+@Component
+@Slf4j
+public class BootCenter {
+
+    /**
+     * 依赖注入组
+     * 为减少内存中无效对象的存储，一些工具类中的依赖不通过spring bean注入，而是在启动中心统一传参注入
+     */
+
+    @Autowired
+    private RedisTemplate redisTemplate;
+    @Autowired
+    private DynamicTaskServiceImpl dynamicTaskServiceImpl;
+    @Autowired
+    private SchedulerFactoryBean schedulerFactoryBean;
+    @Autowired
+    private Environment environment;
+    @Autowired
+    private WatchServiceImpl watchServiceImpl;
+
+
+    @PostConstruct
+    private void boot(){
+        log.info(">>>BootCenter running");
+        //1.依赖注入
+        iocInit();
+        //2.内部数据初始化：json文件、properties文件等元数据初始化
+        innerDataInit();
+        //3.外部数据初始化：数据库等
+        outerDataInit();
+    }
+
+    //依赖注入组
+    private void iocInit(){
+        log.info(">>>BootCenter iocInit");
+        RedisServiceCenter.iocInit(redisTemplate);
+        BootTaskInit.iocInit(redisTemplate,dynamicTaskServiceImpl);
+        JobManageCenter.iocInit(schedulerFactoryBean);
+        MysqlServiceCenter.iocInit(dynamicTaskServiceImpl,watchServiceImpl);
+    }
+
+    //内部数据初始化组
+    private void innerDataInit(){
+        log.info(">>>BootCenter innerDataInit");
+        log.info("===MetaDataCache initData");
+        MetaDataCache.boot();
+    }
+
+    //外部数据初始化组
+    private void outerDataInit(){
+        log.info(">>>BootCenter outerDataInit");
+        log.info("===BootTaskInit initData");
+        BootTaskInit.initData(Boolean.parseBoolean(environment.getProperty("freshRedisDynamicJob")));
+    }
+
+
+}
