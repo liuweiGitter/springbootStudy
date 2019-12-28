@@ -1,14 +1,11 @@
-package com.telecom.js.noc.hxtnms.operationplan.notice.mail;
+package com.jshx.zq.p2p.notice.mail;
 
-import com.telecom.js.noc.hxtnms.operationplan.entity.MailBean;
+import com.jshx.zq.p2p.vo.MailBean;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.StringUtils;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.mail.javamail.JavaMailSenderImpl;
 import org.springframework.mail.javamail.MimeMessageHelper;
-import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
-
 import javax.mail.MessagingException;
 import java.util.Date;
 
@@ -17,22 +14,26 @@ import java.util.Date;
  * @date 2019-11-11 14:51
  * @desc 邮件服务类
  */
-@Service
 @Slf4j
 public class MailService {
 
     /**
      * 注入spring mail邮件发送工具类的内置bean依赖
      */
-    @Autowired
-    private JavaMailSenderImpl mailSender;
+    private static JavaMailSenderImpl mailSender;
+
+    public static void iocInit(JavaMailSenderImpl javaMailSender){
+        if (mailSender == null) {
+            mailSender = javaMailSender;
+        }
+    }
 
     /**
      * 发送邮件入口
      * @param mailBean
      * @return
      */
-    public MailBean sendMail(MailBean mailBean) {
+    public static MailBean sendMail(MailBean mailBean) {
         try {
             checkMail(mailBean); //1.检测邮件
             sendMimeMail(mailBean); //2.发送邮件
@@ -46,7 +47,7 @@ public class MailService {
     }
 
     //检测邮件非空信息
-    private void checkMail(MailBean mailBean) {
+    private static void checkMail(MailBean mailBean) {
         if (StringUtils.isEmpty(mailBean.getTo())) {
             throw new RuntimeException("邮件收信人不能为空");
         }
@@ -59,7 +60,7 @@ public class MailService {
     }
 
     //构建复杂邮件信息
-    private void sendMimeMail(MailBean mailBean) throws MessagingException {
+    private static void sendMimeMail(MailBean mailBean) throws MessagingException {
         MimeMessageHelper messageHelper = new MimeMessageHelper(mailSender.createMimeMessage(), true);//true表示支持复杂类型
         mailBean.setFrom(getMailSendFrom());//邮件发信人从配置项读取
         messageHelper.setFrom(mailBean.getFrom());//邮件发信人
@@ -87,13 +88,13 @@ public class MailService {
     }
 
     //保存邮件
-    private MailBean saveMail(MailBean mailBean) {
+    private static MailBean saveMail(MailBean mailBean) {
         //将邮件保存到数据库：此处仅示例
         return mailBean;
     }
 
     //获取邮件发信人
-    private String getMailSendFrom() {
+    private static String getMailSendFrom() {
         return mailSender.getJavaMailProperties().getProperty("from");
     }
 

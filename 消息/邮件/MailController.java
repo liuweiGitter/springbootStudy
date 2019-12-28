@@ -20,12 +20,9 @@ import javax.validation.Valid;
 @Slf4j
 public class MailController {
 
-    @Autowired
-    private MailService mailService;
-
     @RequestMapping("/send")
     public String sendMail(@RequestBody @Valid MailBean mailBean){
-        mailService.sendMail(mailBean);
+        MailService.sendMail(mailBean);
         return "{\"msg\":\"邮件发送成功!\"}";
     }
 

@@ -21,6 +21,9 @@ import org.springframework.stereotype.Component;
  * 这种情况下，务必使用多线程定时任务
  * 定时任务应尽量错峰执行，无法错峰的任务应多线程执行，否则调度时间无法保证
  * 多线程定时任务需要在启动类添加注解@EnableAsync，并在定时任务类头或其@Scheduled方法上添加注解@Async
+ * 
+ * 注意3：
+ * 调度时间很难保证，不建议使用本方法，推荐使用原生的quartz任务
  */
 @Component
 @Slf4j

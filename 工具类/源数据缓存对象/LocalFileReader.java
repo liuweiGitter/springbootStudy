@@ -178,7 +178,9 @@ public class LocalFileReader {
     // 读取properties文件
     //*******************************************************
 
-    //方式1：通过spring方法
+    //方式1：通过spring方法：实际底层会调用方式2
+    //注：此方法不能指定字符集，会使用默认字符集ISO 8859-1，如果文件中有其它字符集格式的中文，可能会乱码
+    //规定所有源数据文件必须使用统一的UTF-8编码
     public static Properties getPropertiesBySpring(String pathRelativeClassPath){
         try {
             return PropertiesLoaderUtils.loadAllProperties(pathRelativeClassPath);
@@ -188,6 +190,8 @@ public class LocalFileReader {
     }
 
     //方式2：通过jdk方法
+    //注：此方法不能指定字符集，会使用默认字符集ISO 8859-1，如果文件中有其它字符集格式的中文，可能会乱码
+    //规定所有源数据文件必须使用统一的UTF-8编码
     public static Properties getPropertiesByJdk(String pathRelativeClassPath) {
         Properties properties = new Properties();
         getPropertiesByJdk(pathRelativeClassPath,properties);

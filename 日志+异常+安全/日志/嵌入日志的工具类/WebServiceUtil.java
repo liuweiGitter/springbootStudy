@@ -1,9 +1,11 @@
 package com.jshx.zq.p2p.util;
 
 import com.jshx.zq.p2p.exception.BaseException;
+import com.jshx.zq.p2p.log.LogCenter;
+import com.jshx.zq.p2p.log.LogThreadPioneer;
+import com.jshx.zq.p2p.log.OutCallLog;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.StringEscapeUtils;
-
 import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.URL;
@@ -14,6 +16,7 @@ import java.util.List;
  * @author liuwei
  * @date 2019-11-19 14:33
  * @desc WebService请求工具类
+ * 嵌入了日志埋点
  */
 @Slf4j
 public class WebServiceUtil {
@@ -26,6 +29,19 @@ public class WebServiceUtil {
 
     private static final String CHARSET = "UTF-8";
 
+    private static final String CONN_ERROR = "连接异常";
+
+    private static final String RESPONSE_ERROR = "响应异常";
+
+    private static final String CALL_SUCCESS = "正常";
+
+    private static final String LOG_CONN_MSG = "WebService服务连接异常!";
+
+    private static final String LOG_RESPONSE_MSG = "WebService服务响应异常!";
+
+    private static final String PROTOCOL = "soap";
+
+
     /**
      * post请求
      * @param wsdlUrl wsdl地址
@@ -34,18 +50,42 @@ public class WebServiceUtil {
      */
     private static String postRequest(String wsdlUrl, String xmlRequestParam) {
         BufferedReader in = null;
-        HttpURLConnection conn = getConn(wsdlUrl,xmlRequestParam);
+        HttpURLConnection conn = null;
         OutputStream output = null;
+
+        //日志埋点
+        OutCallLog outCallLog = LogThreadPioneer.getOutCallLog(wsdlUrl,PROTOCOL);
+        long startTime = System.currentTimeMillis();
+        long connTime;
+        long endTime;
+
+        //连接埋点
         try {
+            conn = getConn(wsdlUrl,xmlRequestParam);
             conn.connect();
-            return getResponse(in,conn,output,xmlRequestParam);
+        } catch (IOException e) {
+            ResourceClose.disconnect(conn);
+            endTime = connTime = System.currentTimeMillis();
+            LogCenter.submitOutCallLog(outCallLog.addCallResult(connTime-startTime,endTime-startTime,false,CONN_ERROR));
+            return LogAndThrowException.returnString(LOG_CONN_MSG,e);
+        }
+        connTime = System.currentTimeMillis();
+        boolean success = true;
+        String response = "";
+
+        //响应埋点
+        try {
+            response = getResponse(in,conn,output,xmlRequestParam);
         } catch (Exception e) {
-            LogAndThrowException.error("远程WebService服务异常!",e);
-            return "";
-        }finally {
+            success = false;
+            LogAndThrowException.error(LOG_RESPONSE_MSG,e);
+        } finally {
             ResourceClose.close(in,output);
             ResourceClose.disconnect(conn);
+            endTime = System.currentTimeMillis();
+            LogCenter.submitOutCallLog(outCallLog.addCallResult(connTime-startTime,endTime-startTime,success,success?CALL_SUCCESS:RESPONSE_ERROR));
         }
+        return response;
     }
 
     private static HttpURLConnection getConn(String wsdlUrl, String xmlRequestParam){
@@ -94,32 +134,27 @@ public class WebServiceUtil {
      * post批量请求
      * @param wsdlUrl
      * @param xmlRequestParams
+     * @param continueNext 每一次请求异常时，是否继续下一次请求
      * @return
      */
-    private static List<String> postRequest(String wsdlUrl, List<String> xmlRequestParams) {
-        BufferedReader in = null;
-        HttpURLConnection conn = null;
-        OutputStream output = null;
+    private static List<String> postRequest(String wsdlUrl, List<String> xmlRequestParams, boolean continueNext) {
         List<String> list = new ArrayList<>();
-        try {
-            for (String xmlRequestParam : xmlRequestParams) {
-                conn = getConn(wsdlUrl,xmlRequestParam);
-                conn.connect();
-                list.add(getResponse(in,conn,output,xmlRequestParam));
-                ResourceClose.disconnect(conn);
+        for (String xmlRequestParam : xmlRequestParams) {
+            try{
+                list.add(postRequest(wsdlUrl, xmlRequestParam));
+            }catch (Exception e){
+                if (continueNext) {
+                    continue;
+                }else {
+                    throw e;
+                }
             }
-            return list;
-        } catch (Exception e) {
-            LogAndThrowException.error("远程WebService服务异常!",e);
-            return list;
-        }finally {
-            ResourceClose.close(in,output);
-            ResourceClose.disconnect(conn);
         }
+        return list;
     }
 
-    public static List<String> postAndGetXmlLabelResponse(String wsdlUrl, List<String> xmlRequestParams) {
-        List<String> originResponses = postRequest(wsdlUrl, xmlRequestParams);
+    public static List<String> postAndGetXmlLabelResponse(String wsdlUrl, List<String> xmlRequestParams, boolean continueNext) {
+        List<String> originResponses = postRequest(wsdlUrl, xmlRequestParams, continueNext);
         //获取CDATA中的数据：即被转义的数据
         List<String> responses = new ArrayList<>();
         for (String originResponse : originResponses) {

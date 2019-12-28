@@ -59,6 +59,12 @@ public class AuthFilter implements Filter {
     @Override
     public void doFilter(ServletRequest servletRequest, ServletResponse servletResponse, FilterChain filterChain) throws IOException, ServletException {
         log.info("AuthFilter");
+		//测试时免鉴权，发布时注释
+        /*if (1==1){
+            cacheThreadLocal4Test();
+            filterChain.doFilter(servletRequest, servletResponse);
+            return;
+        }*/
         //免过滤的url路径直接放行
         HttpServletRequest request = ((HttpServletRequest) servletRequest);
         String requestPath = request.getServletPath();
@@ -87,6 +93,11 @@ public class AuthFilter implements Filter {
             if (redisTemplateAuth.hasKey(key)) {
                 //有效请求，刷新redis过期时间
                 redisTemplateAuth.expire(key,expireTime,TimeUnit.SECONDS);
+				/**
+                 * 缓存登录用户关键信息到ThreadLocal全局变量
+                 * 为保证分布式系统中本地线程变量始终程生效，在鉴权过滤器中始终判断是否需要存入这些变量
+                 */
+                cacheThreadLocal(servletRequest,key);
                 filterChain.doFilter(servletRequest, servletResponse);
             }else {
                 //无效的token：token虚假或者redis信息已过期
@@ -97,6 +108,34 @@ public class AuthFilter implements Filter {
 
     @Override
     public void destroy() {
+    }
+	
+    //缓存ThreadLocal全局变量
+    private void cacheThreadLocal(ServletRequest servletRequest, String key){
+        //判断token是否已本地化
+        if (ThreadLocalData.REDIS_KEY.get() == null) {
+            //1.远程主机ip地址
+            ThreadLocalData.CLIENT_IP.set(servletRequest.getRemoteAddr());
+            //2.redis key
+            ThreadLocalData.REDIS_KEY.set(key);
+            //3.用户名
+            Object object=redisTemplateAuth.opsForValue().get(key);
+            SysUser sysUser = (SysUser) object;
+            ThreadLocalData.ACCOUNT_NAME.set(sysUser.getUserName());
+            //4.用户id
+            ThreadLocalData.ACCOUNT_ID.set(sysUser.getUserId());
+        }
+    }
+
+    private void cacheThreadLocal4Test(){
+        //1.远程主机ip地址
+        ThreadLocalData.CLIENT_IP.set("");
+        //2.redis key
+        ThreadLocalData.REDIS_KEY.set("");
+        //3.用户名
+        ThreadLocalData.ACCOUNT_NAME.set("");
+        //4.用户id
+        ThreadLocalData.ACCOUNT_ID.set("0000054375914DBAA752D93A61EB71A8");
     }
 
 }

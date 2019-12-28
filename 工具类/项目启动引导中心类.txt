@@ -1,13 +1,17 @@
 package com.jshx.zq.p2p.boot;
 
 import com.jshx.zq.p2p.data.MetaDataCache;
+import com.jshx.zq.p2p.log.LogCenter;
+import com.jshx.zq.p2p.notice.mail.MailService;
 import com.jshx.zq.p2p.service.Impl.DynamicTaskServiceImpl;
+import com.jshx.zq.p2p.service.Impl.LogServiceImpl;
 import com.jshx.zq.p2p.service.Impl.WatchServiceImpl;
 import com.jshx.zq.p2p.task.dynamic.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.env.Environment;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.mail.javamail.JavaMailSenderImpl;
 import org.springframework.scheduling.quartz.SchedulerFactoryBean;
 import org.springframework.stereotype.Component;
 
@@ -39,6 +43,10 @@ public class BootCenter {
     private Environment environment;
     @Autowired
     private WatchServiceImpl watchServiceImpl;
+    @Autowired
+    private JavaMailSenderImpl mailSender;
+    @Autowired
+    private LogServiceImpl logService;
 
 
     @PostConstruct
@@ -48,7 +56,9 @@ public class BootCenter {
         iocInit();
         //2.内部数据初始化：json文件、properties文件等元数据初始化
         innerDataInit();
-        //3.外部数据初始化：数据库等
+        //3.静态线程启动：消费者线程等启动
+        staticThreadStart();
+        //4.外部数据初始化：数据库等
         outerDataInit();
     }
 
@@ -59,6 +69,7 @@ public class BootCenter {
         BootTaskInit.iocInit(redisTemplate,dynamicTaskServiceImpl);
         JobManageCenter.iocInit(schedulerFactoryBean);
         MysqlServiceCenter.iocInit(dynamicTaskServiceImpl,watchServiceImpl);
+        MailService.iocInit(mailSender);
     }
 
     //内部数据初始化组
@@ -66,6 +77,12 @@ public class BootCenter {
         log.info(">>>BootCenter innerDataInit");
         log.info("===MetaDataCache initData");
         MetaDataCache.boot();
+    }
+
+    //静态线程启动组
+    private void staticThreadStart() {
+        log.info(">>>BootCenter staticThreadStart");
+        LogCenter.startThread(logService);
     }
 
     //外部数据初始化组

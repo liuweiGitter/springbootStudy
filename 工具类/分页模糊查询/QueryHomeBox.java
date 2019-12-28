@@ -1,7 +1,7 @@
-package com.telecom.js.noc.hxtnms.operationplan.utils;
+package com.jshx.zq.p2p.util;
 
 import lombok.Data;
-
+import java.io.Serializable;
 import java.util.List;
 import java.util.Map;
 
@@ -11,7 +11,7 @@ import java.util.Map;
  * Desc: 模糊查询、精确查询、排序、分页 列表综合查询条件全家桶
  */
 @Data
-public class QueryHomeBox<T> {
+public class QueryHomeBox<T> implements Serializable {
     /**
      * 条件使用泛型可以加强参数名称和类型约束
      */
@@ -29,6 +29,13 @@ public class QueryHomeBox<T> {
     private int limitStart;//mysql：limit开始下标
     private int rowNumUp;//oracle：rownum上限，<=
     private int rowNumDown;//oracle：rownum下限，>=
+    /**
+     * 隐藏的鉴权信息
+     * 很多数据需要进行用户过滤，用户参数从本地线程池获取
+     * 这些参数可能是用户id或用户名或地市等任何查询所需的信息
+     * 通常只需要一个参数，多参数时建议放到equalMap中
+     */
+    private String hiddenInfo;
 
     //自定义setter：mysql分页limit和oracle分页上下限
     public void setQueryPageNum(int queryPageNum){
