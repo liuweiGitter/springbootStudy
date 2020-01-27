@@ -1,5 +1,8 @@
-package com.telecom.js.noc.hxtnms.operationplan.utils;
+package com.jshx.zq.p2p.util;
 
+import com.jshx.zq.p2p.log.LogCenter;
+import com.jshx.zq.p2p.log.LogThreadPioneer;
+import com.jshx.zq.p2p.log.OutCallLog;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.http.HttpEntity;
 import org.apache.http.NameValuePair;
@@ -14,7 +17,6 @@ import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.util.EntityUtils;
-
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.URISyntaxException;
@@ -28,6 +30,8 @@ import java.util.Map;
  * Desc: http post/get请求工具类
  * 所有post和get传参为json格式，编码字符集默认为UTF-8，也可以根据需要指定特定字符集
  * 接收响应字节流后默认解析为UTF-8字符串，也可以根据需要指定特定字符集
+ *
+ * 嵌入了日志埋点
  */
 @Slf4j
 public class HttpClientUtil {
@@ -44,8 +48,20 @@ public class HttpClientUtil {
 
     private static final int KILO = 1000;
 
+    private static final String PROTOCOL = "http";
+
+    private static final String CONN_ERROR = "连接异常";
+
+    private static final String RESPONSE_ERROR = "响应异常";
+
+    private static final String CALL_SUCCESS = "正常";
+
+    private static final String LOG_CONN_MSG = "HttpService服务连接异常!";
+
+    private static final String LOG_RESPONSE_MSG = "HttpService服务响应异常!";
+
     private static final RequestConfig REQUEST_CONFIG = RequestConfig.custom()
-            .setConnectTimeout(10*KILO).setSocketTimeout(20*KILO).build();
+            .setConnectTimeout(10*KILO).setSocketTimeout(10*KILO).build();
 
     //==============获取post请求对象==============//
 
@@ -65,13 +81,7 @@ public class HttpClientUtil {
     public static HttpPost getHttpPost(String uri, String jsonPost, Map<String, String> headerMap, String charsetName) {
         HttpPost httpPost = new HttpPost(uri);
         //设置请求的json参数
-        StringEntity se;
-        try {
-            se = new StringEntity(jsonPost);
-        } catch (UnsupportedEncodingException e) {
-            log.error("json syntax error!", e);
-            return null;
-        }
+        StringEntity se = new StringEntity(jsonPost,charsetName);
         se.setContentType("text/json");
         httpPost.setEntity(se);
         //设置请求header
@@ -117,6 +127,10 @@ public class HttpClientUtil {
     //==============获取get请求对象==============//
 
 
+    public static HttpGet getHttpGet(String uri) {
+        return getHttpGet(uri, null, null, UTF8);
+    }
+
     public static HttpGet getHttpGet(String uri, Map<String, String> paramGet, Map<String, String> headerMap) {
         return getHttpGet(uri, paramGet, headerMap, UTF8);
     }
@@ -157,24 +171,40 @@ public class HttpClientUtil {
     public static String executeAnHttpRequest(HttpUriRequest httpUriRequest, String decodeCharsetName) {
         String body = null;
         CloseableHttpResponse httpResponse = null;
+
+        //日志埋点
+        OutCallLog outCallLog = LogThreadPioneer.getOutCallLog(httpUriRequest.getURI().getPath(),PROTOCOL);
+        long startTime = System.currentTimeMillis();
+        long connTime;
+        long endTime;
+
+        //连接埋点
+        CloseableHttpClient httpClient;
+        try{
+            //获取httpClient：创建连接
+            httpClient = HttpClients.custom().build();
+        }catch (Exception e){
+            endTime = connTime = System.currentTimeMillis();
+            LogCenter.submitOutCallLog(outCallLog.addCallResult(connTime-startTime,endTime-startTime,false,CONN_ERROR));
+            return LogAndThrowException.returnString(LOG_CONN_MSG,e);
+        }
+        connTime = System.currentTimeMillis();
+        boolean success = true;
+
+        //响应埋点
         try {
-            //获取httpClient
-            CloseableHttpClient httpClient = HttpClients.custom().build();
+            //获取响应
             httpResponse = httpClient.execute(httpUriRequest);
             //获取返回值的String类型
             HttpEntity entity = httpResponse.getEntity();
             body = EntityUtils.toString(entity, decodeCharsetName);
-            //log.debug("http response:" + body);
         } catch (IOException e) {
-            log.error("" + e);
+            success = false;
+            LogAndThrowException.error(LOG_RESPONSE_MSG,e);
         } finally {
-            if (null != httpResponse) {
-                try {
-                    httpResponse.close();
-                } catch (IOException e) {
-                    log.error("httpResponse close exception:" + e);
-                }
-            }
+            ResourceClose.close(httpResponse,httpClient);
+            endTime = System.currentTimeMillis();
+            LogCenter.submitOutCallLog(outCallLog.addCallResult(connTime-startTime,endTime-startTime,success,success?CALL_SUCCESS:RESPONSE_ERROR));
         }
         return body;
     }
@@ -198,11 +228,13 @@ public class HttpClientUtil {
             log.error("uri syntax error!", e);
             return null;
         }
-        List<NameValuePair> list = new LinkedList<>();
-        for (Map.Entry<String, String> map : paramMap.entrySet()) {
-            list.add(new BasicNameValuePair(map.getKey(), map.getValue()));
+        if (null != paramMap && paramMap.size()>0) {
+            List<NameValuePair> list = new LinkedList<>();
+            for (Map.Entry<String, String> map : paramMap.entrySet()) {
+                list.add(new BasicNameValuePair(map.getKey(), map.getValue()));
+            }
+            uriBuilder.setParameters(list);
         }
-        uriBuilder.setParameters(list);
         return uriBuilder;
     }
 

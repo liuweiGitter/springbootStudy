@@ -7,11 +7,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.IOUtils;
 import org.springframework.core.io.support.PropertiesLoaderUtils;
 import org.springframework.util.ResourceUtils;
-
 import java.io.*;
-import java.util.List;
-import java.util.Map;
-import java.util.Properties;
+import java.util.*;
 
 /**
  * @author liuwei
@@ -40,7 +37,7 @@ public class LocalFileReader {
 
     public static String getFileAbsolutePath(String pathRelativeClassPath) {
         //获取目标文件绝对路径：classpath以/结尾，相对路径可以以/打头，也可以去掉/，建议去掉/
-        return classpath+pathRelativeClassPath;
+        return classpath+(pathRelativeClassPath.startsWith("/")?pathRelativeClassPath.substring(1):pathRelativeClassPath);
     }
 
     public static File getFile(String pathRelativeClassPath) {
@@ -98,7 +95,7 @@ public class LocalFileReader {
 
     public static <T> List<T> getListFromJson(String pathRelativeClassPath,Class<T> entityClz) {
         //解析json文件为数组
-        InputStream inputStream = LocalFileReader.getFileInputStream(pathRelativeClassPath);
+        InputStream inputStream = getFileInputStream(pathRelativeClassPath);
         try {
             String text = IOUtils.toString(inputStream,"utf8");
             return JSON.parseArray(text, entityClz);
@@ -111,7 +108,7 @@ public class LocalFileReader {
 
     public static JSONArray getJSONArray(String pathRelativeClassPath) {
         //解析json文件为数组
-        InputStream inputStream = LocalFileReader.getFileInputStream(pathRelativeClassPath);
+        InputStream inputStream = getFileInputStream(pathRelativeClassPath);
         try {
             String text = IOUtils.toString(inputStream,"utf8");
             return JSON.parseArray(text);
@@ -126,9 +123,13 @@ public class LocalFileReader {
         return getObjectFromJson(pathRelativeClassPath,Map.class);
     }
 
+    public static Map getOrderMapFromJson(String pathRelativeClassPath) {
+        return getObjectFromJson(pathRelativeClassPath,LinkedHashMap.class);
+    }
+
     public static <T> T getObjectFromJson(String pathRelativeClassPath,Class<T> entityClz) {
         //解析json文件为对象
-        InputStream inputStream = LocalFileReader.getFileInputStream(pathRelativeClassPath);
+        InputStream inputStream = getFileInputStream(pathRelativeClassPath);
         try {
             String text = IOUtils.toString(inputStream,"utf8");
             return JSON.parseObject(text, entityClz);
@@ -141,7 +142,7 @@ public class LocalFileReader {
 
     public static JSONObject getJSONObject(String pathRelativeClassPath) {
         //解析json文件为对象
-        InputStream inputStream = LocalFileReader.getFileInputStream(pathRelativeClassPath);
+        InputStream inputStream = getFileInputStream(pathRelativeClassPath);
         try {
             String text = IOUtils.toString(inputStream,"utf8");
             return JSON.parseObject(text);
@@ -150,6 +151,64 @@ public class LocalFileReader {
         } finally {
             closeJsonStream(inputStream);
         }
+    }
+
+    /**
+     * 读取映射型json文件，如keyA1=keyB1、keyA2=keyB2、...
+     * @param pathRelativeClassPath 相对路径
+     * @param isOrder 是否按序生成数组
+     * @return
+     */
+    public static String[][] getKeyTransArray(String pathRelativeClassPath,boolean isOrder) {
+        Map<String,String> map;
+        if (isOrder) {
+            map = getObjectFromJson(pathRelativeClassPath,LinkedHashMap.class);
+        }else{
+            map = getMapFromJson(pathRelativeClassPath);
+        }
+        return getKeyTransArray(map);
+    }
+
+    /**
+     * 读取映射型json文件，如name1:{keyA1=keyB1、keyA2=keyB2、...}、name2:{keyA1=keyB1、keyA2=keyB2、...}、...
+     * @param pathRelativeClassPath 相对路径
+     * @return 排序后的key--keyTrans对
+     */
+    public static Map<String,String[][]> getKeyTransArrayMap(String pathRelativeClassPath) {
+        Map<String,JSONObject> map = getMapFromJson(pathRelativeClassPath);
+        if (map.size()==0) {
+            return new HashMap<>();
+        }
+        Map<String,String[][]> resultMap = new HashMap<>();
+        Set<Map.Entry<String,JSONObject>> set = map.entrySet();
+        Iterator<Map.Entry<String,JSONObject>> iterator = set.iterator();
+        while (iterator.hasNext()) {
+            Map.Entry<String,JSONObject> row = iterator.next();
+            String rowName = row.getKey();
+            //LinkedHashMap无法被JSON反序列化(com.alibaba.fastjson.JSONException: can not get javaBeanDeserializer. java.util.LinkedHashMap)，需要间接转换
+            //LinkedHashMap rowMap = row.getValue().toJavaObject(LinkedHashMap.class);
+            LinkedHashMap rowMap = JSONObject.parseObject(row.getValue().toJSONString(),LinkedHashMap.class);
+            resultMap.put(rowName,getKeyTransArray(rowMap));
+        }
+        return resultMap;
+    }
+
+    private static String[][] getKeyTransArray(Map<String,String> map) {
+        if (map.size()==0) {
+            return new String[][]{};
+        }
+        Set<Map.Entry<String,String>> set = map.entrySet();
+        Iterator<Map.Entry<String,String>> iterator = set.iterator();
+        String[] key = new String[map.size()];
+        String[] keyTrans = new String[map.size()];
+        int i = 0;
+        while (iterator.hasNext()) {
+            Map.Entry<String,String> keys = iterator.next();
+            key[i] = keys.getKey();
+            keyTrans[i] = keys.getValue();
+            i++;
+        }
+        return new String[][]{key,keyTrans};
     }
 
     private static <T> T logIOException(IOException e){

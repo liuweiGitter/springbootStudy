@@ -1,0 +1,74 @@
+package test.liuwei;
+
+import java.util.concurrent.Semaphore;
+
+/**
+ * @author liuwei
+ * @date 2019-10-15 14:21
+ * @desc 信号量测试类
+ */
+public class SemaphoreTest {
+
+    /**
+     * 信号量Semaphore用以阻塞程序直到等到运行信号
+     * 构造方法中permits用以初始化信号size，信号大小可以为任何整数，包括0和负数
+     * 构造方法中fair用以定义线程排队顺序，默认false，表示排队线程获取信号量时按照随机顺序，true则表示，按照排队顺序获取信号量
+     * acquire()方法用以同步阻塞等待，如果信号大小>=1，则对信号大小同步-1，且解除程序阻塞，即线程可以继续执行，如果信号大小<1，则一直阻塞等待
+     * release()方法用以同步释放信号量，即信号大小+1，该方法除了同步等待外不会阻塞
+     * acquire(int permits)方法同acquire()方法类似，区别在于需要一次性等待信号大小>=permits
+     * release(int permits)方法同release()方法类似，区别在于会一次性释放permits个信号
+     *
+     * acquireUninterruptibly()方法同acquire()方法类似，区别在于如果等待过程中线程被打断，acquireUninterruptibly不会立即打断线程而是继续等待信号，等到信号后才会打断线程
+     * availablePermits()方法获取当前信号量size
+     * getQueueLength()方法获取当前等待信号量的线程数
+     * tryAcquire()方法非阻塞式(即立即)尝试获取一个信号量，如果能获取到，返回true，否则返回false，无论是否获取到，都不阻塞程序，如果获取到，会降低一个信号量
+     * tryAcquire(long timeout, TimeUnit unit)方法同tryAcquire()方法类似，区别在于阻塞式等待timeout时间去等待一个信号量，而不是立即返回结果
+     * drainPermits()获取所有的信号量，并返回当前信号量大小，无论之前信号量大小是正是负，现在都归零，例，当前size==-1，返回-1并归零，当前size==1，返回1并归零
+     */
+    private final static Semaphore semaphore = new Semaphore(-2);
+
+    private static void acquire(final int count) {
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                for (int i = 0; i < count ; i++) {
+                    try {
+                        semaphore.acquire();
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                    System.out.println("["+i+"]信号量↓");
+                }
+            }
+        }).start();
+    }
+
+    private static void release(final int count) {
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                for (int i = 0; i < count ; i++) {
+                    try {
+                        Thread.sleep(1000);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                    System.out.println("["+i+"]信号量↑");
+                    semaphore.release();
+                    System.out.println(">>>等待队列长度："+semaphore.getQueueLength());
+                    System.out.println(">>>当前信号量大小："+semaphore.availablePermits());
+                }
+            }
+        }).start();
+    }
+
+    public static void main(String[] args) throws InterruptedException {
+        //批量获取信号量：即size--
+        acquire(2);
+
+        //批量释放信号量：即size++
+        release(2);
+
+    }
+
+}
