@@ -19,6 +19,8 @@ import java.util.Set;
  * 注：写入excel表Map格式数据，对于mysql和oracle，map查询的结果中列名的大小写是不同的，在传参时应注意
  * mysql会默认查询表中的列名，可以手动指定列名整体或部分字母大小写
  * oracle除非特别设置，否则，不论如何指定，查询的列名总是大写的
+ *
+ * 导出.xls格式数据
  */
 @Slf4j
 public class ExcelWriteKitty {
@@ -157,6 +159,10 @@ public class ExcelWriteKitty {
         //3.公共设置
         for (HSSFCellStyle style:new HSSFCellStyle[]{headerStyle,bodyStyle}) {
             //设置样式
+            //此处实际为背景色，poi的bug
+            style.setFillForegroundColor(HSSFColor.WHITE.index);
+            //此处并不是背景色，也不是前景色
+            //style.setFillBackgroundColor(HSSFColor.BLUE.index);
             style.setFillPattern(HSSFCellStyle.SOLID_FOREGROUND);
             style.setBorderBottom(HSSFCellStyle.BORDER_THIN);
             style.setBorderLeft(HSSFCellStyle.BORDER_THIN);

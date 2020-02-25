@@ -1,0 +1,167 @@
+package thread;
+ 
+import lombok.extern.slf4j.Slf4j;
+ 
+import java.util.concurrent.*;
+ 
+/**
+ * @author liuwei
+ * @date 2019-09-23 10:10
+ * @desc FutureTask测试
+ * 演示4种类型的FutureTask任务调用：正常运行、取消运行、限时等待和错误运行
+ */
+@Slf4j
+public class FutureTaskTest {
+ 
+    //一个正常的FutureTask任务，返回String对象
+    private static FutureTask<String> getFutureTask(){
+        return new FutureTask<String>(new Callable<String>() {
+            @Override
+            public String call() throws Exception {
+                //休眠3秒
+                Thread.sleep(3000);
+                return "FutureTask计算线程结束";
+            }
+        });
+    }
+ 
+    //一个必定Error的FutureTask任务
+    private static FutureTask<String> getErrorFutureTask(){
+        return new FutureTask<String>(new Callable<String>() {
+            @Override
+            public String call() throws Exception {
+                //休眠3秒
+                Thread.sleep(3000);
+                return "FutureTask计算线程结束"+1/0;
+            }
+        });
+    }
+ 
+    //正常运行的任务
+    private static void normalTask(){
+        FutureTask<String> futureTask = getFutureTask();
+        //新线程中启动futureTask
+        new Thread(futureTask).start();
+        try {
+            //阻塞等待task计算结果
+            String result = futureTask.get();
+            boolean isDone = futureTask.isDone();
+            boolean isCancelled = futureTask.isCancelled();
+            log.info("-.-.-.返回结果："+result);
+            log.info("-.-.-.isDone："+isDone);
+            log.info("-.-.-.isCancelled："+isCancelled);
+        } catch (ExecutionException e) {
+            e.printStackTrace();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+    }
+ 
+    //取消运行的任务
+    private static void cancelTask(){
+        /**
+         * 取消任务使用FutureTask的cancel方法，而非线程的interrupt方法
+         * cancel方法内部会调用该任务所属线程的interrupt方法，任务会因线程的中断而中断
+         * 什么时候应该取消一个任务？
+         * 当一个任务消耗资源而又在一定时间后如果还没有结束就不再需要任务执行结果时，应该在逾期时主动取消
+         * FutureTask.get(long timeout, TimeUnit unit)方法的调用结果是，逾期未结束会抛出TimeoutException异常
+         * 在捕获到超时异常时调用FutureTask.cancel(true)方法即可中断任务
+         */
+        FutureTask<String> futureTask = getFutureTask();
+        //新线程中启动futureTask
+        new Thread(futureTask).start();
+        try {
+            //任务完成前取消：允许取消，返回true
+            boolean cancelFirst = futureTask.cancel(true);
+            log.info("-.-.-.一次取消结果："+cancelFirst);
+ 
+            //二次取消：不允许二次取消，返回false
+            boolean cancelSecond = futureTask.cancel(true);
+            log.info("-.-.-.二次取消结果："+cancelSecond);
+ 
+            //是否处于取消状态：true
+            boolean isCancelled = futureTask.isCancelled();
+            log.info("-.-.-.isCancelled："+isCancelled);
+ 
+            //阻塞等待task计算结果，get抛出运行时异常java.util.concurrent.CancellationException
+            //注：运行时异常不提供给开发人员捕获，由虚拟机捕获和抛出
+            String result = futureTask.get();
+            boolean isDone = futureTask.isDone();
+            log.info("-.-.-.返回结果："+result);
+            log.info("-.-.-.isDone："+isDone);
+ 
+            //任务完成后取消：方法直接返回false，但由于之上代码异常抛出，此处不会执行
+            futureTask.cancel(true);
+        } catch (ExecutionException e) {
+            e.printStackTrace();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+    }
+ 
+    //限时等待的任务
+    private static void limitTask(){
+        FutureTask<String> futureTask = getFutureTask();
+        //新线程中启动futureTask
+        new Thread(futureTask).start();
+        try {
+            //限时阻塞等待task计算结果
+            String result = futureTask.get(1500, TimeUnit.MILLISECONDS);
+            boolean isDone = futureTask.isDone();
+            boolean isCancelled = futureTask.isCancelled();
+            log.info("-.-.-.返回结果："+result);
+            log.info("-.-.-.isDone："+isDone);
+            log.info("-.-.-.isCancelled："+isCancelled);
+        } catch (ExecutionException e) {
+            e.printStackTrace();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        } catch (TimeoutException e) {
+            //限时等待!=限时运行，限时结束时，task处于未完成态，此处抛出超时异常
+            e.printStackTrace();
+        }
+        try {
+            //继续阻塞等待：由于task未取消，task线程仍会运行，继续等待可以等到运行结果
+            String result = futureTask.get();
+            boolean isDone = futureTask.isDone();
+            boolean isCancelled = futureTask.isCancelled();
+            log.info("***返回结果："+result);
+            log.info("***isDone："+isDone);
+            log.info("***isCancelled："+isCancelled);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        } catch (ExecutionException e) {
+            e.printStackTrace();
+        }
+    }
+ 
+    //error运行的任务
+    private static void errorTask(){
+        FutureTask<String> futureTask = getErrorFutureTask();
+        //新线程中启动futureTask
+        new Thread(futureTask).start();
+        try {
+            //阻塞等待task计算结果
+            String result = futureTask.get();
+            boolean isDone = futureTask.isDone();
+            boolean isCancelled = futureTask.isCancelled();
+            log.info("-.-.-.返回结果："+result);
+            log.info("-.-.-.isDone："+isDone);
+            log.info("-.-.-.isCancelled："+isCancelled);
+        } catch (ExecutionException e) {
+            //抛出此异常
+            e.printStackTrace();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+    }
+ 
+    public static void main(String[] args) {
+        log.info(">>>>>测试开始");
+        /**
+         * 任务调用
+         */
+        normalTask();
+        log.info("测试结束<<<<<");
+    }
+}

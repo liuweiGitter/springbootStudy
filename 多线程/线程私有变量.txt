@@ -1,0 +1,81 @@
+多线程中，线程共享的可变变量，即非final的全局变量，需要考虑其线程安全性，保证多线程并发访问时读写操作都要串行执行，以防止脏读和脏写
+
+一些变量如果不需要线程共享(即希望每个线程使用自己的私有变量)，可以对这些变量进行线程封装，即对变量进行线程级私有化操作
+
+线程封装变量只有一种方式，即使用局部变量，但根据局部变量存放的位置，又主要分为有2种类型：对象方法级局部变量和Thread级全局变量
+
+1.方法级局部变量
+方法级局部变量即作用范围在方法内的变量，包括方法入参中的基本类型变量以及方法内定义的所有变量
+方法入参中的引用类型变量由于地址传递，因此属于外部变量，作用范围跨越多个方法甚至可能跨越多个类
+局部变量并不意味着线程安全，除非确保变量作用域未逃逸出方法栈
+引用类型的局部变量，如果对外发布引用，即作为参数调用外部方法或作为本方法的返回值[注1]，则会产生线程安全风险[注2]
+基本类型的局部变量总是线程安全的，因为即使做方法调用和值返回，传递的也只是变量值而不是引用
+
+注1：不仅是作为直接引用发布，作为间接引用发布也会使得外部方法可以取得变量的引用
+举例来说定义了局部变量User及其List<User>，发布了List，就等于发布了User，因为可以通过List间接找到User的引用
+
+注2：只要在方法外部可以取得变量的引用，就可能对该变量进行全局变量赋值并提供给所有线程访问，如果在访问全局变量时没有进行线程同步，就会使得线程不安全成为事实
+对外发布变量引用只会产生安全风险，如果没有采取私有封装或公开同步等措施，风险才会成为事实
+但一旦有了风险，就增加了多线程编程时的线程安全考虑的工作
+所以，能不发布的局部变量，轻易不要发布，需要发布引用时，也尽量在各方法中流转而不要传递到全局变量，如果实在需要传递全局变量，则多线程中必须对全局变量同步
+外面的世界很危险，线程栈里老实待着
+
+2.Thread级全局变量
+很多复杂的业务逻辑代码很长，需要分离出多个方法，下文中，入口方法称为主方法，分离出的各方法称为子方法
+在调用每个子方法时可能都需要传递主方法中的一些全方法级局部变量，具体来说，这些全方法级局部变量定义于主方法，作用域是主方法和多个子方法，通过参数传递调用子方法
+参数传递的子方法签名单调且长，需要一种更简单的取参方式，每个子方法不通过入参而是通过子方法可访问到的某个全局变量取得所需参数
+
+全局变量如果设在对象中，则会引入多线程安全问题，最好有一种方式，能够在当前线程中存储和访问全局变量，即能够使用单线程级的全局变量
+在JVM中，每一个线程都唯一对应一个自身的Thread对象，通过Thread.currentThread()可以得到当前线程对象的引用
+每一个Thread对象中包含一个全局变量ThreadLocal.ThreadLocalMap threadLocals = null;
+threadLocals变量的功能正是存储线程本地全局变量
+
+threadLocals变量访问级别为default，也就是说并不对外提供访问接口
+Thread位于java.lang包下，该包下的另一个类ThreadLocal可以访问到当前线程的threadLocals，关键代码如下
+    Thread t = Thread.currentThread();
+    ThreadLocalMap map = getMap(t);
+
+ThreadLocal对象中定义了线程级的全局变量，正适用于线程级"隐藏"方法参数
+ThreadLocalMap是ThreadLocal类的静态内部类，其数据结构并不是Map但功能类似，不要在意这些细节，为简化分析，下文将其视为Map类
+
+ThreadLocal<T>为带有泛型变量的类，在一个Java类A中作为全局变量使用，即ThreadLocal对象并不是线程私有的，多个线程可以共享同一个ThreadLocal对象
+每一个ThreadLocal对象只能存储一个全局变量，多个全局变量需要定义多个ThreadLocal对象来存储
+一个线程根据某个ThreadLocal对象TL的引用找到该TL对象的ThreadLocalMap，然后可从中获取预定义的全局变量
+一个线程的ThreadLocalMap的key为上述TL对象，value则为在该TL对象中存储的值，即T
+
+在类A中使用ThreadLocal<T>对象时需要重写其initialValue()方法以返回自己需要的线程本地全局变量
+原始的initialValue()方法实现如下：
+    protected T initialValue() {
+        return null;
+    }
+实际使用时示例如下：
+    private static ThreadLocal<Connection> threadConn = new ThreadLocal<Connection>(){
+        @Override
+        public Connection initialValue(){
+            try {
+                return DriverManager.getConnection("dbUrl");
+            } catch (SQLException e) {
+                e.printStackTrace();
+                return null;
+            }
+        }
+    };
+    
+    private static Connection getConnection(){
+        return threadConn.get();
+    }
+类A通过get()方法即可获取到当前线程在指定的ThreadLocal中存储的全局变量
+
+执行ThreadLocal的get()方法，访问存储其中的全局变量的具体过程如下：
+找到当前线程的目标ThreadLocalMap，如果为null==map或null==map.get(ThreadLocal)，调用initialValue()方法进行变量的初始化，然后将变量存储到map中，最后返回目标全局变量
+
+线程的threadLocals变量初始时为null，因此需要进行null==map判断
+map存储的值是WeakReference弱引用对象，因此在虚拟机每次GC时会被清空，因此需要进行null==map.get(ThreadLocal)判断
+之所以定义为弱引用对象，应该是避免ThreadLocal对象的泛滥使用导致大量线程长期持有全局变量的引用从而导致JVM无法对其GC使得内存空间无法被重新利用(如果是强引用，只要线程存在，被引用的全局变量就不会被GC)
+
+重写initialValue()方法需要意识到，该方法的返回值是线程本地全局变量，因此必须是每个线程私有的，换句话说，返回值不能是单例模式变量以及任何被多个线程共享的变量
+
+本例中ThreadLocal对象定义在类A中，但根据需要，可以定义在一个公共类中供所有类访问
+本例中定义了一个ThreadLocal对象，如果需要，可以定义多个ThreadLocal对象
+
+

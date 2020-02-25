@@ -1,0 +1,76 @@
+package thread;
+ 
+import lombok.extern.slf4j.Slf4j;
+
+import java.util.concurrent.*;
+
+/**
+ * @author liuwei
+ * @date 2019-10-09 17:24
+ * @desc 使用有界线程池和有界队列的任务调度器
+ * 一个任务调度器关联一个线程池和一个任务等候队列
+ * 有界的线程池和任务队列可以有效防止线程数量和任务数量的无限扩张，保证内存不被耗尽
+ * 超出线程池上限数量的任务将排队到任务队列，超出任务队列上限长度的任务将通过各种饱和策略处理，根据需要，或悄悄丢弃或抛出异常或交由提交任务的线程本身去处理等
+ * 如果任务来自网络请求，更多的任务会积累到TCP层排队，如果超出队列上限，TCP层开始丢弃任务
+ * Executors类中定义了4种常用的调度器，每一种调度器的线程池都可以自定义自己的线程工厂类ThreadFactory
+ * newFixedThreadPool有固定数量的线程，使用无界队列LinkedBlockingQueue<Runnable>
+ * newScheduledThreadPool有固定数量的基本线程，最大线程数为Integer.MAX_VALUE，使用延迟工作队列DelayedWorkQueue
+ * newCachedThreadPool基本线程数为0，最大线程数为Integer.MAX_VALUE，使用异步工作队列SynchronousQueue<Runnable>直接移交任务到工作线程而不经过等候队列排队
+ * newSingleThreadExecutor单线程，使用无界队列LinkedBlockingQueue<Runnable>
+ * 这些常用的调度器都使用无界队列，无界队列适用于大量长耗时或依赖任务的场景，如果确信场景中存在低耗时或独立任务，应该使用有界队列约束内存的使用
+ * 根据任务的场景，对不同类型的任务使用不同的调度器，以方便定制场景所需的线程池策略和队列策略
+ * 有界队列必然要结合饱和策略使用，以明确超出队列的任务如何处理
+ * 4种调度器都是ThreadPoolExecutor对象，可以根据需要定义自己的调度器，通常只需要对ThreadPoolExecutor构造函数自定义传参即可
+ */
+@Slf4j
+public class BoundQueueExecutor {
+ 
+    //有界队列的长度
+    private static int QUEUE_MAX = 1000;
+    //有界线程池的基本长度
+    private static int THREAD_BASIC = 5;
+    //有界线程池的最大长度
+    private static int THREAD_MAX = 100;
+ 
+    public static void main(String[] args) {
+        
+    }
+ 
+    //有界队列的newSingleThreadExecutor
+    private static ThreadPoolExecutor getBoundQueueExecutor1(){
+        //使用LinkedBlockingQueue有界队列
+        return new ThreadPoolExecutor(1, 1,
+                0L, TimeUnit.MILLISECONDS,
+                new LinkedBlockingQueue<Runnable>(QUEUE_MAX));
+ 
+        //使用ArrayBlockingQueue有界队列
+        //new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS, new ArrayBlockingQueue<>(QUEUE_MAX));
+    }
+ 
+    //自定义线程池上界的newCachedThreadPool
+    private static ThreadPoolExecutor getBoundQueueExecutor2(){
+        return new ThreadPoolExecutor(THREAD_BASIC, THREAD_MAX,
+                60L, TimeUnit.SECONDS,
+                new SynchronousQueue<Runnable>());
+    }
+ 
+    //自定义线程池上界的newScheduledThreadPool
+    private static ScheduledExecutorService getBoundQueueExecutor3(){
+        ThreadPoolExecutor executor = (ThreadPoolExecutor) Executors.newScheduledThreadPool(THREAD_BASIC);
+        executor.setMaximumPoolSize(THREAD_MAX);
+        return (ScheduledExecutorService) executor;
+    }
+ 
+    //设置有界队列的饱和策略
+    private static void setRejectedPolicy(ThreadPoolExecutor executor){
+        //1.中止策略(默认)：抛出未检查的RejectedExecutionException异常
+        executor.setRejectedExecutionHandler(new ThreadPoolExecutor.AbortPolicy());
+        //2.抛弃策略：悄悄失败
+        executor.setRejectedExecutionHandler(new ThreadPoolExecutor.DiscardPolicy());
+        //3.调用者运行策略：交由提交任务的线程本身去执行
+        executor.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
+        //4.抛弃最旧策略：抛弃下一个将被执行的任务，重新提交当前任务
+        executor.setRejectedExecutionHandler(new ThreadPoolExecutor.DiscardOldestPolicy());
+    }
+ 
+}

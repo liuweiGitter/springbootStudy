@@ -1,0 +1,73 @@
+package thread;
+ 
+import lombok.extern.slf4j.Slf4j;
+ 
+import java.time.LocalTime;
+import java.util.concurrent.*;
+
+/**
+ * @author liuwei
+ * @date 2019-09-24 17:21
+ * @desc 一组无差别任务调度CompletionService的测试
+ */
+@Slf4j
+public class CompletionServiceTest {
+ 
+    private final static int FIX_POOL_SIZE = 5;
+    //拥有固定大小线程池的任务执行器ExecutorService
+    private final static ExecutorService EXECUTOR = Executors.newFixedThreadPool(FIX_POOL_SIZE);
+    //一个CompletionService服务，关联一个任务调度器ExecutorService并维持一个阻塞队列BlockingQueue
+    private final static CompletionService CMP_SERVICE = new ExecutorCompletionService(EXECUTOR);
+    //任务数量
+    private final static int TSK_COUNT = 10;
+ 
+    //获取一个Callable任务
+    private static Callable<String> getACallableTask(int taskId) {
+        return new Callable<String>() {
+            @Override
+            public String call() throws Exception {
+                /**
+                 * 每个任务随机休眠0-2000毫秒
+                 * 通过观察多次的执行结果可以看到，在线程休眠时，线程池会释放一个线程资源并准入下一个任务
+                 */
+                Thread.sleep((long) (2000* Math.random()));
+                return "任务"+taskId+"结束时间" + LocalTime.now();
+            }
+        };
+    }
+ 
+    /**
+     * 向CompletionService提交一组Callable任务
+     * 任务实际提交到其关联的ExecutorService去执行
+     */
+    private static void submitGroupTasks() {
+        for (int i = 0; i < TSK_COUNT; i++) {
+            CMP_SERVICE.submit(getACallableTask(i+1));
+        }
+    }
+ 
+    /**
+     * 遍历一组task，获取每个task的执行结果
+     * 一组task加入到调度器时的时间不同，被调度的时间不同，执行所需的时间不同，最终结束时间也不同
+     * 每次取出下一个已经结束的任务，而不关心具体是哪个任务
+     */
+    private static void getResultOfGroupTasks() {
+        try {
+            for (int i = 0; i < TSK_COUNT; i++) {
+                Future<String> future = CMP_SERVICE.take();
+                log.info(future.get());
+            }
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        } catch (ExecutionException e) {
+            e.printStackTrace();
+        }
+    }
+ 
+    public static void main(String[] args) {
+        submitGroupTasks();
+        getResultOfGroupTasks();
+        EXECUTOR.shutdown();
+        log.info(">>>调度器关闭");
+    }
+}

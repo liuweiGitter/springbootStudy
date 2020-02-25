@@ -1,0 +1,111 @@
+package thread;
+ 
+import lombok.extern.slf4j.Slf4j;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+
+/**
+ * @author liuwei
+ * @date 2019-09-24 16:06
+ * @desc 内置锁synchronized的死锁测试
+ */
+@Slf4j
+public class DeadLockTest4Synchronized {
+ 
+    /**
+     * 定义2个对象，用以加锁
+     */
+    private static Map map1 = new HashMap();
+    private static Map map2 = new HashMap();
+    static {
+        map1.put("name","map1");
+        map2.put("name","map2");
+    }
+ 
+    private static ExecutorService threadPool = Executors.newCachedThreadPool();
+ 
+    /**
+     * 一个需要同时持有2个不同锁的方法
+     * 锁中锁
+     */
+    private static void lock2Map(Map mapA,Map mapB){
+        String threadName = "["+Thread.currentThread().getName()+"]";
+        log.info("当前线程id："+Thread.currentThread().getId());
+        synchronized (mapA){
+            log.info(threadName+"锁住"+mapA.get("name"));
+            try {
+                //休眠以等待另一把锁被另一个线程锁定
+                log.info(threadName+"休眠1s");
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+            log.info(threadName+"等待锁住"+mapB.get("name"));
+            synchronized (mapB){
+                log.info(threadName+"锁住"+mapB.get("name"));
+            }
+        }
+    }
+ 
+    private static Runnable getALockThread(Map mapA,Map mapB){
+        return new Runnable() {
+            @Override
+            public void run() {
+                lock2Map(mapA,mapB);
+            }
+        };
+    }
+ 
+    /**
+     * 死锁测试
+     * 两个线程持锁依赖
+     */
+    public static void deadLockTest(){
+        log.info("主线程开始");
+        threadPool.submit(getALockThread(map1,map2));
+        threadPool.submit(getALockThread(map2,map1));
+        threadPool.shutdown();
+        log.info("调度器是否关闭："+threadPool.isShutdown());
+        log.info("调度器线程任务是否结束："+threadPool.isTerminated());
+    }
+ 
+    /**
+     * 死锁后强杀进程
+     */
+    public static void exitAfterDeadLock(){
+        deadLockTest();
+        try {
+            threadPool.awaitTermination(3000, TimeUnit.MILLISECONDS);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }finally {
+            log.info("主线程又等了3秒，调度器线程任务是否结束："+threadPool.isTerminated());
+            /**
+             * JVM进程强杀
+             * JVM虽然记录了死锁的线程，但不对外提供接口，开发人员在代码中无法判断一个线程是否死锁
+             * 即使知道一个线程死锁了，基本上也获取不到线程的引用(通过线程组和线程id)
+             * 即使获取到死锁线程引用，也无法强制停止线程，只能尝试中断线程，中断是否响应，还取决于代码中是否在合适的位置响应了中断
+             * 综上，内置锁一旦发生死锁，线程就报废了，而且无法停止
+             * 对于有界线程池可能最终导致整个线程池衰竭，从而整个应用程序崩溃
+             * 对于无界线程池可能最终导致内存衰竭
+             * 数据库连接池等资源死锁、毒药任务活锁同样带来这些问题
+             * 无论如何，死锁的结果都是严重的，只有在合适的时机强杀进程才能结束这些混乱
+             * 如果程序的确复杂到无法从设计源头避免死锁，或者完全避免死锁的代价过大，应该使用显式锁Lock并在等待锁超时的时候放弃或者随机等待一段时间重试获取锁
+             */
+            if (!threadPool.isTerminated()) {
+                log.info("JVM进程强杀");
+                log.info("主线程结束");
+                System.exit(666);
+            }else{
+                log.info("主线程结束");
+            }
+        }
+    }
+ 
+    public static void main(String[] args) {
+        exitAfterDeadLock();
+    }
+}

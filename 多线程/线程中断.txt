@@ -1,0 +1,184 @@
+package thread;
+ 
+import lombok.extern.slf4j.Slf4j;
+ 
+/**
+ * @author liuwei
+ * @date 2019-09-20 16:05
+ * @desc 线程中断测试
+ * 为测试中断线程，目标线程需进行耗时操作，以使得持有目标线程引用的主线程发出中断命令时目标线程尚处于运行状态
+ */
+@Slf4j
+public class ThreadInterruptTest {
+ 
+    /**
+     * 主线程和子线程共享变量，用以在主线程中设置while循环的条件
+     * 注意：此处为volatile变量，以保证子线程中可以看到主线程写入的最新值
+     */
+    private static volatile boolean flag = true;
+ 
+    public static void main(String[] args) {
+        log.info("<<<测试开始>>>");
+        interruptedStatusTest();
+    }
+ 
+    public static void interruptedStatusTest(){
+        /**
+         * 调用Thread.currentThread().isInterrupted()可检测当前线程中断状态
+         * 中断发生前，状态false
+         * 中断发生后，如果只是检测，可检测到true，如果捕获InterruptedException异常，该异常内部会重置状态为false
+         * 如果捕获异常经过处理后想要重新中断线程，调用Thread.currentThread().interrupt()
+         */
+        Thread th1 = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                Thread current = Thread.currentThread();
+                log.info("****初始时当前线程的中断状态为："+current.isInterrupted());
+                for (int i = 0; i < 5; i++) {
+                    log.info("****index "+i+"****");
+                    //以休眠模拟耗时计算
+                    try {
+                        Thread.sleep(1000);
+                        if (i==0){
+                            while (!current.isInterrupted()){
+                                log.info("......当前线程未被中断");
+                            }
+                            log.info("!!!!!!当前线程被中断");
+                            log.info("****在捕获中断异常之前，当前线程的中断状态为："+current.isInterrupted());
+                        }
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                        log.info("****捕获了中断异常之后，当前线程的中断状态为："+current.isInterrupted());
+                        log.info("****再次中断线程");
+                        current.interrupt();
+                        log.info("****再次中断线程之后，当前线程的中断状态为："+current.isInterrupted());
+                        return;
+                    }
+                }
+            }
+        });
+        th1.start();
+        try {
+            Thread.sleep(1002);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        th1.interrupt();
+    }
+ 
+    public static void basicTest(){
+        //目标线程1
+        Thread th1 = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    throwInterruptedException();
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                    log.info("****被中断****");
+                }
+            }
+        },"我是一个调用\"抛出中断异常的方法\"的线程");
+        th1.start();
+ 
+        //目标线程2
+        Thread th2 = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                hiddenInterruptedException(true);
+            }
+        },"我是一个调用\"内部处理中断异常的方法\"的线程");
+        th2.start();
+ 
+        //目标线程3
+        Thread th3 = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                hiddenInterruptedException(false);
+            }
+        },"我是一个调用\"内部忽略中断异常的方法\"的线程");
+        th3.start();
+ 
+        //目标线程4
+        Thread th4 = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                noInterruptedException1();
+            }
+        },"我是一个调用\"内部没有中断异常的方法\"的线程1");
+        th4.start();
+ 
+        //目标线程5
+        Thread th5 = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                noInterruptedException2();
+            }
+        },"我是一个调用\"内部没有中断异常的方法\"的线程2");
+        th5.start();
+ 
+        //主线程休眠一段时间后打断目标线程
+        try {
+            Thread.sleep(1500);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        th1.interrupt();
+        th2.interrupt();
+        th3.interrupt();
+        th4.interrupt();
+        th5.interrupt();
+ 
+        //改变共享flag值，以使得子线程能够退出循环
+        flag=false;
+    }
+ 
+    private static void throwInterruptedException() throws InterruptedException {
+        for (int i = 0; i < 5; i++) {
+            //以休眠模拟耗时计算
+            Thread.sleep(1000);
+            log.info("****index "+i+"****");
+        }
+        log.info("****顺利结束****");
+    }
+ 
+    private static void hiddenInterruptedException(boolean ifStopWhenException){
+        for (int i = 0; i < 5; i++) {
+            //以休眠模拟耗时计算
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+                if (ifStopWhenException){
+                    log.info("****被中断****");
+                    return;
+                }else{
+                    log.info("!!!检查到中断异常，但我不会停!!!");
+                }
+            }
+            log.info("****index "+i+"****");
+        }
+        log.info("****顺利结束****");
+    }
+ 
+    private static void noInterruptedException1(){
+        //以循环模拟耗时计算，循环退出条件在主线程中设置
+        log.info("****我开始了，我不会理会主线程对我的中断操作，但我和主线程共享了一个flag变量****");
+        while (flag){
+            //空代码，用以占用线程资源
+        }
+        log.info("****顺利结束****");
+    }
+ 
+    private static void noInterruptedException2(){
+        //以死循环模拟耗时计算，循环退出条件为本线程的中断判断结果
+        log.info("****我开始了，我不会捕获中断异常，但我会判断我的线程状态是否是中断****");
+        while (true){
+            if (Thread.interrupted()){
+                log.info("****有人喊我停下来，再见****");
+                return;
+            }
+        }
+    }
+ 
+}

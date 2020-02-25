@@ -1,0 +1,107 @@
+package thread;
+ 
+import lombok.extern.slf4j.Slf4j;
+ 
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+ 
+/**
+ * @author liuwei
+ * @date 2019-09-24 17:21
+ * @desc 使用线程池策略的任务执行器ExecutorService的测试
+ * 任务执行器中定义了多个线程，使用信号量策略来实现有界线程池的使用
+ * 主要演示了创建任务、提交任务、任务阻塞、任务运行、任务中断、执行器关闭、任务拒绝的过程
+ */
+@Slf4j
+public class ExecutorServiceTest {
+ 
+    private final static int FIX_POOL_SIZE = 5;
+    //拥有固定大小线程池的任务执行器ExecutorService
+    private final static ExecutorService EXECUTOR = Executors.newFixedThreadPool(FIX_POOL_SIZE);
+ 
+    /**
+     * 创建一个任务用以进行业务逻辑处理
+     * 在任务执行器Executor中，一个任务就是一个Runnable对象
+     * 在任务执行器ExecutorService中，一个任务就是一个Runnable或Callable对象
+     * 显然，ExecutorService允许调度一个Future任务，并且允许shutdown等操作，因此通常会使用ExecutorService接口而非Executor接口
+     */
+    private static Runnable getATask(int taskId){
+        return new Runnable() {
+            @Override
+            public void run() {
+                log.info("正在处理任务"+taskId);
+                try {
+                    //休眠2s，演示线程池的繁忙和后续任务执行的阻塞等待
+                    Thread.sleep(2000);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+        };
+    }
+ 
+    /**
+     * 关闭任务执行器，结束JVM
+     * 注意，JVM作为守护进程如果其中还存在尚未结束的线程，进程是不会结束的
+     * 因此，在测试时务必关闭执行器，以免手动强杀进程
+     */
+    private static void shutDown(boolean slowly){
+        if (slowly){
+            /**
+             * 任务执行器平缓关闭
+             * 所有在运行的线程继续执行直到完成，后续任务拒绝分配线程并抛出异常
+             */
+            EXECUTOR.shutdown();
+        }else{
+            /**
+             * 任务执行器强制关闭
+             * 所有在运行的线程强制interrupted中断，后续任务拒绝分配线程并抛出异常
+             * 注意，除非任务线程愿意捕获并处理InterruptedException，否则，来自任务执行器的中断并不会对任务产生任何影响
+             * 任务线程不去响应中断操作的情况下，强制关闭和平缓关闭没有任何区别
+             */
+            EXECUTOR.shutdownNow();
+        }
+    }
+ 
+    private static void basicTest(){
+        for (int i = 0; i < 10; i++) {
+            if (i>6){
+                //任务执行器关闭，演示后续请求的拒绝处理异常抛出java.util.concurrent.RejectedExecutionException
+                shutDown(true);
+                //任务执行器关闭后，一些没有跑完的任务仍在运行，因此isTerminated为false
+                log.info("任务执行器是否关闭："+EXECUTOR.isShutdown());
+                log.info("任务执行器是否完成所有任务："+EXECUTOR.isTerminated());
+                /**
+                 * 任务执行器等待一段时间后询问是否结束所有任务
+                 * 询问一定时间后的isTerminated结果，注意只是在主线程中阻塞等待询问结果，并不会阻止任务执行器及其线程池的运行
+                 */
+                try {
+                    boolean isTerminalSometimeLater = EXECUTOR.awaitTermination(4500, TimeUnit.MILLISECONDS);
+                    log.info("一段时间后任务执行器是否完成所有任务："+isTerminalSometimeLater);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+            /**
+             * 提交任务到任务执行器
+             * ExecutorService中提交任务的方式有多种，本例只演示提交一个没有返回值的Runnable任务
+             * 如果需要提交一个Future任务，需要调用方法<T> Future<T> submit(Callable<T> task)
+             * 另外，还允许一次性提交一组Callable任务
+             * execute方法无返回值，如果希望返回一个Future对象，需要调用submit方法
+             * 对于长耗时的操作，Future对象支持操作的取消，详见《FutureTask任务调用测试》
+             * 如果任务执行器已关闭，此处会抛出异常RejectedExecutionException
+             */
+            EXECUTOR.execute(getATask(i));
+        }
+        /**
+         * RejectedExecutionException属于运行时异常，开发者无法捕获，JVM对其的处理是抛出异常并终止整个程序
+         * 因此上文抛出运行时异常时，下文不会再执行
+         */
+        log.info("Game Over!");
+    }
+ 
+    public static void main(String[] args) {
+        basicTest();
+    }
+}

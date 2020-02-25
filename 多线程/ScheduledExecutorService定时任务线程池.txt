@@ -1,0 +1,108 @@
+package thread;
+ 
+import lombok.extern.slf4j.Slf4j;
+ 
+import java.time.LocalTime;
+import java.util.concurrent.*;
+
+/**
+ * @author liuwei
+ * @date 2019-09-24 17:21
+ * @desc 使用线程池策略的定时和周期任务执行器ScheduledExecutorService的测试
+ * 演示周期循环调度和延迟单次调度一个Runnable任务，以及延迟单次调度一个Callable任务
+ * 由于提交任务的线程在处理完任务计算结果后无法通知调度器I am ok,Go on please
+ * ScheduledExecutorService中没有定义周期循环调度一个Callable任务
+ */
+@Slf4j
+public class ScheduledExecutorServiceTest {
+ 
+    private final static int THREAD_POOL_SIZE = 5;
+    //拥有固定大小线程池的定时和周期任务执行器ScheduledExecutorService
+    private final static ScheduledExecutorService EXECUTOR = Executors.newScheduledThreadPool(THREAD_POOL_SIZE);
+ 
+    //获取一个Runnable任务
+    private static Runnable getARunnableTask(){
+        return new Runnable() {
+            @Override
+            public void run() {
+                log.info("正在处理任务"+LocalTime.now());
+                try {
+                    Thread.sleep(4000);
+                    //int a = 1/0;log.info("故意错误"+a);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+        };
+    }
+ 
+    //获取一个Callable任务
+    private static Callable<String> getACallableTask(){
+        return new Callable<String>() {
+            @Override
+            public String call() throws Exception {
+                return "Callable计算结果"+LocalTime.now();
+            }
+        };
+    }
+ 
+    /**
+     * 固定周期循环任务调度
+     * 理论调度周期是一个运行时动态值，取值为 MAX(上一个调度的执行时长,预订调度周期时长)
+     * 如果上次调度失败或运行失败(主要是抛出了未捕获的异常)，则不再进行后续的调度
+     * 如果上次调度成功，则按照理论调度周期进行下一次调度
+     * 如果可以调度时线程池繁忙，则需要等待执行机会
+     * 所以，最终的实际调度周期为一个运行时动态值
+     */
+    private static void fixPeriodCycleTask(){
+        //初始延迟1秒钟，预订周期间隔2秒钟，循环调度任务
+        EXECUTOR.scheduleAtFixedRate(getARunnableTask(),500,2000,TimeUnit.MILLISECONDS);
+    }
+ 
+    /**
+     * 固定延迟循环任务调度
+     * 理论调度周期是一个运行时动态值，取值为 (上一个调度的执行时长+预订延迟调度周期时长)
+     * 如果上次调度失败或运行失败(主要是抛出了未捕获的异常)，则不再进行后续的调度
+     * 如果上次调度成功，则按照理论调度周期进行下一次调度
+     * 如果可以调度时线程池繁忙，则需要等待执行机会
+     * 所以，最终的实际调度周期为一个运行时动态值
+     */
+    private static void fixDelayCycleTask(){
+        //初始延迟1秒钟，预订延迟周期间隔2秒钟，循环调度任务
+        EXECUTOR.scheduleWithFixedDelay(getARunnableTask(),500,2000,TimeUnit.MILLISECONDS);
+    }
+ 
+    /**
+     * 固定延迟单次任务调度
+     * 任务类型为Runnable
+     * 如果可以调度时线程池繁忙，则需要等待执行机会
+     */
+    private static void delayOneTask4Runnable(){
+        //延迟2秒钟，调度任务一次
+        EXECUTOR.schedule(getARunnableTask(),2000,TimeUnit.MILLISECONDS);
+    }
+ 
+    /**
+     * 固定延迟单次任务调度
+     * 任务类型为Callable
+     * 如果可以调度时线程池繁忙，则需要等待执行机会
+     */
+    private static void delayOneTask4Callable(){
+        //延迟2秒钟，调度任务一次
+        ScheduledFuture<String> result = EXECUTOR.schedule(getACallableTask(),2000,TimeUnit.MILLISECONDS);
+        try {
+            log.info("[调度结果]"+result.get());
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        } catch (ExecutionException e) {
+            e.printStackTrace();
+        }
+        log.info("调度结束！");
+    }
+ 
+    public static void main(String[] args) {
+        delayOneTask4Callable();
+        EXECUTOR.shutdown();
+        log.info(">>>调度器关闭");
+    }
+}

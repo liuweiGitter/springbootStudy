@@ -101,11 +101,11 @@ public class HttpClientUtil {
      * @param headerMap
      * @return
      */
-    public static HttpPost getHttpPost(String uri, Map<String, String> paramPost, Map<String, String> headerMap) {
+    public static HttpPost getHttpPost(String uri, Map<String, Object> paramPost, Map<String, String> headerMap) {
         return getHttpPost(uri, paramPost, headerMap, DFT_CT_TYPE + UTF8);
     }
 
-    public static HttpPost getHttpPost(String uri, Map<String, String> paramPost, Map<String, String> headerMap, String charsetName) {
+    public static HttpPost getHttpPost(String uri, Map<String, Object> paramPost, Map<String, String> headerMap, String charsetName) {
         //设置请求的param参数
         URIBuilder uriBuilder = getURIBuilder(uri,paramPost);
         HttpPost httpPost;
@@ -131,11 +131,11 @@ public class HttpClientUtil {
         return getHttpGet(uri, null, null, UTF8);
     }
 
-    public static HttpGet getHttpGet(String uri, Map<String, String> paramGet, Map<String, String> headerMap) {
+    public static HttpGet getHttpGet(String uri, Map<String, Object> paramGet, Map<String, String> headerMap) {
         return getHttpGet(uri, paramGet, headerMap, UTF8);
     }
 
-    public static HttpGet getHttpGet(String uri, Map<String, String> paramGet, Map<String, String> headerMap, String charsetName) {
+    public static HttpGet getHttpGet(String uri, Map<String, Object> paramGet, Map<String, String> headerMap, String charsetName) {
         //设置请求的param参数
         URIBuilder uriBuilder = getURIBuilder(uri,paramGet);
         HttpGet httpGet;
@@ -219,7 +219,7 @@ public class HttpClientUtil {
         }
     }
     //获取URIBuilder
-    private static URIBuilder getURIBuilder(String uri,Map<String, String> paramMap){
+    private static URIBuilder getURIBuilder(String uri,Map<String, Object> paramMap){
         //设置请求的param参数
         URIBuilder uriBuilder;
         try {
@@ -230,8 +230,8 @@ public class HttpClientUtil {
         }
         if (null != paramMap && paramMap.size()>0) {
             List<NameValuePair> list = new LinkedList<>();
-            for (Map.Entry<String, String> map : paramMap.entrySet()) {
-                list.add(new BasicNameValuePair(map.getKey(), map.getValue()));
+            for (Map.Entry<String, Object> map : paramMap.entrySet()) {
+                list.add(new BasicNameValuePair(map.getKey(), map.getValue().toString()));
             }
             uriBuilder.setParameters(list);
         }

@@ -1,0 +1,10 @@
+1.拷贝soap请求报文到指定文件，如my_soap_request.xml
+<soapenv:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:urn="urn:AsigAxisService">
+    <soapenv:Header/>
+    <soapenv:Body>
+        ...
+    </soapenv:Body>
+</soapenv:Envelope>
+
+2.命令行发送请求
+curl --request POST --header "Content-Type: text/xml" --data @my_soap_request.xml http://xxx?wsdl

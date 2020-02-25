@@ -1,0 +1,136 @@
+package thread;
+
+import lombok.extern.slf4j.Slf4j;
+import java.util.concurrent.*;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
+
+/**
+ * @author liuwei
+ * @date 2020-01-28 00:25
+ * @desc 显式锁ReentrantLock的使用
+ */
+@Slf4j
+public class LockTest {
+
+    private static final ExecutorService POOL = Executors.newFixedThreadPool(3);
+
+    public static void main(String[] args) {
+        int num = 3;
+        final Thread[] th = new Thread[num];
+        for (int i = 0; i < num; i++) {
+            int finalI = i;
+            POOL.submit(new Runnable() {
+                @Override
+                public void run() {
+                    //lock();
+                    //tryLock();
+                    th[finalI] = Thread.currentThread();//获取到线程的指针
+                    tryLock(1500L,TimeUnit.MILLISECONDS);
+                }
+            });
+        }
+        //在主线程中断一个子线程
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        /**
+         * 中断已获取到锁的线程，抛出中断异常，且锁会被立即释放
+         * 中断正在获取锁的线程，抛出中断异常
+         */
+        th[0].interrupt();
+        th[1].interrupt();
+
+        //异步平稳关闭线程池
+        POOL.shutdown();
+        //主线程等待线程池所有任务结束
+        while (true){
+            if (POOL.isTerminated()) {
+                log.info("主线程结束!");
+                return;
+            }
+        }
+    }
+
+    //创建公共的显式锁对象
+    private static Lock PUB_LOCK = new ReentrantLock();
+
+    //休眠后释放锁，模拟耗时操作
+    private static void releaseLock(){
+        try {
+            Thread.sleep(2000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        log.info("释放锁!");
+        PUB_LOCK.unlock();
+    }
+
+
+    /**
+     * 阻塞性获取锁，一直等待，直到拿到锁
+     * 典型的使用方法如下：
+     */
+    public static void lock() {
+        //1.阻塞式获取锁
+        PUB_LOCK.lock();
+        try {
+            //2.获取到锁后的串行操作
+            log.info("阻塞式获取锁!");
+        } finally {
+            //3.释放锁
+            releaseLock();
+        }
+    }
+
+    /**
+     * 非阻塞性尝试获取锁，立即返回结果
+     * 获取到锁返回true，否则返回false，立即返回，不阻塞等待
+     * 典型的使用方法如下：
+     */
+    public static void tryLock() {
+        //1.非阻塞式获取锁
+        if (PUB_LOCK.tryLock()) {
+            try {
+                //2.成功获取到锁后的串行操作
+                log.info("非阻塞式获取锁success!");
+            } finally {
+                //3.释放锁
+                releaseLock();
+            }
+        } else {
+            //2.未获取到锁后的替代操作
+            log.info("非阻塞式获取锁failed!");
+        }
+    }
+
+    /**
+     * 非阻塞性尝试获取锁，允许等待一段时间后返回结果
+     * 在一段时间内，获取到锁返回true，否则返回false
+     * 如果在获取锁的时候(ing状态)线程被中断，则抛出中断异常
+     * 如果在获取到锁以后(ed状态)线程被中断，则抛出中断异常，并立即释放锁
+     * 典型的使用方法如下：
+     */
+    public static void tryLock(long time, TimeUnit unit) {
+        //1.非阻塞式获取锁
+        try {
+            if (PUB_LOCK.tryLock(time, unit)) {
+                try {
+                    //2.成功获取到锁后的串行操作
+                    log.info("非阻塞式获取锁success!");
+                } finally {
+                    //3.释放锁
+                    releaseLock();
+                }
+            } else {
+                //2.未获取到锁后的替代操作
+                log.info("非阻塞式获取锁等待超时!");
+            }
+        } catch (InterruptedException e) {
+            log.info("非阻塞式获取锁线程被中断!");
+            e.printStackTrace();
+        }
+    }
+}
