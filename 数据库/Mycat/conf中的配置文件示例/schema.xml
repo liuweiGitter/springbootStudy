@@ -35,7 +35,7 @@
 		</table> -->
 	</schema>
 	
-	<dataNode name="oper_plan_port_node1" dataHost="localhost_oper" database="tnms_tx" />
+	<dataNode name="oper_plan_port_node1" dataHost="localhost_oper" database="真实数据库名称" />
 	<!-- <dataNode name="oper_plan_port_node2" dataHost="localhost_oper" database="tnms_tx" />
 	<dataNode name="oper_plan_port_node3" dataHost="localhost_oper" database="tnms_tx" />
 	<dataNode name="oper_plan_port_node4" dataHost="localhost_oper" database="tnms_tx" /> -->

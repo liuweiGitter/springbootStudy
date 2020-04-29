@@ -1,0 +1,52 @@
+【redis配置文件】
+protected-mode默认是yes，即开启
+
+no关闭protected-mode保护模式，不需要绑定指定ip(注1)，可以配置不需要密码
+yes开启protected-mode保护模式，需配置bind ip，应设置访问密码
+
+注1：一台服务器可以有多张网卡，一个网卡只有一个mac地址，但可以多个ip
+不绑定指定ip是指，通过服务器的任何一个ip都可以访问(前提是网络可达)
+绑定ip后则只能通过指定ip访问
+
+bind默认127.0.0.1，即只有本地回环地址可访问
+首先，bind的意思是将redis服务绑定到本机的指定ip上，其它ip无法访问
+举例来说，本机有3个ip，回环地址127.0.0.1，私网地址192.168.1.101，公网地址202.12.23.34
+如果只绑定127.0.0.1，则只能本机通过回环地址访问
+如果只绑定192.168.1.101，则可以本机以及局域网服务器通过私网地址访问(前提是防火墙开放了白名单)
+如果只绑定202.12.23.34，则可以所有服务器通过公网地址访问(前提是防火墙开放了白名单)
+
+其次，bind可以绑定多个地址，以实现多个地址的访问需求，如bind 127.0.0.1 192.168.1.101 202.12.23.34
+
+再次，bind可以注释，或绑定0.0.0.0，表示绑定到服务器上的所有ip
+
+【哨兵文件】
+参见sentinel.conf配置文件范例
+
+我们在使用Redis的主从结构时，如果主节点挂掉，这时是不能自动进行主备切换和通知客户端主节点下线的。
+Redis的哨兵机制是官方推荐的一种高可用（HA）方案，Redis-Sentinel机制主要用三个功能：
+(1)监控：不停监控Redis主从节点是否安装预期运行
+(2)提醒：如果Redis运行出现问题可以 按照配置文件中的配置项 通知客户端或者集群管理员
+(3)自动故障转移：当主节点下线之后，哨兵可以从主节点的多个从节点中选出一个为主节点，并更新配置文件和其他从节点的主节点信息。
+
+注1：服务器上哨兵配置文件不需要配置主从的密码，spring在注册redis哨兵时配置即可
+注2：即使redis哨兵和redis主节点同一台服务器，也不能在哨兵配置文件中配置回环地址
+Wrong》sentinel monitor mymaster 127.0.0.1 16379 2
+Right》sentinel monitor mymaster 192.168.1.101 16379 2
+哨兵配置回环地址会导致2个问题：
+1.springboot在启动时会报错，但能够正常启动起来
+	19:10:19.106 [localhost-startStop-1] INFO  c.j.z.p.c.RedisSentinelConfigure - redis哨兵节点：["172.16.49.48:16377","172.16.49.49:16377"]
+	01-Mar-2020 19:10:19.166 INFO [localhost-startStop-1] redis.clients.jedis.JedisSentinelPool.initSentinels Trying to find master from available Sentinels...
+	01-Mar-2020 19:10:19.197 INFO [localhost-startStop-1] redis.clients.jedis.JedisSentinelPool.initSentinels Redis master running at 127.0.0.1:16379, starting Sentinel listeners...
+	Exception in thread "MasterListener-mymaster-[172.16.49.49:16377]" java.lang.NullPointerException
+		at redis.clients.jedis.JedisSentinelPool.initPool(JedisSentinelPool.java:125)
+		at redis.clients.jedis.JedisSentinelPool.access$100(JedisSentinelPool.java:17)
+		at redis.clients.jedis.JedisSentinelPool$MasterListener.run(JedisSentinelPool.java:300)
+	01-Mar-2020 19:10:19.211 INFO [localhost-startStop-1] redis.clients.jedis.JedisSentinelPool.initPool Created JedisPool to master at 127.0.0.1:16379
+2.设redis主服务端口为16379，springboot在写数据时，即会写入实际redis主服务，也会写入springboot服务所在服务器的16379端口(回环地址导致)
+实践表明，即使不配置回环地址，也会出现问题2
+不过，如果springboot服务所在服务器16379端口未启用或不是redis或密码不一样，springboot不会成功写入，所以现实情况下基本不会有任何影响
+但如果确实有16379服务且可redis登录，会实际上出现这个问题，届时只要避免同端口或者同密码就可以了
+
+
+
+

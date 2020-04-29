@@ -1,0 +1,6 @@
+安装命令
+mvn install:install-file -DgroupId=xxx -DartifactId=xxx -Dversion=xxx -Dpackaging=jar -Dfile=xxx.jar
+其中Dfile可以是相对路径，也可以是绝对路径
+
+示例
+mvn install:install-file -DgroupId=juel -DartifactId=juel-impl -Dversion=2.1.0 -Dpackaging=jar -Dfile=juel-impl-2.1.0.jar

@@ -1,0 +1,34 @@
+1.驱动替换
+Mycat默认的MySQL驱动为5.x版本，需到maven仓库下载8.x版本予以替换，示例如下
+mv mysql-connector-java-8.0.18.jar /usr/local/mycat/lib/
+chmod 777 /usr/local/mycat/lib/mysql-connector-java-8.0.18.jar
+rm -rf /usr/local/mycat/lib/mysql-connector-java-5.1.35.jar
+
+2.修改schema.xml连接配置
+修改dataHost标签
+dbDriver="jdbc"，dbType="mysql"，url="jdbc:mysql://数据库ip:端口?参数1&amp;参数2"
+其中，url为mysql8的风格，并且，url中的&必须改写为转义字符<&amp;>，否则xml无法解析
+
+3.修改server.xml连接配置
+useHandshakeV10属性标签必须有，且值为1
+<system>
+    <property name="useHandshakeV10">1</property>
+    ...
+</system>
+
+4.修改mysql和mycat服务绑定ip
+确保外界可访问服务，二者bind的ip应为0.0.0.0
+对于mysql，可能还需要配置文件添加skip-name-resolve
+
+5.服务器和navicat连接mycat
+服务器通过命令连接mycat，范例如下
+mysql -u root -p -P 3389 -h 127.0.0.1
+由于mysql8版本加密方式与5版本不同，这种方式可能无法连接，此时可使用下列方式
+mysql -u root -p -P 3389 -h 127.0.0.1 --default-auth=mysql_native_password
+
+外网navicat访问mycat，可能需要经过多层路由
+对于需要多层路由的服务，每一层都要在服务器上给对相应的通信方开放白名单
+如果是云服务器，可能还有云层的防火墙，也要一并开放
+如果是代理服务器，还要开放代理端口
+总之，各节点通信顺畅后，telnet ip port是有响应信息的
+在确信路由可达后，如果仍无法访问，参考网上解决方案，navicat无法连接mysql8

@@ -1,0 +1,49 @@
+【集群示例】以3台服务器集群为例
+### 172.16.49.61
+cluster.name: my-application
+node.name: es1
+node.master: true
+node.data: true
+path.data: /home/elasticsearch/elasticsearch-6.6.1/data
+path.logs: /home/elasticsearch/elasticsearch-6.6.1/logs
+bootstrap.memory_lock: true
+bootstrap.system_call_filter: false
+http.port: 9200
+network.host: 172.16.49.61
+discovery.zen.minimum_master_nodes: 2
+discovery.zen.ping_timeout: 3s
+discovery.zen.ping.unicast.hosts: ["172.16.49.61:9300","172.16.49.62:9300","172.16.49.63:9300"]
+
+### 172.16.49.62
+cluster.name: my-application
+node.name: es2
+node.master: true
+node.data: true
+path.data: /home/elasticsearch/elasticsearch-6.6.1/data
+path.logs: /home/elasticsearch/elasticsearch-6.6.1/logs
+bootstrap.memory_lock: true
+bootstrap.system_call_filter: false
+http.port: 9200
+network.host: 172.16.49.62
+discovery.zen.minimum_master_nodes: 2
+discovery.zen.ping_timeout: 3s
+discovery.zen.ping.unicast.hosts: ["172.16.49.61:9300","172.16.49.62:9300","172.16.49.63:9300"]
+
+### 172.16.49.63
+cluster.name: my-application
+node.name: es3
+node.master: true
+node.data: true
+path.data: /home/elasticsearch/elasticsearch-6.6.1/data
+path.logs: /home/elasticsearch/elasticsearch-6.6.1/logs
+bootstrap.memory_lock: true
+bootstrap.system_call_filter: false
+http.port: 9200
+network.host: 172.16.49.63
+discovery.zen.minimum_master_nodes: 2
+discovery.zen.ping_timeout: 3s
+discovery.zen.ping.unicast.hosts: ["172.16.49.61:9300","172.16.49.62:9300","172.16.49.63:9300"]
+
+
+
+

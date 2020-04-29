@@ -1,0 +1,40 @@
+#!/bin/bash
+
+tomcatRoot="/zqddd/tomcat/tomcat1/apache-tomcat-8.5.43"
+projectName="cloud-zhzz"
+mapperRoot=$tomcatRoot"/webapps/cloud-zhzz/WEB-INF/classes/mapper"
+resourceRoot=$tomcatRoot"/webapps/cloud-zhzz/WEB-INF/classes/data"
+projectRoot=$tomcatRoot"/webapps/cloud-zhzz/WEB-INF/classes/com/jshx/zq/p2p"
+
+echo "当前路径："`pwd`
+echo "Tomcat路径："$tomcatRoot
+echo "项目路径："$projectRoot
+
+echo ">>>正在检查当天日期的上一个版本..."
+date=`date "+%m%d"`
+cd $tomcatRoot/webapps
+if $projectName.tgz$date不存在，提示并退出
+
+
+echo ">>>正在重启服务..."
+
+#软杀关闭tomcat
+$tomcatRoot/bin/shutdown.sh
+
+
+#休眠20秒钟后补强杀所有后台tomcat1进程，防止内存泄露
+sleep 20
+ps -ef | grep tomcat1/apache | grep -v grep | awk '{print "kill -9 "$2}' | sh
+
+#清空日志
+> $tomcatRoot/logs/catalina.out
+
+#重启tomcat
+$tomcatRoot/bin/startup.sh
+
+echo ">>>正在查看日志..."
+
+#查看日志
+tailf -n 300 $tomcatRoot/logs/catalina.out
+
+

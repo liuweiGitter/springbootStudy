@@ -1,0 +1,40 @@
+#redis配置类选择：单机、集群、哨兵
+redis_struct=single
+#redis_struct=cluster
+#redis_struct=sentinel
+
+
+【单机节点配置】
+### 功能模块redis库 ###
+data.redis.database=0
+data.redis.host=127.0.0.1
+data.redis.port=6379
+data.redis.password=
+
+### 认证中心redis库 ###
+auth.redis.database=1
+auth.redis.host=127.0.0.1
+auth.redis.port=6379
+auth.redis.password=
+
+
+
+
+【主从+哨兵配置】
+### 哨兵模式配置 ###
+# 哨兵监听的Redis server的名称
+spring.redis.sentinel.master=mymaster
+# 哨兵节点
+spring.redis.sentinel.nodes=127.0.0.1:16379,127.0.0.1:16380
+# redis密码
+spring.redis.password=xxx
+# 业务库
+data.redis.database=0
+# 鉴权库
+auth.redis.database=1
+spring.redis.jedis.pool.max-active=8
+spring.redis.jedis.pool.max-total=50
+spring.redis.jedis.pool.max-idle=8
+spring.redis.jedis.pool.max-wait=20000
+spring.redis.jedis.pool.min-idle=0
+spring.redis.jedis.pool.timeout=3000

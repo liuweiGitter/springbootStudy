@@ -1,0 +1,10 @@
+关键代码：
+	log.info(">>>删除业务库中前缀为"+prefix+"的key");
+	Set<String> keys = redisTemplateData.keys(prefix+"*");
+	log.info("共计"+keys.size()+"个key");
+	redisTemplateData.delete(keys);
+	
+	log.info(">>>删除业务库中后缀为"+suffix+"的key");
+	Set<String> keys = redisTemplateData.keys("*"+suffix);
+	log.info("共计"+keys.size()+"个key");
+	redisTemplateData.delete(keys);

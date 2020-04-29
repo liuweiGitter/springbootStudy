@@ -1,0 +1,245 @@
+【防火墙配置 CentOS 7
+查看防火墙服务状态
+systemctl status firewalld  或  firewall-cmd --state
+开启/重启/关闭防火墙服务
+service firewalld start/restart/stop
+查看所有配置
+firewall-cmd --list-all
+端口白名单添加
+firewall-cmd --permanent --add-rich-rule="rule family="ipv4" source address="47.96.170.25/32" port protocol="tcp" port="9999" accept"
+firewall-cmd --permanent --add-rich-rule="rule family="ipv4" source address="0.0.0.0/0" port protocol="tcp" port="80" accept"
+查看端口是否开放
+firewall-cmd --query-port=8080/tcp
+开放端口对所有入访地址
+firewall-cmd --permanent --add-port=80/tcp
+移除端口
+firewall-cmd --permanent --remove-port=8080/tcp
+重启防火墙(修改配置后要重启防火墙)
+firewall-cmd --reload
+
+对于需要多层路由的服务，每一层都要在服务器上给对相应的通信方开放白名单
+如果是云服务器，可能还有云层的防火墙，也要一并开放
+如果是代理服务器，还要开放代理端口
+总之，各节点通信顺畅后，telnet ip port是有响应信息的
+
+注意，防火墙开放时，会指定ip，如果只指定局域网ip，外网也是无法访问的，如
+
+
+【mysql
+查看mysql配置文件默认路径
+mysqld --verbose --help | grep -A 1 'Default options'
+
+登录
+mysql -h 127.0.0.1 -u root -P 13389 -p
+
+查看数据库和表名
+show databases;
+select table_name from information_schema.tables where table_schema='当前数据库';
+
+查看某个表的表结构和索引
+desc table_name;
+show index from table_name;
+
+创建数据库
+create database zqp2p;
+create database `xxl-job`;
+
+创建用户
+create user zqp2p1 identified by 'V#HliG#p';
+
+数据库授权
+grant SELECT, INSERT, UPDATE, DELETE, CREATE, DROP on zqp2p.* to zqp2p1@'%';
+grant SELECT, INSERT, UPDATE, DELETE, CREATE, DROP on `xxl-job`.* to zqp2p1@'%';
+grant all privileges on zqp2p.* to zqp2p1@'%';
+
+查看用户权限
+show grants for zqp2p1;
+
+权限刷新
+flush privileges;
+
+查看主或从节点状态
+show master status;
+show slave status\G;
+
+导出单表数据(注，支持多表)
+mysqldump -h 127.0.0.1 -u zqp2p1 -P 13389 -p  zqp2p 表1 表2 ... > db.sql
+导入单表数据(注意使用root用户才能导入)
+mysql -u root -P 13389 -p zqp2p < db.sql
+
+导出表结构--单表数据(注，支持多表)
+mysqldump -h 127.0.0.1 -u zqp2p1 -P 13389 -p -d zqp2p 表1 表2 ... > db.sql
+导入表结构--单表数据(注意使用root用户才能导入)
+mysql -u root -P 13389 -p -d zqp2p < db.sql
+
+导出整个数据库
+mysqldump -h 127.0.0.1 -u zqp2p1 -P 13389 -p  zqp2p > db.sql
+导入整个数据库(注意使用root用户才能导入)
+mysql -u root -P 13389 -p zqp2p < db.sql
+
+导出表结构--整个数据库
+mysqldump -h 127.0.0.1 -u zqp2p1 -P 13389 -p -d zqp2p > db.sql
+导入表结构--整个数据库(注意使用root用户才能导入)
+mysql -u root -P 13389 -p -d zqp2p < db.sql
+
+查看每个表占用的磁盘大小
+SELECT 
+    *
+FROM
+    (SELECT 
+        table_name,
+            CONCAT(ROUND(SUM(data_length / 1024 / 1024), 2), 'MB') AS data_length_MB,
+            ROUND(SUM(data_length / 1024 / 1024), 2) data_length,
+            CONCAT(ROUND(SUM(index_length / 1024 / 1024), 2), 'MB') AS index_length_MB
+    FROM
+        information_schema.tables
+    WHERE
+        table_schema = 'zqp2p'
+    GROUP BY table_name) t
+ORDER BY data_length DESC
+
+替换字符串
+SELECT replace('字段名','子串','新的子串，可以是空内容') 字段名 FROM 表;
+update 表 set 字段名 = replace('字段名','子串','新的子串，可以是空内容') where 条件;
+
+【nginx
+启动
+/sbin/nginx
+停止
+/sbin/nginx -s stop
+重启
+/sbin/nginx -s reload
+
+
+【redis
+登录主从节点
+./redis-cli -h 172.16.49.48 -p 16379
+./redis-cli -h 172.16.49.48 -p 16379 -n 登录时指定库下标
+./redis-cli --raw -h 172.16.49.48 -p 16379   #--raw参数解决中文转义问题
+>auth 登录密码
+
+查看节点主从信息
+>info Replication
+//==========主节点==========//
+# Replication
+role:master  #主节点
+connected_slaves:1  #包含一个活动从节点
+slave0:ip=172.16.49.49,port=16379,state=online,offset=7254156,lag=1  #从节点信息
+master_replid:40807f360964228240060806145f824a229c1aa2
+master_replid2:0000000000000000000000000000000000000000
+master_repl_offset:7254156
+second_repl_offset:-1
+repl_backlog_active:1
+repl_backlog_size:1048576
+repl_backlog_first_byte_offset:6205581
+repl_backlog_histlen:1048576
+
+//==========从节点==========//
+# Replication
+role:slave  #从节点
+master_host:172.16.49.48  #主节点信息
+master_port:16379
+master_link_status:up
+master_last_io_seconds_ago:7
+master_sync_in_progress:0
+slave_repl_offset:7254813
+slave_priority:100
+slave_read_only:1
+connected_slaves:0
+master_replid:40807f360964228240060806145f824a229c1aa2
+master_replid2:0000000000000000000000000000000000000000
+master_repl_offset:7254813
+second_repl_offset:-1
+repl_backlog_active:1
+repl_backlog_size:1048576
+repl_backlog_first_byte_offset:6206238
+repl_backlog_histlen:1048576
+
+登录哨兵节点
+./redis-cli -h 172.16.49.48 -p 16377
+
+查看节点哨兵信息
+>info sentinel
+# Sentinel
+sentinel_masters:1
+sentinel_tilt:0
+sentinel_running_scripts:0
+sentinel_scripts_queue_length:0
+sentinel_simulate_failure_flags:0
+master0:name=mymaster,status=sdown,address=172.16.49.48:16379,slaves=0,sentinels=1
+
+切换到指定库(默认0)
+>select 2
+切换后直接会在提示符上添加[库编号]提示
+
+赋值、取值和删除
+> set key value
+> get key
+> del key1 key2 ...
+
+模糊查询key
+> keys *
+> keys 前缀*
+> keys *后缀
+
+清空缓存key
+清空整个服务器的数据>flushall 
+清空当前库中的所有key>flushdb
+
+模糊删除key
+很麻烦，需要脚本，如果有java代码，可以用代码删除，代码参考如下
+	log.info(">>>删除业务库中前缀为"+prefix+"的key");
+	Set<String> keys = redisTemplateData.keys(prefix+"*");
+	log.info("共计"+keys.size()+"个key");
+	redisTemplateData.delete(keys);
+
+
+【linux
+杀死后台任务
+jobs
+kill -9 %num
+删除swp文件
+ll -a
+rm -rf *.swp
+批量杀进程
+ps -ef | grep xxx | grep -v grep | awk '{print "kill -9 "$2}'|sh
+如ps -ef | grep tomcat1/apache | grep -v grep | awk '{print "kill -9 "$2}'|sh
+查看进程的线程树
+pstree #完全线程树
+pstree -p pid  #某个进程的线程树
+查看是否存在僵尸进程
+top
+定位僵尸进程id
+ps -aux |grep -w Z
+杀死僵尸进程
+ps -ef |grep 僵尸id，查找到其父进程id，然后kill父进程id
+查看指定进程
+top -p pid
+查看某个进程的线程栈信息
+pstack pid
+
+解压tgz文件
+#当前包到当前目录
+tar -zxf xxx.tgz
+#当前包到指定目录(可相对可绝对)
+tar -zxf xxx.tgz -C xxx/xxx
+#(可相对可绝对)指定包到当前目录
+
+解压war包
+解压到当前目录：jar -xvf  xxx.jar
+解压到指定目录：unzip xxx.war -d 目录
+对于大文件的服务，在打包上传时可以只传递jar外的其它文件(jar文件固定备份在服务器上)，在上传后解压war包并填充lib目录即可
+
+拷贝文件
+#拷贝整个文件夹
+cp -r xxx xxx
+
+【ftp
+登录
+ftp 127.0.0.1 10021
+ftp>
+输入用户名
+输入密码
+
+
+

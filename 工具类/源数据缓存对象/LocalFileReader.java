@@ -51,11 +51,13 @@ public class LocalFileReader {
 
     public static InputStream getFileInputStream(String pathRelativeClassPath) {
         //获取目标文本文件输入字节流
-        try {
+        /*try {
+            //对于war包，绝对路径是可取的，但是jar包只能取相对路径
             return new FileInputStream(classpath+pathRelativeClassPath);
         } catch (FileNotFoundException e) {
             return logIOException(e);
-        }
+        }*/
+        return LocalFileReader.class.getClassLoader().getResourceAsStream(pathRelativeClassPath);
     }
 
     public static InputStream getDataInputStream(String pathRelativeClassPath) {

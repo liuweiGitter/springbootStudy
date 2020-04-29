@@ -1,0 +1,86 @@
+#!/bin/bash
+
+tomcatRoot="/zqddd/tomcat/tomcat1/apache-tomcat-8.5.43"
+projectName="cloud-zhzz"
+mapperRoot=$tomcatRoot"/webapps/cloud-zhzz/WEB-INF/classes/mapper"
+resourceRoot=$tomcatRoot"/webapps/cloud-zhzz/WEB-INF/classes/data"
+projectRoot=$tomcatRoot"/webapps/cloud-zhzz/WEB-INF/classes/com/jshx/zq/p2p"
+
+echo "当前路径："`pwd`
+echo "Tomcat路径："$tomcatRoot
+echo "项目路径："$projectRoot
+
+echo ">>>正在校验路径..."
+
+if [ ! -d ${projectRoot} ];then
+    echo "项目路径不存在！尚未发包或文件已被删除！"
+	exit;
+fi
+
+echo ">>>正在备份代码..."
+
+#备份war
+date=`date "+%m%d"`
+cd $tomcatRoot/webapps
+rm -rf $projectName.war$date $projectName.tgz$date
+tar -zcf $projectName.tgz$date $projectName
+ls -l
+sleep 3
+
+echo ">>>正在更新代码..."
+
+#拷贝文件
+
+#自定义路径
+mv -f AuthFilter.class $projectRoot/filter
+
+#服务层
+mv -f *Service.class $projectRoot/service
+mv -f *ServiceImpl.class $projectRoot/service/Impl
+#控制层
+mv -f *Controller.class $projectRoot/controller
+#mapper层
+mv -f *Mapper.class $projectRoot/mapper/mysql
+#xml文件
+mv -f *Mapper.xml $mapperRoot/
+#资源文件
+mv -f *.properties $resourceRoot/properties
+mv -f *.json $resourceRoot/json
+
+
+echo ">>>正在关闭服务..."
+
+#软杀关闭tomcat
+$tomcatRoot/bin/shutdown.sh
+rm -rf $projectName.war
+
+#休眠20秒钟后补强杀所有后台tomcat1进程，防止内存泄露
+echo ">>>正在等待资源释放..."
+sleep 20
+echo ">>>正在检查tomcat残留进程..."
+ps -ef | grep tomcat1/apache | grep -v grep
+if [ $?'1' = '11' ];then
+    echo "进程无残留！"
+else
+	echo "进程有残留！捕杀进程"
+	ps -ef | grep tomcat1/apache | grep -v grep | awk '{print "kill -9 "$2}' | sh
+	echo "再次检查tomcat残留进程(   如仍有残留，请手动杀掉！命令参考：ps -ef | grep tomcat1/apache | grep -v grep   )"
+	ps -ef | grep tomcat1/apache | grep -v grep
+fi
+
+sleep 3
+echo ">>>正在启动服务..."
+
+#备份和清空日志
+cp $tomcatRoot/logs/catalina.out $tomcatRoot/logs/catalina.out.$(date "+%m%d_%H%M").bak
+> $tomcatRoot/logs/catalina.out
+
+#重启tomcat
+$tomcatRoot/bin/startup.sh
+
+echo ">>>正在查看日志..."
+
+#查看日志
+tailf -n 300 $tomcatRoot/logs/catalina.out
+
+

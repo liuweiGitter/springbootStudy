@@ -1,0 +1,52 @@
+异常现象：
+在使用redisTemplate时报错JedisException: Could not get a resource from the pool
+
+修复措施：
+1.redis连接配置中增加最大连接数量
+	主要配置如下：
+		#考虑到项目高并发，连接池最大活动连接数应超过1000
+		spring.redis.jedis.pool.max-active=3000
+		spring.redis.jedis.pool.max-total=3000
+		#最大空闲连接数保持30个，以快速适应突发的峰期访问，最小为10个以初始化时创建一定的连接
+		spring.redis.jedis.pool.max-idle=30
+		spring.redis.jedis.pool.min-idle=10
+		#最大等待时间5秒钟，超时等不到可用连接抛出JedisConnectionException
+		spring.redis.jedis.pool.max-wait=5000
+		#获取一个连接的超时时间
+		spring.redis.jedis.pool.timeout=3000
+	redisTemplate配置类参见相关文档，不赘述
+
+2.主动释放redisTemplate坏连接，示例如下
+	package com.jshx.zq.p2p.cleanup;
+
+	import org.springframework.data.redis.core.RedisConnectionUtils;
+	import org.springframework.data.redis.core.RedisTemplate;
+
+	/**
+	 * @author liuwei
+	 * @date 2020-03-04 23:50
+	 * @desc RedisTemplate坏连接释放工具
+	 * redis连接通常情况下在使用完成后会释放到连接池
+	 * 但因为一些异常原因，如未捕获的异常等，导致redis连接没有被释放入池，造成仍在使用假象
+	 * 长期下来，坏连接逐渐增多，直到一定程度后，找不到可用的连接(尤其高并发时)
+	 * 最终抛出以下异常
+	 * JedisException: Could not get a resource from the cleanup
+	 * spring无法判断一个连接是否是坏连接从而释放它，因此主动释放坏连接是必要的
+	 * spring提供了释放一个(无论好坏)RedisTemplate的方法，在使用redisTemplate之后应主动捕获未知异常并释放连接
+	 * 调用方式如下：
+	 *      try{
+	 *          ...使用redisTemplate
+	 *      }catch(Exception e){
+	 *          e.printStackTrace();
+	 *          //释放坏连接，尤其是涉及复杂耗时易出错的操作如数据库访问、文件读写、网络接口调用等
+	 *          RedisTemplateRelease.release(redisTemplate);
+	 *      }
+	 */
+	public class RedisTemplateRelease {
+
+		//释放RedisConnection连接
+		public static void release(RedisTemplate redisTemplate){
+			RedisConnectionUtils.unbindConnection(redisTemplate.getConnectionFactory());
+		}
+
+	}

@@ -1,0 +1,117 @@
+【根据配置文件选择是否扫描某个类】
+
+很多时候需要根据application配置文件中定义的参数来决定是否扫描某个类
+如本地开发和测试环境用redis单机，生产环境用redis哨兵或集群，则不仅它们的配置文件不一样，Configuration配置类也不一样
+配置文件的激活在application文件中使用spring.profiles.active属性即可
+但配置类的扫描则需要通过某种方式告知springboot，本@Configuration类是否需要扫描(默认带此注解的类会被扫描，但也可以配置为不扫描)
+spring提供了很多条件注解用于解决这类问题
+
+【@ConditionalOnExpression】依赖于某一组属性的条件表达式的值
+@ConditionalOnExpression正可以用来解决上述问题，具体配置参考如下：
+
+	//redis单机配置类
+	//spring将根据application配置文件的实际配置判断@ConditionalOnExpression的结果
+    //redis_struct=single时扫描本类
+	@Configuration
+	@ConditionalOnExpression("'${redis_struct}'.equals('single')")
+	@PropertySource(value = "classpath:/application.properties")
+	public class RedisStandaloneConfigure {
+		...
+	}
+	
+	//redis哨兵配置类
+	//spring将根据application配置文件的实际配置判断@ConditionalOnExpression的结果
+    //redis_struct=sentinel时扫描本类
+	@Configuration
+	@ConditionalOnExpression("'${redis_struct}'.equals('sentinel')")
+	@PropertySource(value = "classpath:/application.properties")
+	public class RedisSentinelConfigure {
+		...
+	}
+	
+	//application配置文件
+	spring.profiles.active=dev
+	#redis配置类选择：单机、集群、哨兵
+	redis_struct=single
+	#redis_struct=cluster
+	#redis_struct=sentinel
+	
+以上是@ConditionalOnExpression对于字符串相等的用法
+对于数字和布尔值，等于运算则直接用==符号或:符号
+对于数字，还可以有关系运算，如＞、＜等
+该注解的参数本身是一个逻辑表达式，可以串联逻辑运算，如
+@ConditionalOnExpression("${mq.cumsumer.enabled}==1&&${rabbitmq.comsumer.enabled:true}||'${redis_struct}'.equals('single')")
+
+【@ConditionalOnProperty】依赖于某一组属性的统一值
+1.纯属性名
+该属性存在并且只要值不为false(null以及空值可以)才返回true
+@ConditionalOnProperty(value = "liuwei.test1")
+该属性存在并且只要值不false(null以及空值可以)就返回true，与此同时，如果该属性不存在，也返回ture
+@ConditionalOnProperty(value = "liuwei.test1",matchIfMissing = true)
+
+2.属性名加值
+该属性存在，且值完全等于规定值才返回true
+@ConditionalOnProperty(value = "liuwei.test1",havingValue = "123")
+该属性存在，且值完全等于规定值就返回true，与此同时，如果该属性不存在，也返回ture
+@ConditionalOnProperty(value = "liuwei.test1",matchIfMissing = true)
+
+3.其它语法：前缀方式以及一组属性等
+//一组属性都存在且都不为false(null以及空值可以)才返回true
+@ConditionalOnProperty(prefix = "liuwei",name = {"test1","test2"})
+//一组属性都存在且都等于规定值才返回true
+@ConditionalOnProperty(prefix = "liuwei",name = {"test1","test2"},havingValue = "123")
+//对于任何一个属性，要么不存在，存在就要等于规定值，都满足这两个条件中的其中一个，才返回true
+@ConditionalOnProperty(prefix = "liuwei",name = {"test1","test2"},havingValue = "123",matchIfMissing = true)
+
+
+@ConditionalOnProperty注解可以依赖一组属性，但只能规定一个havingValue
+如果需要更复杂的条件，要求每个value不一样，应使用@ConditionalOnExpression注解
+
+【@ConditionalOnClass和@ConditionalOnBean】依赖于某个class类或某个bean对象
+1.@ConditionalOnClass
+当给定的在bean存在时，则实例化当前Bean，如
+@ConditionalOnBean(name = "nameOfABean")
+
+2.@ConditionalOnMissingBean  
+当给定的在bean不存在时，则实例化当前Bean，如
+@ConditionalOnMissingBean(name = "nameOfABean")
+
+3.@ConditionalOnClass
+当给定的类名在类路径上存在，则实例化当前Bean，如
+@ConditionalOnClass(name = "fullPathOfAClass")
+
+4.@ConditionalOnMissingClass
+当给定的类名在类路径上不存在，则实例化当前Bean，如
+@ConditionalOnMissingClass(name = "fullPathOfAClass")
+
+
+【】
+
+另外还有以下等
+@ConditionalOnResource
+@ConditionalOnWebApplication
+@Autowired
+@Service
+@Repository
+@RestController
+@Controller
+@Param
+@RequestBody
+@PathVariable
+@RequestMapping
+@GetMapping
+@PostMapping
+@ResponseBody
+@等等注解
+
+微信公众号
+
+
+
+
+
+
+
+
+
+

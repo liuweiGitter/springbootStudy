@@ -1,0 +1,112 @@
+【简介】
+
+
+【下载】
+kafka下载地址http://kafka.apache.org/downloads
+
+【配置】
+server.properties配置文件用以配置kafka的系统参数、topic参数、zk集群及连接超时等参数、日志策略、备份策略以及消费者和生产者参数等
+更多的配置参数详见
+https://www.cnblogs.com/busigulang/p/11296077.html
+
+=================单机配置=================
+1.server.properties配置文件
+
+broker.id=集群中broken的id，需要集群唯一，默认0
+port=监听端口，默认9092端口
+#listeners=PLAINTEXT://监听地址:kafka监听端口
+#advertised.listeners=PLAINTEXT://私网或外网ip:19092，注，★★★★★★想要在本机外使用，必须绑定私网或外网地址，必须必须必须配置此项
+num.network.threads=处理网络请求的最大线程数
+num.io.threads=处理磁盘I/O的最大线程数
+queued.max.requests = 等待IO线程处理的请求队列最大数
+socket.send.buffer.bytes=socket的发送缓冲区字节大小
+socket.receive.buffer.bytes=socket的接收缓冲区字节大小
+socket.request.max.bytes = socket请求的最大字节数
+
+》》》》Topic《《《《
+num.partitions=每个topic的分区个数
+auto.create.topics.enable = 是否允许自动创建topic ，若是false，就需要通过命令创建topic
+default.replication.factor = 一个topic ，默认分区的replication个数
+message.max.bytes = 消息体的最大字节大小
+delete.topic.enable=是否物理删除kafka上的topic，默认false，即只逻辑删除zk上的topic，为true时物理删除
+
+》》》》Zookeeper《《《《
+zookeeper.connect=Zookeeper集群，zk1:port1,zk2:port2,...，端口缺省默认2181，注意，ip一定要配置正确，如果配回环地址，外界不可访问
+zookeeper.connection.timeout.ms=连接zk的超时毫秒数
+zookeeper.sync.time.ms = ZooKeeper集群中leader和follower之间的同步周期，默认2000ms
+
+》》》》Log《《《《
+log.dirs=日志存放目录，多个目录使用逗号分割
+log.flush.interval.messages=消息批量刷入日志文件的批量数目，默认1000，表示每1000条消息至少刷日志一次
+log.flush.interval.ms=消息批量刷入日志文件的轮询时间，默认3000，表示至少每3000毫秒，消息刷日志一次
+log.flush.scheduler.interval.ms = 检查是否需要将日志flush的时间间隔，默认3000毫秒
+log.cleanup.policy = 日志清理策略，delete|compact
+
+#日志保存时间/字节数，超过设置后会根据policy处理数据。bytes和minutes无论哪个先达到都会触发。
+log.retention.hours=日志保存时间，默认为168小时，即7天
+log.retention.bytes=日志保存字节数，默认为1073741824字节，即1GB
+
+#日志新建一个segment文件的时间/字节数（-1表示没有限制），超过设置后会强制新建一个segment
+log.segment.bytes = 单segment文件保存的字节数，默认536870912字节，即512MB
+log.roll.hours = 单segment文件保持时间，默认为168小时，即7天
+
+log.retention.check.interval.ms=日志片段文件的检查周期，查看它们是否达到了删除策略的设置（log.retention.hours或log.retention.bytes），默认60000
+log.cleaner.enable=是否开启压缩，默认false
+log.cleaner.delete.retention.ms = 对于压缩的日志保留的最长时间，默认1day
+log.index.size.max.bytes = 对于segment日志的索引文件大小限制，默认10 * 1024 * 1024字节，即10MB
+
+3.服务启停(bin目录)
+启动服务
+./kafka-server-start.sh -daemon ../config/server.properties
+查看服务是否启动成功
+jps
+关闭服务
+./kafka-server-stop.sh
+
+4.topic操作(注意，不同版本的命令可能不同，至少3.5版本和更低的版本有区别)
+创建topic
+>./kafka-topics.sh --create --zookeeper 127.0.0.1:12181 --replication-factor 1 --partitions 1 --topic liuwei_test_topic
+WARNING: Due to limitations in metric names, topics with a period ('.') or underscore ('_') could collide. To avoid issues it is best to use either, but not both.
+Created topic liuwei_test_topic.
+查看topic列表
+./kafka-topics.sh --list --zookeeper 127.0.0.1:12181
+查看topic目录：每一个topic会在log.dirs目录(配置于server.properties中)下创建自己的目录
+ll ${log.dirs}
+查看topic数据格式：
+	topic中数据存储分为索引、日志和时间索引，形如 00000000000000000000.index 00000000000000000000.log 00000000000000000000.timeindex
+	ll ${log.dirs}/${topic_name}-0
+
+创建一个发布者和订阅者(同一台服务器测试)
+创建发布者：
+>创建：./kafka-console-producer.sh --broker-list 127.0.0.1:19092 --topic test1
+>发布：nice to meet you
+创建订阅者：从开始位置消费
+>创建：./kafka-console-consumer.sh --bootstrap-server 127.0.0.1:19092 --from-beginning --topic test1
+
+读取kafka某个topic的日志
+./kafka-run-class.sh kafka.tools.DumpLogSegments --files ${log.dirs}/${topic_name}-0/00000000000000000000.log  --print-data-log
+
+删除某一个topic：是否物理删除取决于delete.topic.enable配置
+./kafka-topics.sh --zookeeper 127.0.0.1:12181 --delete --topic test1 
+
+5.运行日志
+kafka运行日志在logs目录下
+在启动kafka后首先检查netstat -tnlp端口是否启动
+如果启动失败，首先应检查logs下的运行日志kafkaServer.out，通常能找到更详细的报错信息
+
+=================集群配置=================
+server.properties中配置kafka集群，其余同单机没有区别
+zookeeper.connect=172.16.49.69:12181,172.16.49.70:12181,172.16.49.71:12181
+
+
+
+
+
+
+
+
+
+
+
+
+

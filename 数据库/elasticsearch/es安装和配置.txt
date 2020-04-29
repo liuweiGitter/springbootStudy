@@ -1,0 +1,94 @@
+1.下载安装包
+cd /usr/local/elasticsearch
+wget https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-6.6.1.tar.gz
+
+2.解压安装
+tar -zxf elasticsearch-6.6.1.tar.gz
+
+3.创建es用户(es不允许root用户启动)
+#添加es用户和用户组
+groupadd elasticGroup
+useradd elasticUser
+passwd elasticUser  #密码和用户同名即可
+usermod -G elasticGroup elasticUser
+#es用户赋权
+chown -R elasticUser /usr/local/elasticsearch
+
+4.配置文件
+【主配置文件】elasticsearch.yml
+默认集群名称elasticsearch
+默认服务端口9200
+默认es集群节点交互端口9300
+
+绑定私网或外网地址
+默认绑定到localhost，外部无法访问
+对于阿里云等云服务器，绑定到私网地址即可外部访问(绑定公网反而会报错)
+network.host: 172.16.168.201(私网地址)
+
+【日志配置文件】logging.yml
+
+5.启动es
+#注意切换到es用户，否则报错
+#org.elasticsearch.bootstrap.StartupException: java.lang.RuntimeException: can not run elasticsearch as root
+su elasticUser
+cd /usr/local/elasticsearch/elasticsearch-6.6.1
+
+es单机默认申请内存为1GB左右，可以配置最小和最大内存，一定要确保系统内存够用，否则启动失败
+vim ./bin/elasticSearch 添加  ES_JAVA_OPTS="-Xms300m -Xmx1g"
+或更建议vim ./config/jvm.options  修改 -Xms300M -Xmx1g 
+建议-Xms和-Xmx设置一样大小，否则可能报错
+
+启动：应在es根目录下启动，否则，虽能正确启动但会报错
+./bin/elasticSearch  #前台启动，会直接打印启动日志，但ctrl+c会杀掉es进程
+./bin/elasticSearch -d #后台启动
+
+查看启动日志：
+tailf -n 200 ./logs/elasticsearch.log
+
+启动成功后验证：
+#端口为es服务端口，主机则为绑定的地址，绑定什么地址就写什么地址
+#如果绑定的不是回环地址，回环地址也访问不到
+curl 私网地址:9200  (本机验证)
+公网地址:9200  (浏览器访问)
+{
+  "name" : "sBFriqM",
+  "cluster_name" : "elasticsearch",
+  "cluster_uuid" : "XY_0Y8NgQsiBtfx3MS8Uqg",
+  "version" : {
+    "number" : "6.6.1",
+    "build_flavor" : "default",
+    "build_type" : "tar",
+    "build_hash" : "1fd8f69",
+    "build_date" : "2019-02-13T17:10:04.160291Z",
+    "build_snapshot" : false,
+    "lucene_version" : "7.6.0",
+    "minimum_wire_compatibility_version" : "5.6.0",
+    "minimum_index_compatibility_version" : "5.0.0"
+  },
+  "tagline" : "You Know, for Search"
+}
+
+6.启动错误
+1.max file descriptors [65535] for elasticsearch process is too low, increase to at least [65536]
+每个进程最大同时打开文件数太小，可通过下面2个命令查看当前数量
+ulimit -Hn
+ulimit -Sn
+修改配置
+vim /etc/security/limits.conf 修改 * soft nofile 65536  * hard nofile 65536
+配置后用户需重新登录才生效，查看以上2个命令可知改动是否已生效
+
+2.max virtual memory areas vm.max_map_count [65530] is too low, increase to at least [262144]
+vim /etc/sysctl.conf 添加 vm.max_map_count=262144
+添加后即生效，查看参数：sysctl -p
+
+
+
+
+
+
+
+
+
+
+
+

@@ -113,7 +113,7 @@ public class AuthFilter implements Filter {
     //缓存ThreadLocal全局变量
     private void cacheThreadLocal(ServletRequest servletRequest, String key){
         //判断token是否已本地化
-        if (ThreadLocalData.REDIS_KEY.get() == null) {
+        if (!key.equals(ThreadLocalData.REDIS_KEY.get())) {
             //1.远程主机ip地址
             ThreadLocalData.CLIENT_IP.set(servletRequest.getRemoteAddr());
             //2.redis key

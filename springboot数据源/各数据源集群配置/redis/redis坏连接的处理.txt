@@ -1,0 +1,47 @@
+【问题现象】
+JedisException: Could not get a resource from the pool
+JedisException:  Broken pipe
+等等，redis无法获取一个有效的连接，或者获取到的连接是坏连接
+
+【解决方案】
+1.连接池配置检验连接有效性
+参见RedisSentinelConfigure.java 和 RedisStandaloneConfigure.java
+
+
+2.自定义主动释放连接工具
+	package com.jshx.zq.p2p.cleanup;
+
+	import org.springframework.data.redis.core.RedisConnectionUtils;
+	import org.springframework.data.redis.core.RedisTemplate;
+
+	/**
+	 * @author liuwei
+	 * @date 2020-03-04 23:50
+	 * @desc RedisTemplate坏连接释放工具
+	 * redis连接通常情况下在使用完成后会释放到连接池
+	 * 但因为一些异常原因，如未捕获的异常等，导致redis连接没有被释放入池，造成仍在使用假象
+	 * 长期下来，坏连接逐渐增多，直到一定程度后，找不到可用的连接(尤其高并发时)
+	 * 最终抛出以下异常
+	 * JedisException: Could not get a resource from the pool
+	 * spring无法判断一个连接是否是坏连接从而释放它，因此主动释放坏连接是必要的
+	 * spring提供了释放一个(无论好坏)RedisTemplate的方法，在使用redisTemplate之后应主动捕获未知异常并释放连接
+	 * 调用方式如下：
+	 *      try{
+	 *          ...使用redisTemplate
+	 *      }catch(Exception e){
+	 *          e.printStackTrace();
+	 *          //释放坏连接，尤其是涉及复杂耗时易出错的操作如数据库访问、文件读写、网络接口调用等
+	 *          RedisTemplateRelease.release(redisTemplate);
+	 *      }
+	 */
+	public class RedisTemplateRelease {
+
+		//释放RedisConnection连接
+		public static void release(RedisTemplate redisTemplate){
+			RedisConnectionUtils.unbindConnection(redisTemplate.getConnectionFactory());
+		}
+
+	}
+
+
+

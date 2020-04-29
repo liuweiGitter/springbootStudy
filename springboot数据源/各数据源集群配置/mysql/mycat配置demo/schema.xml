@@ -1,0 +1,76 @@
+<?xml version="1.0"?>
+<!DOCTYPE mycat:schema SYSTEM "schema.dtd">
+<mycat:schema xmlns:mycat="http://io.mycat/">
+
+	<schema name="zqp2p" checkSQLschema="false" sqlMaxLimit="100">
+<table name="p2p_broken_after_sale" primaryKey="id" type="global" dataNode="dn1" />
+<table name="p2p_cloud_user" primaryKey="id" type="global" dataNode="dn1" />
+<table name="p2p_distribute_log" primaryKey="id" type="global" dataNode="dn1" />
+<table name="p2p_dynamic_task" primaryKey="id" type="global" dataNode="dn1" />
+<table name="p2p_enum" primaryKey="id" type="global" dataNode="dn1" />
+<table name="p2p_outcall_log" primaryKey="id" type="global" dataNode="dn1" />
+<table name="p2p_preview_fault" primaryKey="id" type="global" dataNode="dn1" />
+<table name="p2p_preview_substandard" primaryKey="id" type="global" dataNode="dn1" />
+<table name="p2p_preview_substandard_temp" primaryKey="id" type="global" dataNode="dn1" />
+<table name="p2p_previewftp_log" primaryKey="id" type="global" dataNode="dn1" />
+<table name="p2p_threshold" primaryKey="id" type="global" dataNode="dn1" />
+<table name="p2p_tycloud_watch" primaryKey="id" type="global" dataNode="dn1" />
+<table name="p2p_user" primaryKey="id" type="global" dataNode="dn1" />
+<table name="p2p_user_prd" primaryKey="id" type="global" dataNode="dn1" />
+<table name="p2p_user_prd_watch" primaryKey="id" type="global" dataNode="dn1" />
+<table name="p2p_user_preview" primaryKey="id" type="global" dataNode="dn1" />
+<table name="p2p_user_preview_temp" primaryKey="id" type="global" dataNode="dn1" />
+<table name="p2p_user_preview_valid" primaryKey="id" type="global" dataNode="dn1" />
+<table name="p2p_watch_config" primaryKey="id" type="global" dataNode="dn1" />
+<table name="p2p_watch_detail" primaryKey="id" type="global" dataNode="dn1" />
+<table name="t_city_info" primaryKey="id" type="global" dataNode="dn1" />
+<table name="t_data_info" primaryKey="id" type="global" dataNode="dn1" />
+<table name="t_info_dedicated_circuit" primaryKey="id" type="global" dataNode="dn1" />
+<table name="t_login_count" primaryKey="id" type="global" dataNode="dn1" />
+<table name="t_login_log" primaryKey="id" type="global" dataNode="dn1" />
+<table name="t_obstruct_info" primaryKey="id" type="global" dataNode="dn1" />
+<table name="t_sys_right" primaryKey="id" type="global" dataNode="dn1" />
+<table name="t_sys_role" primaryKey="id" type="global" dataNode="dn1" />
+<table name="t_sys_role_right" primaryKey="id" type="global" dataNode="dn1" />
+<table name="t_sys_user" primaryKey="id" type="global" dataNode="dn1" />
+<table name="t_sys_user_repeat" primaryKey="id" type="global" dataNode="dn1" />
+		</schema>
+	<dataNode name="dn1" dataHost="nodelist1" database="db1" />
+	<!--<dataNode name="dn4" dataHost="sequoiadb1" database="SAMPLE" />
+	 <dataNode name="jdbc_dn1" dataHost="jdbchost" database="db1" />
+	<dataNode	name="jdbc_dn2" dataHost="jdbchost" database="db2" />
+	<dataNode name="jdbc_dn3" 	dataHost="jdbchost" database="db3" /> -->
+	<dataHost name="nodelist1" maxCon="1000" minCon="10" balance="3"
+			  writeType="0" dbType="mysql" dbDriver="jdbc" switchType="1"  slaveThreshold="100">
+		<heartbeat>select user()</heartbeat>
+		<!-- can have multi write hosts -->
+		<writeHost host="hostM1" url="jdbc:mysql://172.16.49.48:13389/zqp2p?useUnicode=true&characterEncoding=utf8&characterSetResults=utf8&serverTimezone=GMT%2B8&allowMultiQueries=true&useSSL=false" user="zqp2p1"
+				   password="V#HliG#p">
+			<!-- can have multi read hosts -->
+			<readHost host="hostS2" url="jdbc:mysql://172.16.49.49:13389/zqp2p?useUnicode=true&characterEncoding=utf8&characterSetResults=utf8&serverTimezone=GMT%2B8&allowMultiQueries=true&useSSL=false" user="zqp2p1" password="V#HliG#p" />
+		</writeHost>
+		<!-- <writeHost host="hostM2" url="localhost:3316" user="root" password="123456"/> -->
+	</dataHost>
+	<!--
+		<dataHost name="sequoiadb1" maxCon="1000" minCon="1" balance="0" dbType="sequoiadb" dbDriver="jdbc">
+		<heartbeat> 		</heartbeat>
+		 <writeHost host="hostM1" url="sequoiadb://1426587161.dbaas.sequoialab.net:11920/SAMPLE" user="jifeng" 	password="jifeng"></writeHost>
+		 </dataHost>
+
+	  <dataHost name="oracle1" maxCon="1000" minCon="1" balance="0" writeType="0" 	dbType="oracle" dbDriver="jdbc"> <heartbeat>select 1 from dual</heartbeat>
+		<connectionInitSql>alter session set nls_date_format='yyyy-mm-dd hh24:mi:ss'</connectionInitSql>
+		<writeHost host="hostM1" url="jdbc:oracle:thin:@127.0.0.1:1521:nange" user="base" 	password="123456" > </writeHost> </dataHost>
+
+		<dataHost name="jdbchost" maxCon="1000" 	minCon="1" balance="0" writeType="0" dbType="mongodb" dbDriver="jdbc">
+		<heartbeat>select 	user()</heartbeat>
+		<writeHost host="hostM" url="mongodb://192.168.0.99/test" user="admin" password="123456" ></writeHost> </dataHost>
+
+		<dataHost name="sparksql" maxCon="1000" minCon="1" balance="0" dbType="spark" dbDriver="jdbc">
+		<heartbeat> </heartbeat>
+		 <writeHost host="hostM1" url="jdbc:hive2://feng01:10000" user="jifeng" 	password="jifeng"></writeHost> </dataHost> -->
+
+	<!-- <dataHost name="jdbchost" maxCon="1000" minCon="10" balance="0" dbType="mysql"
+		dbDriver="jdbc"> <heartbeat>select user()</heartbeat> <writeHost host="hostM1"
+		url="jdbc:mysql://localhost:3306" user="root" password="123456"> </writeHost>
+		</dataHost> -->
+</mycat:schema>

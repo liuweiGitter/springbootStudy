@@ -1,0 +1,5 @@
+1.下载地址
+http://www.kafkatool.com/download.html
+
+2.配置和使用
+参见https://www.cnblogs.com/frankdeng/p/9452982.html

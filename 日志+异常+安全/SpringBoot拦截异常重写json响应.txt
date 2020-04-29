@@ -44,11 +44,12 @@ public class ExceptionJson {
 }
 
 【2.全局异常处理类(作为一个普通bean注入即可)】
-package com.telecom.js.noc.hxtnms.operationplan.configure;
+package com.jshx.zq.p2p.config;
 
-import com.telecom.js.noc.hxtnms.operationplan.utils.ExceptionJson;
+import com.jshx.zq.p2p.exception.BaseException;
+import com.jshx.zq.p2p.util.ExceptionJson;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.DataAccessException;
 import org.springframework.validation.BindingResult;
 import org.springframework.validation.ObjectError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -88,6 +89,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(value = {MethodArgumentNotValidException.class})
     @ResponseBody
     public ExceptionJson jsonBindErrorHandler(HttpServletRequest req, MethodArgumentNotValidException e){
+        e.printStackTrace();
         log.error(">>>>>>"+e);
         BindingResult bindingResult = e.getBindingResult();
         List<ObjectError> errors = bindingResult.getAllErrors();
@@ -106,6 +108,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(value = {SQLException.class})
     @ResponseBody
     public ExceptionJson jsonSqlErrorHandler(HttpServletRequest req, Exception e){
+        e.printStackTrace();
         //服务器控制台打印异常详情，如果不主动打印，服务器端不会记录这些信息
         log.error(">>>>>>"+e);
         //重写响应的json
@@ -119,10 +122,24 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(value = BaseException.class)
     @ResponseBody
     public ExceptionJson baseExceptionHandler(HttpServletRequest req, BaseException e){
+        e.printStackTrace();
         log.error(">>>>>>"+e);
         ExceptionJson exceptionJson = new ExceptionJson();
         exceptionJson.setUrl(req.getRequestURL().toString());
-        exceptionJson.setMsg("Occur server exception , msg : "+e.getMessage());
+        exceptionJson.setMsg(e.getMessage());
+        return exceptionJson;
+    }
+
+    //json响应：系统抛出的所有DataAccessException错误响应
+    //屏蔽redis、mysql数据库连接异常、sql语法错误等
+    @ExceptionHandler(value = DataAccessException.class)
+    @ResponseBody
+    public ExceptionJson dataAccessExceptionHandler(HttpServletRequest req, DataAccessException e){
+        e.printStackTrace();
+        log.error(">>>>>>"+e);
+        ExceptionJson exceptionJson = new ExceptionJson();
+        exceptionJson.setUrl(req.getRequestURL().toString());
+        exceptionJson.setMsg("数据接入或解析异常!");
         return exceptionJson;
     }
 
@@ -130,10 +147,11 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(value = Exception.class)
     @ResponseBody
     public ExceptionJson jsonDefaultErrorHandler(HttpServletRequest req, Exception e){
+        e.printStackTrace();
         log.error(">>>>>>"+e);
         ExceptionJson exceptionJson = new ExceptionJson();
         exceptionJson.setUrl(req.getRequestURL().toString());
-        exceptionJson.setMsg("Occur unknown exception , caused by : "+e.getClass().getSimpleName());
+        exceptionJson.setMsg(e.getMessage());
         return exceptionJson;
     }
 
@@ -158,4 +176,5 @@ public class GlobalExceptionHandler {
     }*/
 
 }
+
 

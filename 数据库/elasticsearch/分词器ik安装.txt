@@ -1,0 +1,9 @@
+1.下载分词器，注意版本和es匹配
+wget https://github.com/medcl/elasticsearch-analysis-ik/releases/download/v6.6.1/elasticsearch-analysis-ik-6.6.1.zip
+
+2.es根目录下创建plugins/ik目录，解压分词器到该目录
+
+3.重启es
+启动后会加载分词器，形如
+[INFO ][o.e.p.PluginsService     ] [sBFriqM] loaded plugin [analysis-ik]
+

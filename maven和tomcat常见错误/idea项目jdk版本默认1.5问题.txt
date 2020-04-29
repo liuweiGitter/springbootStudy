@@ -1,0 +1,18 @@
+idea项目的jdk版本默认为1.5
+即使File>Project Struct>Modules>Language level中设置了版本为1.8
+pom文件重新import或者再次打开项目后，可能还是会恢复到1.5版本
+
+pom文件添加以下配置基本可解决这个问题
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.3</version>
+                <configuration>
+                    <source>1.8</source>
+                    <target>1.8</target>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>

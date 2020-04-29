@@ -1,0 +1,488 @@
+es索引需要主动创建，先有索引才能插入数据
+索引可以在服务器上主动创建，然后再启动springboot项目
+除此之外，还可以在java代码中创建索引，只需要在spring启动后注册的某个bean中主动创建即可，形如
+	@PostConstruct
+    private void indexCreate() {
+        //初始化时需要主动创建索引和mapping
+        if (EsOperationUtils.indexExists(eTemplate, PingWatchDoc.class)) {
+            EsOperationUtils.putMapping(eTemplate,PingWatchDoc.class);
+            log.info("索引已存在，创建mapping");
+        }
+        EsOperationUtils.createIndex(eTemplate,PingWatchDoc.class);
+        EsOperationUtils.putMapping(eTemplate,PingWatchDoc.class);
+        log.info("创建索引和mapping");
+    }
+
+【实体类】
+package com.center.kafka.elastic.doc;
+
+import com.alibaba.fastjson.annotation.JSONField;
+import com.fasterxml.jackson.annotation.JsonFormat;
+import lombok.Data;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.elasticsearch.annotations.Document;
+import org.springframework.data.elasticsearch.annotations.Field;
+import org.springframework.data.elasticsearch.annotations.FieldType;
+import java.io.Serializable;
+import java.util.Date;
+
+/**
+ * @author liuwei
+ * @date 2020-03-13 19:54
+ * @desc 测试document对象
+ */
+@Data
+//索引名称，只能包含小写字母和下划线，不能以下划线开头
+//类型名称，默认和类名相同，但全部小写，可自定义名称，应全部小写
+@Document(indexName = "es_test", type = "adoc")
+public class TestDoc implements Serializable {
+
+    /**
+     * document对象必须实现序列化才能存储于es库中
+     * 对于日期时间、数组等特殊类型字段，需要在es配置类中特殊处理
+     */
+
+    @Id
+    private String id;
+
+    /**
+     * @Field 注解
+     * type字段是必需的，否则报错
+     *      No type specified for field
+     * index默认是true的，表示可以根据该字段检索，如果为false，则使用字段检索时会报错
+     *      Cannot search on field [字段名] since it is not indexed.
+     * analyzer和searchAnalyzer默认是es内置的standard，如果是中文分词必须使用其它分词器，推荐ik分词器
+     *      ik分词器在es集群中作为插件安装即可
+     */
+
+    @Field(type = FieldType.Text)
+    private String name;
+
+    /**
+     * ik_smart会进行粗粒度分词
+     * ik_max_word会进行细粒度分词
+     * whitespace会进行空格分词等
+     * 默认standard分词器，会对中文逐字分词，绝大多数情况下这不是真正需要的
+     * 如'es测试'进行分词
+     * standard分为 'es'、'测'、'试'
+     * ik_smart分为 'es'、'测试'
+     * whitespace不分词(由于未出现空格)
+     * 适当的分词可以加速模糊查询，但无法进行精确查询，应合理取舍
+     * 策略：
+     * 如果的确需要模糊查询+精确查询，则必须分词，且必须使用match代替term进行精确查询
+     * 如果只精确查询，则不必分词
+     *      字段type设置为FieldType.Keyword类型即不会被分词
+     *      如果字段不包含空格，analyzer设置为whitespace也不会被分词
+     *      精确查询后，不允许match部分值，允许match全部值(实际就是不再match，全部转为term)
+     */
+    //@Field(type = FieldType.Text, analyzer = "ik_smart",searchAnalyzer = "ik_smart")
+    @Field(type = FieldType.Text, analyzer = "whitespace",searchAnalyzer = "whitespace")
+    //@Field(type = FieldType.Keyword)
+    private String desc;
+
+    /**
+     * 不存在Integer类型，所有整数设置为Long，否则报错
+     * mapper [count] cannot be changed from type [long] to [integer]
+     */
+    //@Field(type = FieldType.Long, index = false)
+    @Field(type = FieldType.Long)
+    private Integer count;
+
+    private Boolean flag;
+
+    /**
+     * 默认text类型数据是不允许聚合、区间、排序查询的
+     * 如果需要区间或排序查询的，此时必须设置fielddata=true，否则报错
+     * Fielddata is disabled on text fields by default.
+     * Set fielddata=true on [createTime] in order to load fielddata in memory
+     * by uninverting the inverted index. Note that this can however use significant memory.
+     * Alternatively use a keyword field instead.
+     * 注解@Field(fielddata = true, index = true)要同时为true
+     * 字符串的比较是不推荐的，以下仅示意基本用法
+     */
+    /*@Field(type = FieldType.Text, fielddata = true)
+    private String createTime;*/
+
+    /**
+     * 时间字段不能用LocalDateTime，es不能进行正确的解析该类型
+     * LocalDateTime在es索引中存储为复杂对象格式，无法反序列化
+     * 时间字段需用Date，无论是怎样格式化，Date在es索引中最终存储的都是时间戳
+     *      在查询时需要传参格式为"yyyy-MM-ddTHH:mm:ssZ"，需要格式化后传参
+     *      查询的结果也是时间戳，需要再转为时间
+     * 对Date进行格式化注解可以避免代码中转换
+     *      需要指定时区，否则默认为东0区，比北京时间晚8小时
+     *      根据需要进行格式化，一般精确到秒时使用yyyy-MM-dd'T'HH:mm:ss(去掉T会报错)
+     *      在插入数据时不需要再创建Date对象时再格式化(下面的注解已经做了格式化操作)，直接new Date()即可
+     *      取出的数据默认为时间戳，需要@JSONField格式化
+     */
+    @Field(type = FieldType.Date, pattern = "yyyy-MM-dd'T'HH:mm:ss")
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss", timezone = "Asia/Shanghai")
+    @JSONField(format="yyyy-MM-dd HH:mm:ss")
+    private Date createTime;
+
+}
+
+
+【控制类】
+package com.center.kafka.controller;
+
+import com.alibaba.fastjson.JSONObject;
+import com.center.kafka.elastic.doc.TestDoc;
+import com.center.kafka.util.EsDateUtil;
+import com.center.kafka.util.EsOperationUtils;
+import lombok.extern.slf4j.Slf4j;
+import org.elasticsearch.index.query.QueryBuilder;
+import org.elasticsearch.index.query.QueryBuilders;
+import org.elasticsearch.index.query.RangeQueryBuilder;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.elasticsearch.core.ElasticsearchTemplate;
+import org.springframework.data.elasticsearch.core.query.*;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.List;
+import java.util.UUID;
+
+/**
+ * @author liuwei
+ * @date 2020-03-13 17:08
+ * @desc es基本操作测试
+ */
+@RestController
+@RequestMapping("/test")
+@ConditionalOnBean(ElasticsearchTemplate.class)
+@Slf4j
+public class TestController {
+
+    @Autowired
+    public ElasticsearchTemplate eTemplate;
+
+    private TestDoc getOne(int count){
+        TestDoc testDoc = new TestDoc();
+        testDoc.setId(UUID.randomUUID().toString().replace("-",""));
+        testDoc.setName("liuwei "+(int)(1000*Math.random())%100);
+        testDoc.setDesc("es测试");
+        testDoc.setCount(10+count);
+        testDoc.setFlag(count>10?true:false);
+        testDoc.setCreateTime(new Date());
+        return testDoc;
+    }
+
+    private String getAddReturn(){
+        return "{\"msg\":\"success\"}";
+    }
+
+
+    /**
+     * 创建索引和mapping√
+     * 只有主动调用接口创建mapping，才会读取类和字段的注解，从而创建正确的类型
+     */
+    @RequestMapping("es/addIndex")
+    public String testIndexCreate() {
+        if (EsOperationUtils.indexExists(eTemplate,TestDoc.class)) {
+            EsOperationUtils.putMapping(eTemplate,TestDoc.class);
+            return "{\"msg\":\"索引已存在，创建mapping\"}";
+        }
+        EsOperationUtils.createIndex(eTemplate,TestDoc.class);
+        EsOperationUtils.putMapping(eTemplate,TestDoc.class);
+        return "{\"msg\":\"创建索引和mapping\"}";
+    }
+
+    //新增一个√
+    @RequestMapping("es/addOne")
+    public String testInsert() {
+        EsOperationUtils.insertOne(eTemplate,getOne(1));
+        return getAddReturn();
+    }
+
+    //批量新增√
+    @RequestMapping("es/addBatch")
+    public String testInsertBatch() {
+        List<TestDoc> dataList = new ArrayList<>();
+        for (int i = 0; i < 5000; i++) {
+            dataList.add(getOne(i));
+        }
+        EsOperationUtils.insertList(eTemplate,dataList);
+        return getAddReturn();
+    }
+
+    //根据id查询一个√
+    @RequestMapping("es/getOne/{id}")
+    public String testQuery(@PathVariable String id) {
+        TestDoc testDoc = EsOperationUtils.queryById(eTemplate,TestDoc.class,id);
+        return JSONObject.toJSONString(testDoc);
+    }
+
+    //根据id列表查询一堆√
+    @RequestMapping("es/getBatch")
+    public String testQueryBatch(@RequestBody List<String> ids) {
+        if (null == ids || ids.size() == 0) {
+            return "{\"msg\":\"ids为空！\"}";
+        }
+        List<TestDoc> list = EsOperationUtils.queryByIds(eTemplate, TestDoc.class,"es_test",ids);
+        return JSONObject.toJSONString(list);
+    }
+
+    //复杂查询√
+    @RequestMapping("es/getPage")
+    public String testQueryPage() {
+        /**
+         * 分页条件
+         * page 要查询的页码-1
+         * size 每页数量
+         * 默认升序，降序指定
+         */
+        int page = 0;
+        int size = 10000;
+        Sort sort = Sort.by(Sort.Direction.DESC,"createTime");
+        Pageable pageable = PageRequest.of(page,size,sort);
+
+
+        /**
+         * 范围查询
+         * 对于数字和date类型，使用RangeQueryBuilder
+         * 对于text类型，不应该使用范围查询，无论是技术上还是需求上
+         * from--to默认闭区间，若要开区间，加上布尔参数false即可
+         *
+         * text类型范围比较需要使用TermRangeQuery，不推荐text比较
+         */
+        /*RangeQueryBuilder rangeQueryBuilder = QueryBuilders.rangeQuery("count")
+                        .from(10,false)
+                        .to(30);*/
+        RangeQueryBuilder rangeQueryBuilder = QueryBuilders.rangeQuery("createTime")
+                .from("2020-03-01T00:00:00",false)
+                .to(EsDateUtil.now());
+
+        /**
+         * 复合查询
+         */
+        QueryBuilder boolQuery = QueryBuilders.boolQuery()
+                //精确查询
+                .must(QueryBuilders.termQuery("desc","es测试"))
+                .must(QueryBuilders.termQuery("flag",true))
+                //短语匹配(短语模糊查询，根据分词器严格区分短语单词)
+                //.must(QueryBuilders.matchPhraseQuery("name","liuwei"))
+                //全模糊查询
+                .must(QueryBuilders.matchQuery("name","liuwei"))
+                //范围查询
+                .filter(rangeQueryBuilder);
+
+        List<TestDoc> list = EsOperationUtils.queryByCondition("es_test",boolQuery,
+                pageable,eTemplate,TestDoc.class);
+        return JSONObject.toJSONString(list);
+    }
+
+    //根据id删除一个√
+    @RequestMapping("es/deleteOne/{id}")
+    public String testDelete(@PathVariable String id) {
+        EsOperationUtils.deleteById(eTemplate,TestDoc.class,id);
+        return JSONObject.toJSONString(id);
+    }
+
+    //根据id列表批量删除√
+    @RequestMapping("es/deleteBatch")
+    public String testDeleteBatch(@RequestBody List<String> ids) {
+        if (null == ids || ids.size() == 0) {
+            return "{\"msg\":\"ids为空！\"}";
+        }
+        EsOperationUtils.deleteByIds(eTemplate,TestDoc.class,ids);
+        return getAddReturn();
+    }
+
+    //复杂删除√
+    @RequestMapping("es/deleteCondition")
+    public String testDeleteCondition() {
+        Criteria criteria = new Criteria();
+        criteria.and(new Criteria("name").startsWith("liuwei"))
+            .and(new Criteria("desc").is("es测试"))
+            .and(new Criteria("flag").is(false))
+            .and(new Criteria("createTime").between("2020-03-01T00:00:00", EsDateUtil.now()));
+
+        EsOperationUtils.deleteByCondition(eTemplate,TestDoc.class,criteria);
+        return getAddReturn();
+    }
+
+    //删除整个索引√
+    @RequestMapping("es/deleteIndex")
+    public String testDeleteIndex() {
+        EsOperationUtils.deleteIndex(eTemplate,TestDoc.class);
+        return getAddReturn();
+    }
+
+}
+
+
+【工具类】
+package com.center.kafka.util;
+
+import lombok.extern.slf4j.Slf4j;
+import org.elasticsearch.index.query.IdsQueryBuilder;
+import org.elasticsearch.index.query.QueryBuilder;
+import org.elasticsearch.index.query.QueryBuilders;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.elasticsearch.core.ElasticsearchTemplate;
+import org.springframework.data.elasticsearch.core.ScrolledPage;
+import org.springframework.data.elasticsearch.core.query.*;
+import org.springframework.util.StringUtils;
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * @author liuwei
+ * @date 2020-03-16 02:49
+ * @desc es操作工具类
+ */
+@Slf4j
+public class EsOperationUtils {
+
+    /**
+     * 插入document
+     */
+
+    //插入一个对象，返回documentId
+    public static String insertOne(ElasticsearchTemplate template,Object data) {
+        IndexQuery indexQuery = new IndexQueryBuilder().withObject(data).build();
+        return template.index(indexQuery);
+    }
+
+    //批量插入对象
+    public static void insertList(ElasticsearchTemplate template, List<?> dataList) {
+        if (null == dataList || dataList.size()==0) {
+            return;
+        }
+        List<IndexQuery> queries = new ArrayList<>();
+        for (Object data : dataList) {
+            IndexQuery indexQuery = new IndexQueryBuilder().withObject(data).build();
+            queries.add(indexQuery);
+        }
+        template.bulkIndex(queries);
+    }
+
+    /**
+     * 查询document
+     */
+
+    //根据id查询
+    public static <T> T queryById(ElasticsearchTemplate template, Class<T> clazz, String id) {
+        GetQuery getQuery = GetQuery.getById(id);
+        return template.queryForObject(getQuery,clazz);
+    }
+
+    //根据id列表查询一组
+    public static <T> List<T> queryByIds(ElasticsearchTemplate template, Class<T> clazz, String indexName, List<String> ids) {
+        IdsQueryBuilder idsQueryBuilder = QueryBuilders.idsQuery().addIds(ids.toArray(new String[0]));
+        SearchQuery searchQuery = new NativeSearchQueryBuilder()
+                .withIndices(StringUtils.isEmpty(indexName)?null:indexName)
+                .withQuery(idsQueryBuilder)
+                .build();
+        //log.info("DSL查询语句："+searchQuery.getQuery().toString());
+        return template.queryForList(searchQuery, clazz);
+    }
+
+    //复杂查询
+    public static <T> List<T> queryByCondition(String indexName, QueryBuilder boolQuery,
+                            Pageable pageable, ElasticsearchTemplate template, Class<T> clazz) {
+        SearchQuery searchQuery = new NativeSearchQueryBuilder()
+                //设置索引
+                .withIndices(StringUtils.isEmpty(indexName)?null:indexName)
+                //复合条件查询
+                .withQuery(boolQuery)
+                //分页查询
+                .withPageable(null==pageable?Pageable.unpaged():pageable)
+                .build();
+        //log.info("DSL查询语句："+searchQuery.getQuery().toString());
+        /**
+         * 1.超过10000的窗口需要滚动检索
+         * 2.即使是滚动检索，一次也只允许最多检索10000条数据，更多的数据要分批次检索
+         */
+        int pageNumber = pageable.getPageNumber();
+        if (pageable.getPageSize()*(pageNumber+1)>10000) {
+            //循环滚动查询，每一次滚动超时3秒钟
+            log.info("es滚动检索开始");
+            ScrolledPage<T> scrolledPage = template.startScroll(3000,searchQuery,clazz);
+            int i = 0;
+            //滚动会每次查PageSize条数据，只有第PageNumber次查询才是所需的数据
+            //当页数太多时，查询的次数太多了，会非常慢，实际上，此时场景就不是也不允许是实时响应前端的了
+            if (i == pageNumber) {
+                log.info("es滚动检索结束");
+                return scrolledPage.getContent();
+            }
+            while (scrolledPage.hasContent()){
+                i++;
+                //整个循环中，scrollId可能变化，也可能一直不变，这取决于数据库是否有数据变动
+                String scrollId = scrolledPage.getScrollId();
+                log.info("循环["+i+"]scrollId："+scrollId);
+                scrolledPage = template.continueScroll(scrollId,3000,clazz);
+                if (i == pageNumber) {
+                    log.info("es滚动检索结束");
+                    return scrolledPage.getContent();
+                }
+            }
+            return new ArrayList<>();
+        }else{
+            return template.queryForList(searchQuery, clazz);
+        }
+    }
+
+    /**
+     * 删除document
+     */
+
+    //根据id删除
+    public static <T> String deleteById(ElasticsearchTemplate template, Class<T> clazz, String id) {
+        //template.delete("indexName","typeName",id);
+        return template.delete(clazz,id);
+    }
+
+    //根据id批量删除
+    public static <T> void deleteByIds(ElasticsearchTemplate template, Class<T> clazz, List<String> ids) {
+        Criteria criteria = new Criteria();
+        criteria.and(new Criteria("id").in(ids.toArray(new String[0])));
+        CriteriaQuery criteriaQuery = new CriteriaQuery(criteria);
+        template.delete(criteriaQuery,clazz);
+    }
+
+    //复杂删除
+    public static <T> void deleteByCondition(ElasticsearchTemplate template, Class<T> clazz, Criteria criteria) {
+        CriteriaQuery criteriaQuery = new CriteriaQuery(criteria);
+        template.delete(criteriaQuery,clazz);
+    }
+
+
+    /**
+     * 索引和类操作
+     */
+
+    //删除索引
+    public static <T> boolean deleteIndex(ElasticsearchTemplate template, Class<T> clazz) {
+        return template.deleteIndex(clazz);
+    }
+
+    //创建索引
+    public static <T> boolean createIndex(ElasticsearchTemplate template, Class<T> clazz) {
+        return template.createIndex(clazz);
+    }
+
+    //判断索引是否存在
+    public static <T> boolean indexExists(ElasticsearchTemplate template, Class<T> clazz) {
+        return template.indexExists(clazz);
+    }
+
+    //创建或覆盖类
+    public static <T> boolean putMapping(ElasticsearchTemplate template, Class<T> clazz) {
+        return template.putMapping(clazz);
+    }
+
+}
+
+
+
+
+

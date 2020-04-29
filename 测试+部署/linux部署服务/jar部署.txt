@@ -1,0 +1,41 @@
+1.application配置文件端口和路径配置
+	#如果不指定端口，将使用随机端口
+	#如果不指定路径前缀，将没有前缀(即项目名)，举例来说，默认路径 http://127.0.0.1:19080/controller/method，加上前缀notice后为 http://127.0.0.1:19080/notice/controller/method
+	server.port=19080
+	server.servlet.context-path=/notice
+
+2.pom文件生成可执行jar的配置
+    <groupId>xxx</groupId>
+    <artifactId>xxx/artifactId>
+	<!--默认为jar-->
+	<packaging>jar</packaging>
+    <version>0.0.1-SNAPSHOT</version>
+    <name>xxx</name>
+	
+    <build>
+        <!--打包war或jar名称-->
+        <finalName>xxx</finalName>
+        <plugins>
+            <!--使用maven-war-plugin插件而非spring-boot-maven-plugin插件-->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-war-plugin</artifactId>
+                <configuration>
+                    <!--构建时如果缺失webxml时不报错，springboot不需要webxml-->
+                    <failOnMissingWebXml>false</failOnMissingWebXml>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
+
+3.生成可执行jar并启动jar程序
+使用maven打包出jar文件
+启动jar，设jar名称为notice.jar
+	前台启动，日志输出到控制台：nohup java -jar -Xms512M -Xmx1024M notice.jar
+	前台启动，日志打入文件：nohup java -jar -Xms512M -Xmx1024M notice.jar > notice.log
+	后台启动，日志打入文件：nohup java -jar -Xms512M -Xmx1024M notice.jar > notice.log &
+	启动时指定端口(会覆盖配置文件中的端口，为实际端口)：nohup java -jar -Xms512M -Xmx1024M notice.jar --server.port=19090 > notice.log &

@@ -1,0 +1,246 @@
+【启停】
+前台启动  ./elasticsearch
+后台启动  ./elasticsearch -d
+停止  kill强杀
+
+【新增】
+插入一个document
+语法：curl -H 'Content-type:application/json' -X PUT 'http://es地址:es服务端口/索引名/类型名/文档id' -d '文档json对象'
+范例：curl -H 'Content-type:application/json' \
+-X PUT 'http://172.16.168.201:9200/es/student/1' \
+-d '{"name":"liuwei","address":"南京"}'
+响应：
+{
+    "_index": "es",
+    "_type": "student",
+    "_id": "1",
+    "_version": 1,
+    "result": "created",
+    "_shards": {
+        "total": 2,
+        "successful": 1,
+        "failed": 0
+    },
+    "_seq_no": 0,
+    "_primary_term": 1
+}
+
+【删除】
+语法：
+	根据id删除一个document(pretty参数使返回json格式化)
+	curl -X DELETE 'http://es地址:es服务端口/索引名/类型名/文档id?pretty'
+	删除整个索引(索引也被删除掉)
+	curl -X DELETE 'http://es地址:es服务端口/索引名?pretty'
+	删除索引中的全部文档(索引保留)
+	curl -X POST 'es地址:es服务端口/索引名/_delete_by_query?conflicts=proceed&pretty' \
+	-H 'Content-Type: application/json' -d '{"query": {"match_all": {}}}'
+范例：curl -X DELETE '172.16.168.201:9200/es/student/1?pretty'
+响应：
+{
+  "_index" : "es",
+  "_type" : "student",
+  "_id" : "1",
+  "_version" : 2,
+  "result" : "deleted",
+  "_shards" : {
+    "total" : 2,
+    "successful" : 1,
+    "failed" : 0
+  },
+  "_seq_no" : 1,
+  "_primary_term" : 1
+}
+
+
+【查询】
+根据id查询document(pretty参数使返回json格式化)
+语法：curl -X GET 'http://es地址:es服务端口/索引名/类型名/文档id?pretty'
+范例：curl -X GET '172.16.168.201:9200/es/student/1?pretty'
+响应：
+{
+  "_index" : "es",
+  "_type" : "student",
+  "_id" : "1",
+  "_version" : 1,
+  "_seq_no" : 0,
+  "_primary_term" : 1,
+  "found" : true,
+  "_source" : {
+    "name" : "liuwei",
+    "address" : "南京"
+  }
+}
+
+-------------------------------------------
+查询整个集群中document数量(pretty参数使返回json格式化)
+语法：
+	查询全部索引的全部数量
+	curl -H 'Content-type:application/json' -X GET 'http://es地址:es服务端口/_count?pretty' -d '查询条件'
+	查询某个索引的全部数量
+	curl -H 'Content-type:application/json' -X GET 'http://es地址:es服务端口/索引名/_count?pretty' -d '查询条件'
+范例：
+	查询全部：curl -X GET '172.16.168.201:9200/_count?pretty'
+	查询全部：curl -H 'Content-type:application/json' \
+	-X GET '172.16.168.201:9200/_count?pretty' \
+	-d '{"query": {"match_all": {}}}'
+响应：
+{
+  "count" : 2,
+  "_shards" : {
+    "total" : 10,
+    "successful" : 10,
+    "skipped" : 0,
+    "failed" : 0
+  }
+}
+
+-------------------------------------------
+查询所有document(pretty参数使返回json格式化)
+语法：curl -X GET 'http://es地址:es服务端口/索引名/类型名/_search?pretty'
+范例：curl -X GET '172.16.168.201:9200/es/student/_search?pretty'
+响应：
+{
+  "took" : 31,
+  "timed_out" : false,
+  "_shards" : {
+    "total" : 5,
+    "successful" : 5,
+    "skipped" : 0,
+    "failed" : 0
+  },
+  "hits" : {
+    "total" : 1,
+    "max_score" : 1.0,
+    "hits" : [
+      {
+        "_index" : "es",
+        "_type" : "student",
+        "_id" : "1",
+        "_score" : 1.0,
+        "_source" : {
+          "name" : "liuwei",
+          "address" : "南京"
+        }
+      }
+    ]
+  }
+}
+
+-------------------------------------------
+模糊查询document(pretty参数使返回json格式化)
+语法：
+	curl -X GET 'http://es地址:es服务端口/索引名/类型名/_search?pretty&q=字段名:字段值&q=字段名:字段值'
+	curl -H 'Content-type:application/json' -X GET 'http://es地址:es服务端口/索引名/类型名/_search?pretty' -d '查询条件'
+范例：
+	curl -X GET '172.16.168.201:9200/es/student/_search?pretty&q=name:liuwei'
+	curl -H 'Content-type:application/json' \
+	-X GET '172.16.168.201:9200/es/student/_search?pretty' \
+	-d '{"query" : {"match" : {"name" : "liu"}}}'
+	curl -H 'Content-type:application/json' \
+	-X GET '172.16.168.201:9200/es/student/_search?pretty' \
+	-d '{"query" : {"match_phrase" : {"name" : "liuwei"}}}'
+响应：
+注意1，url拼接中查询条件是不支持中文的，json参数中则可以
+注意2，url拼接中查询条件是equal条件，json参数中则为模糊条件
+注意3，json参数中match为全文相关性模糊匹配，即搜索word1 word2，
+	只要字段的值包含任何一个单词甚至任何一组字母即算匹配，结果会给出相关性分值
+注意4，json参数中match_phrase为全文短语模糊匹配，即搜索word1 word2，
+	字段的值必须完整包含word1 word2短语才算匹配，形如只包含部分单词word1或者wor等非完整单词均不匹配
+注意5，json参数中可以添加"highlight": {"fields" : {"字段名" : {}}}以实现高亮字段查询，高亮会对匹配的结果添加<em></em>标签
+
+{
+  "took" : 5,
+  "timed_out" : false,
+  "_shards" : {
+    "total" : 5,
+    "successful" : 5,
+    "skipped" : 0,
+    "failed" : 0
+  },
+  "hits" : {
+    "total" : 1,
+    "max_score" : 0.2876821,
+    "hits" : [
+      {
+        "_index" : "es",
+        "_type" : "student",
+        "_id" : "1",
+        "_score" : 0.2876821,
+        "_source" : {
+          "name" : "liuwei",
+          "address" : "南京"
+        }
+      }
+    ]
+  }
+}
+
+【查看某条数据的某个字段的分词结果】
+语法：curl -X GET 'http://es地址:es服务端口/索引名/类型名/数据id/_termvectors?pretty&fields=字段名'
+范例：curl -X GET '172.16.168.201:9200/es_test/testdoc/cbe4868669e0476db61f8e5c77bbc6f9/_termvectors?pretty&fields=desc'
+响应：
+{
+  "_index" : "es_test",
+  "_type" : "testdoc",
+  "_id" : "fde736d3f00342ea9d35c5739809afab",
+  "_version" : 1,
+  "found" : true,
+  "took" : 0,
+  "term_vectors" : {
+    "desc" : {
+      "field_statistics" : {
+        "sum_doc_freq" : 6,
+        "doc_count" : 2,
+        "sum_ttf" : 6
+      },
+      "terms" : {
+        "es" : {
+          "term_freq" : 1,
+          "tokens" : [
+            {
+              "position" : 0,
+              "start_offset" : 0,
+              "end_offset" : 2
+            }
+          ]
+        },
+        "测" : {
+          "term_freq" : 1,
+          "tokens" : [
+            {
+              "position" : 1,
+              "start_offset" : 2,
+              "end_offset" : 3
+            }
+          ]
+        },
+        "试" : {
+          "term_freq" : 1,
+          "tokens" : [
+            {
+              "position" : 2,
+              "start_offset" : 3,
+              "end_offset" : 4
+            }
+          ]
+        }
+      }
+    }
+  }
+}
+可以看到中文的分词实际上是逐字分词，这通常不是所需要的
+应使用ik分词器或者不对中文进行分词
+如果必须分词，可能只能进行match模糊查询，而非term精确查询
+
+【查询+时间分析】
+echo "查询起始时间-->"`date "+%Y-%m-%d %H:%M:%S.%N" | cut -b 1-23` && \
+curl -H 'Content-type:application/json' \
+-X GET '172.16.168.201:9200/es_test/adoc/_search?pretty&size=10000&from=0' \
+-d @param.json > 123.txt && \
+echo "查询结束时间-->"`date "+%Y-%m-%d %H:%M:%S.%N" | cut -b 1-23` && \
+echo "数据大小-->"`ll -sh | grep 123.txt | awk '{print $1}'`
+
+
+
+
+

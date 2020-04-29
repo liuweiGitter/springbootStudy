@@ -1,0 +1,7 @@
+mycat查询到数字0在java中转布尔值时，会变成true，只有转成字符串'0'时才是false
+如使用select if(log.outstand_flag = 1,'1','0') as outstand_flag替换select log.outstand_flag
+
+mycat做了表全量查询保护，不允许没有明确where条件(where 1=1不可以)的查询，全表查询需要明确limit
+
+mycat在查询tinyint1转为布尔值时，0和1都会转为true，tinyint2则可正常处理，在设计表时注意所有布尔类型全部设计为tinyint2
+或者在查询时，url地址拼接?tinyInt1isBit=false

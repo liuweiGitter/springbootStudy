@@ -1,0 +1,15 @@
+【springboot配置redis哨兵模式注意事项】
+
+redis可以配置主从也可以配置集群，本项目暂时只需主从复制(读写分离)，不需要分片集群
+使用哨兵集群来选举主节点
+一般一主两从三哨兵，如果只有一从，也可以一主一从两哨兵
+https://blog.csdn.net/u013058742/article/details/80004893
+https://blog.csdn.net/u012105362/article/details/85765051
+
+springboot只需要配置redis哨兵节点和master名称、redis密码、redis库db下标
+注意，注意，所有的哨兵以及主从服务全部都要配置protected-mode no，主从服务还需要注释掉bind
+不然一大堆乱七八糟的错误
+
+//必须排除DataSourceAutoConfiguration的bean创建，以避免产生数据源的循环依赖
+//必须排除redisTemplate的自动注入，使用自定义的配置，以配置多数据源和指定template名称
+@SpringBootApplication(exclude = {DataSourceAutoConfiguration.class, RedisAutoConfiguration.class, RedisRepositoriesAutoConfiguration.class})

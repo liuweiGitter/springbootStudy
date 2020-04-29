@@ -1,0 +1,12 @@
+#简单get请求，如需参数，直接拼接
+curl 127.0.0.1:18081/cloud-zhzz/api/keysBatch/ping
+
+#携带header参数和json格式数据的post请求
+curl -i -k  -H "Content-type:application/json" -H "token:ae94ae0906aa07ce333a47d81f52b1ad" -X POST -d \
+'{"queryPageNum":1,"pageDataCount":10,"createEndTime":"","archStartTime":"","archEndTime":""}}' \
+http://172.16.49.42:18080/cloud-zhzz/crc/crcList/1
+
+#从文件中读取参数
+-d @文件名
+如 -d @param.json
+
