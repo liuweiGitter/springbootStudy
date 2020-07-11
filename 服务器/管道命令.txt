@@ -1,0 +1,107 @@
+#删除当前目录下找到的文件(深度遍历，默认无限深度)
+find ./ -name "_remote.repositories" -type f -print -exec rm -rf {} \;
+find ./ -maxdepth 3 -name "target" -type d -print -exec rm -rf {} \;
+find ./ -maxdepth 2 -name "*.lastUpdated" -type f -print -exec rm -rf {} \;
+find ./ -maxdepth 3 -name "*.iml" -type f -print -exec rm -rf {} \;
+
+
+#删除空或者unknown目录
+find ./ -name "unknown" -type d -print -exec rm -rf {} \;
+workpath=`pwd`
+for dir in `find ./ -type d` 
+do 
+	cd $workpath/$dir
+	if [ "`ls -A .`" = "" ];then 
+		echo "$workpath/$dir is empty and to be deleted!"
+		rm -rf $workpath/$dir
+	fi
+done
+cd $workpath
+
+#判断文件夹或文件是否存在
+filepath=/data/filename
+if [ -f $filepath ];then
+	echo "文件存在"
+else
+	echo "文件不存在"
+fi
+
+dirpath=/data
+if [ ! -d $dirpath ];then
+	echo "文件夹不存在"
+else
+	echo "文件夹存在"
+fi
+
+
+#linux带空格的字符串作为变量参数传递
+var='abc  123'
+
+"${var}"  -->传入abc 123
+'${parmfile}' -->传入${parmfile}
+${parmfile} -->传入abc
+
+#字符串截取
+${string:start:length}	从 string 字符串的左边第 start 个字符开始，向右截取 length 个字符。
+${string:start}	从 string 字符串的左边第 start 个字符开始截取，直到最后。
+${string:0-start:length}	从 string 字符串的右边第 start 个字符开始，向右截取 length 个字符。
+${string:0-start}	从 string 字符串的右边第 start 个字符开始截取，直到最后。
+${string#*chars}	从 string 字符串第一次出现 *chars 的位置开始，截取 *chars 右边的所有字符。
+${string##*chars}	从 string 字符串最后一次出现 *chars 的位置开始，截取 *chars 右边的所有字符。
+${string%*chars}	从 string 字符串第一次出现 *chars 的位置开始，截取 *chars 左边的所有字符。
+${string%%*chars}	从 string 字符串最后一次出现 *chars 的位置开始，截取 *chars 左边的所有字符。
+
+
+
+#for循环遍历1-100，有多种写法
+for i in {1..100} 
+for ((i=1; i<=10; i++))
+//递增2
+for ((i=1; i<=10; i=i+2)) 
+//允许变量
+num=10
+for ((i=1; i<=$num; i++))
+ 
+//应用demo，打印1-100
+for i in {1..100}  
+do  
+    echo $i  
+done 
+
+#四则运算
+有多种写法
+1.let
+不支持浮点数，除法结果是向0方向取整(如5/3=1,-5/3=-1)
+a=1;b=2;
+let c1=a+b;
+let c2=a-b;
+let c3=-a*b;
+let c4=-a/b;
+let c5=2/b;
+
+2.$(())或$[]
+不支持浮点数，除法结果是向0方向取整(如5/3=1,-5/3=-1)
+a=1;b=2;
+echo $((1+2-3*4/5));
+echo $[a+b-3*4/5];
+c=$((a+b-3*4/5));
+
+浮点数的运算可以使用bc命令或awk命令，不详述
+
+#字符串拼接换行符
+a=123
+b=456
+c=`echo -e "$a\n$b"`
+
+
+
+
+
+
+
+
+
+
+
+
+

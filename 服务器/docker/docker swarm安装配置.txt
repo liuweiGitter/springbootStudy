@@ -1,0 +1,74 @@
+在集群中多台服务器上都安装了docker以后，可以将这些节点组成docker swarm集群
+
+【创建Swarm集群】
+选中一台服务器作为manager节点创建swarm集群
+
+一个节点只能属于一个swarm集群，如果该节点已经绑定到某个集群，则会报错
+Error response from daemon: This node is already part of a swarm. Use "docker swarm leave" to leave this swarm and join another one.
+根据需要，可以强制离开集群
+docker swarm leave -f
+
+也可以通过docker info | grep warm查看docker swarm是否已经启用
+未启用前的信息是Swarm: inactive
+
+
+docker swarm init --advertise-addr 10.2.12.231
+
+>>>初始化创建集群
+Swarm initialized: current node (r369mjrna396lpqnkr5sz5xo3) is now a manager.
+
+To add a worker to this swarm, run the following command:
+
+    docker swarm join --token SWMTKN-1-3c01xedzzdeubm2f32voh22kvrrhmpbxmql0ymcp2x9rayu1ft-bm35umzh8lzdeg7kxeqvq4swe 10.2.12.231:2377
+
+To add a manager to this swarm, run 'docker swarm join-token manager' and follow the instructions.
+
+
+ 
+【查看Swarm集群的相关信息】
+docker info | grep warm
+>>>查看info信息
+Swarm: active
+ 
+docker node ls
+>>>查看集群节点信息
+ID                            HOSTNAME            STATUS              AVAILABILITY        MANAGER STATUS      ENGINE VERSION
+r369mjrna396lpqnkr5sz5xo3 *   c72.novalocal       Ready               Active              Leader              19.03.11
+
+ 
+【添加节点主机到Swarm集群】
+
+docker swarm join --token SWMTKN-1-3c01xedzzdeubm2f32voh22kvrrhmpbxmql0ymcp2x9rayu1ft-bm35umzh8lzdeg7kxeqvq4swe 10.2.12.231:2377
+>>>在每一个节点主机上执行命令，加入swarm集群，注意，节点之间防火墙关闭或者开放相关端口以保证通信
+This node joined a swarm as a worker.
+ 
+
+docker node ls
+>>>在manager节点查看集群最新的节点信息
+ID                            HOSTNAME            STATUS              AVAILABILITY        MANAGER STATUS      ENGINE VERSION
+3jcmnzjh0e99ipgshk1ykuovd *   manager43           Ready               Active              Leader              18.06.0-ce
+vww7ue2xprzg46bjx7afo4h04     node139             Ready               Active                                  18.06.1-ce
+c5klw5ns4adcvumzgiv66xpyj     node188             Ready               Active                                  18.06.1-ce
+ 
+-------------------下线节点和删除节点-------------------
+swarm集群中node的availability状态可能是 active或者drain
+active状态下，node可以接受来自manager节点的任务分派
+drain状态下，node节点会结束task，且不再接受来自manager节点的任务分派（也就是下线节点）
+
+#下线节点
+docker node update --availability drain <hostname_of_node>
+#删除节点
+docker node rm --force <hostname_of_node>
+
+当节点的状态改为drain后，那么该节点就不会接受task任务分发，就算之前已经接受的任务也会转移到别的节点
+
+
+
+
+
+
+
+
+
+
+

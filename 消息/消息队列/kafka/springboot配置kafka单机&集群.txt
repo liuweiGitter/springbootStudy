@@ -58,6 +58,9 @@ https://docs.spring.io/spring-kafka/docs/2.2.1.BUILD-SNAPSHOT/reference/html/dep
 	#监听
 	#监听的主题不存在时，不报错，继续启动，默认停止启动
 	spring.kafka.listener.missing-topics-fatal=false
+	
+	#外部kafka服务
+	spring.kafka-outer1.bootstrap-servers=172.16.49.68:9092
 
 4.消费者demo
 	package com.jshx.zq.p2p.mq.consumer;
@@ -71,30 +74,26 @@ https://docs.spring.io/spring-kafka/docs/2.2.1.BUILD-SNAPSHOT/reference/html/dep
 
 	/**
 	 * @author liuwei
-	 * @date 2020-03-09 22:45
+	 * @date 2020-03-10 02:06
 	 * @desc 消费者测试
 	 */
 	@Component
 	@ConditionalOnExpression("${kafka_start_flag:true}")
-	@Slf4j
 	@PropertySource(value = "classpath:/data/properties/kafka_topic.properties")
+	@Slf4j
 	public class TestConsumer {
 
-		/**
-		 * topics 主题，必填
-		 * groupId 消费组id，必填，一个主题的消息只能被同一个组的唯一一个消费者消费
-		 *      同一主题的消息将被不同组的消费者同时消费
-		 *      即，消费时以组为单位，每个组都会且仅会消费一次消息
-		 * @param record
-		 */
-		@KafkaListener(topics = "${test}",groupId = "consumer1")
-		public void consumer1 (ConsumerRecord<?, ?> record) {
-			log.info("consumer1>>>topic="+record.topic()+",offset="+record.offset()+",value="+record.value());
+		@KafkaListener(topics = "${test}",groupId = "testGroup1")
+		public void test1 (ConsumerRecord<String, String> record) {
+			String msg = record.value();
+			log.info("test1消费："+msg);
 		}
 
-		@KafkaListener(topics = "${test}",groupId = "consumer2")
-		public void consumer2 (ConsumerRecord<?, ?> record) {
-			log.info("consumer2>>>topic="+record.topic()+",offset="+record.offset()+",value="+record.value());
+		//containerFactory指向KafkaListenerContainerFactory bean的名称
+		@KafkaListener(topics = "${test}",groupId = "testGroup2",containerFactory = "kafkaListenerContainerFactory1")
+		public void test2 (ConsumerRecord<String, String> record) {
+			String msg = record.value();
+			log.info("test2消费："+msg);
 		}
 
 	}
@@ -169,26 +168,43 @@ spring-kafka2.3.4版本会调用kafka-client中的这个方法，在低版本中
 	package com.jshx.zq.p2p.config;
 
 	import lombok.extern.slf4j.Slf4j;
+	import org.apache.kafka.clients.consumer.ConsumerConfig;
 	import org.apache.kafka.clients.producer.ProducerConfig;
+	import org.apache.kafka.common.serialization.StringDeserializer;
 	import org.apache.kafka.common.serialization.StringSerializer;
 	import org.springframework.beans.factory.annotation.Value;
 	import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 	import org.springframework.context.annotation.Bean;
 	import org.springframework.context.annotation.Configuration;
+	import org.springframework.context.annotation.Primary;
+	import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
+	import org.springframework.kafka.config.KafkaListenerContainerFactory;
+	import org.springframework.kafka.core.DefaultKafkaConsumerFactory;
 	import org.springframework.kafka.core.DefaultKafkaProducerFactory;
 	import org.springframework.kafka.core.KafkaTemplate;
+	import org.springframework.kafka.listener.ConcurrentMessageListenerContainer;
+
 	import java.util.HashMap;
+	import java.util.Map;
 
 	/**
 	 * @author liuwei
 	 * @date 2020-03-10 10:17
-	 * @desc kafka生产者模板配置类
+	 * @desc kafka配置类
+	 * 支持多kafka实例的生产和消费的配置
+	 * 支持生产者和消费者的按需独立配置(生产者注册KafkaTemplate，消费者注册KafkaListenerContainerFactory)
+	 *
+	 * 多实例kafka的生产依赖于每个实例的KafkaTemplate
+	 * 多实例kafka的消费则通过containerFactory指定具体的实例对象，详细配置参见TestConsumer
 	 */
 	@Configuration
 	@ConditionalOnExpression("${kafka_start_flag:true}")
 	@Slf4j
-	public class KafkaProducerConfig {
+	public class KafkaConfig {
 
+		//====================配置参数====================//
+
+		//系统kafka服务
 		@Value("${spring.kafka.bootstrap-servers}")
 		private String bootstrap_servers_config;
 		@Value("${spring.kafka.producer.retries}")
@@ -198,11 +214,30 @@ spring-kafka2.3.4版本会调用kafka-client中的这个方法，在低版本中
 		@Value("${spring.kafka.producer.buffer-memory}")
 		private String buffer_memory_config;
 
-		@Bean
-		public KafkaTemplate kafkaTemplate(){
-			log.info("KafkaTemplate注册");
+		//智慧物业、酒店kafka服务
+		@Value("${spring.kafka-outer1.bootstrap-servers}")
+		private String bootstrap_servers_config1;
+
+
+
+
+		//====================公共方法====================//
+
+		//注册消费者监听工厂
+		private KafkaListenerContainerFactory<ConcurrentMessageListenerContainer<Integer, String>> getKafkaListenerContainerFactory(String bootstrapServersConfig) {
+			ConcurrentKafkaListenerContainerFactory<Integer, String> factory = new ConcurrentKafkaListenerContainerFactory<>();
+			Map<String, Object> props = new HashMap<>();
+			props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServersConfig);
+			props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
+			props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
+			factory.setConsumerFactory(new DefaultKafkaConsumerFactory<>(props));
+			return factory;
+		}
+
+		//注册生产者模板类
+		private KafkaTemplate getKafkaTemplate(String bootstrapServersConfig){
 			HashMap<String, Object> configs = new HashMap<>();
-			configs.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG,bootstrap_servers_config);
+			configs.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG,bootstrapServersConfig);
 			configs.put(ProducerConfig.RETRIES_CONFIG,retries_config);
 			configs.put(ProducerConfig.BATCH_SIZE_CONFIG,batch_size_config);
 			configs.put(ProducerConfig.BUFFER_MEMORY_CONFIG,buffer_memory_config);
@@ -211,6 +246,47 @@ spring-kafka2.3.4版本会调用kafka-client中的这个方法，在低版本中
 			DefaultKafkaProducerFactory producerFactory = new DefaultKafkaProducerFactory(configs);
 			return new KafkaTemplate(producerFactory);
 		}
+
+
+
+		//====================生产者和消费者bean注册====================//
+
+		/**
+		 * Group1：系统kafka
+		 */
+
+		//消费者监听工厂
+		//指定为默认Primary工厂，使用此监听工厂的消费者不需要显式指定工厂引用
+		@Bean
+		@Primary
+		public KafkaListenerContainerFactory<ConcurrentMessageListenerContainer<Integer, String>> kafkaListenerContainerFactory() {
+			return getKafkaListenerContainerFactory(bootstrap_servers_config);
+		}
+
+		//生产者模板
+		@Bean
+		public KafkaTemplate kafkaTemplate(){
+			log.info("系统KafkaTemplate注册");
+			return getKafkaTemplate(bootstrap_servers_config);
+		}
+
+		/**
+		 * Group2：智慧物业、酒店kafka
+		 */
+
+		//消费者监听工厂
+		@Bean
+		public KafkaListenerContainerFactory<ConcurrentMessageListenerContainer<Integer, String>> kafkaListenerContainerFactory1() {
+			return getKafkaListenerContainerFactory(bootstrap_servers_config1);
+		}
+
+		//智慧物业kafka服务仅用于本项目的消费，故生产者可以不注册
+		//生产者模板
+		/*@Bean
+		public KafkaTemplate kafkaTemplate1(){
+			log.info("智慧物业KafkaTemplate注册");
+			return getKafkaTemplate(bootstrap_servers_config1);
+		}*/
 
 	}
 

@@ -1,0 +1,57 @@
+【查看linux进程线程信息】
+gstack pid
+
+Thread 39 (Thread 0x7f40bbcb9700 (LWP 4983)):
+#0  0x00007f40bb1a5b7d in poll () from /lib64/libc.so.6
+#1  0x00007f408b7e3581 in NET_Timeout0 () from /root/file/jdk1.8.0_151/jre/lib/amd64/libnet.so
+#2  0x00007f408b7e1977 in Java_java_net_PlainSocketImpl_socketAccept () from /root/file/jdk1.8.0_151/jre/lib/amd64/libnet.so
+#3  0x00007f40a5017a34 in ?? ()
+#4  0x00007f40bbcb7d58 in ?? ()
+#5  0x00007f40a50177c7 in ?? ()
+#6  0x00007f40a5017782 in ?? ()
+#7  0x00007f40bbcb7d18 in ?? ()
+#8  0x00007f408ab77ed0 in ?? ()
+#9  0x00007f40bbcb7d80 in ?? ()
+#10 0x00007f408ab7e868 in ?? ()
+#11 0x0000000000000000 in ?? ()
+Thread 38 (Thread 0x7f40b8515700 (LWP 4984)):
+#0  0x00007f40bb8a06d5 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+#1  0x00007f40ba9e69a3 in os::PlatformEvent::park() () from /root/file/jdk1.8.0_151/jre/lib/amd64/server/libjvm.so
+#2  0x00007f40ba9a71f7 in Monitor::IWait(Thread*, long) () from /root/file/jdk1.8.0_151/jre/lib/amd64/server/libjvm.so
+#3  0x00007f40ba9a7b16 in Monitor::wait(bool, long, bool) () from /root/file/jdk1.8.0_151/jre/lib/amd64/server/libjvm.so
+#4  0x00007f40ba69d093 in GCTaskManager::get_task(unsigned int) () from /root/file/jdk1.8.0_151/jre/lib/amd64/server/libjvm.so
+#5  0x00007f40ba69df28 in GCTaskThread::run() () from /root/file/jdk1.8.0_151/jre/lib/amd64/server/libjvm.so
+#6  0x00007f40ba9ed728 in java_start(Thread*) () from /root/file/jdk1.8.0_151/jre/lib/amd64/server/libjvm.so
+#7  0x00007f40bb89cdc5 in start_thread () from /lib64/libpthread.so.0
+#8  0x00007f40bb1b01cd in clone () from /lib64/libc.so.6
+
+......
+
+【查看java线程信息】
+jstack pid
+
+
+Full thread dump Java HotSpot(TM) 64-Bit Server VM (25.151-b12 mixed mode):
+
+"Attach Listener" #49 daemon prio=9 os_prio=0 tid=0x00007f4054001000 nid=0x17b7 waiting on condition [0x0000000000000000]
+   java.lang.Thread.State: RUNNABLE
+
+"http-nio-38080-AsyncTimeout" #47 daemon prio=5 os_prio=0 tid=0x00007f40b44e1000 nid=0x1403 waiting on condition [0x00007f40594d3000]
+   java.lang.Thread.State: TIMED_WAITING (sleeping)
+	at java.lang.Thread.sleep(Native Method)
+	at org.apache.coyote.AbstractProtocol$AsyncTimeout.run(AbstractProtocol.java:1170)
+	at java.lang.Thread.run(Thread.java:748)
+
+"http-nio-38080-Acceptor-0" #46 daemon prio=5 os_prio=0 tid=0x00007f40b440c800 nid=0x1402 runnable [0x00007f40595d4000]
+   java.lang.Thread.State: RUNNABLE
+	at sun.nio.ch.ServerSocketChannelImpl.accept0(Native Method)
+	at sun.nio.ch.ServerSocketChannelImpl.accept(ServerSocketChannelImpl.java:422)
+	at sun.nio.ch.ServerSocketChannelImpl.accept(ServerSocketChannelImpl.java:250)
+	- locked <0x00000005c96b4308> (a java.lang.Object)
+	at org.apache.tomcat.util.net.NioEndpoint$Acceptor.run(NioEndpoint.java:488)
+	at java.lang.Thread.run(Thread.java:748)
+	
+......
+
+
+

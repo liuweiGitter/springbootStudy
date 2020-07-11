@@ -1,0 +1,43 @@
+以centos7为例
+
+【安装编译工具及库文件】
+yum -y install make zlib zlib-devel gcc-c++ libtool  openssl openssl-devel
+
+【安装 PCRE】以8.35为例
+PCRE 作用是让 Nginx 支持 Rewrite 功能
+
+cd /usr/local/src/
+wget http://downloads.sourceforge.net/project/pcre/pcre/8.35/pcre-8.35.tar.gz
+
+tar zxvf pcre-8.35.tar.gz
+cd pcre-8.35
+
+./configure
+make && make install
+
+#验证
+pcre-config --version
+
+【安装nginx】以1.16.0为例
+
+cd /usr/local/src/
+wget http://nginx.org/download/nginx-1.16.0.tar.gz
+
+tar zxvf nginx-1.16.0.tar.gz
+cd nginx-1.16.0
+
+./configure --with-http_stub_status_module --with-http_ssl_module --with-pcre=/usr/local/src/pcre-8.35
+make && make install
+
+#默认安装到/usr/local/nginx目录下
+#验证
+/usr/local/nginx/sbin/nginx -v
+
+
+
+
+
+
+
+
+

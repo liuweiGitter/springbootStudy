@@ -85,27 +85,6 @@ spring提供了很多条件注解用于解决这类问题
 @ConditionalOnMissingClass(name = "fullPathOfAClass")
 
 
-【】
-
-另外还有以下等
-@ConditionalOnResource
-@ConditionalOnWebApplication
-@Autowired
-@Service
-@Repository
-@RestController
-@Controller
-@Param
-@RequestBody
-@PathVariable
-@RequestMapping
-@GetMapping
-@PostMapping
-@ResponseBody
-@等等注解
-
-微信公众号
-
 
 
 

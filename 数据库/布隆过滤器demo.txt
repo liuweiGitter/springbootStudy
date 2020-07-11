@@ -1,0 +1,98 @@
+import com.google.common.hash.BloomFilter;
+import com.google.common.hash.Funnels;
+import java.nio.charset.Charset;
+import java.util.HashSet;
+import java.util.Set;
+
+/**
+ * @author liuwei
+ * @date 2020-05-07 09:06
+ * @desc guava布隆过滤器应用
+ * 布隆过滤器是将一条数据的哈希函数映射到一个bit数组的某一个下标
+ * 下标的值为0，则该数据一定不存在过滤器中
+ * 下标的值为1，则该数据可能存在过滤器中，这是由于不同的数据可能存在哈希碰撞
+ * 误判率始终是存在的，bit数组越短越节省空间误判率越高，反之则相反，可以根据需要调整误判率参数
+ * 命中的数据有时可以根据业务逻辑甄别是否属于误判
+ *
+ * guava实现了布隆过滤器，在判断一条数据是否在过滤器中时，方法为mightContain，might这个单词本身就表明了可能的含义
+ * <dependency>
+ *      <groupId>com.google.guava</groupId>
+ *      <artifactId>guava</artifactId>
+ *      <version>28.0-jre</version>
+ * </dependency>
+ *
+ * 布隆过滤器主要用于海量数据的过滤(节省大量内存)，如网页URL的去重、垃圾邮件的判别、集合重复元素的判别、缓存穿透数据过滤等
+ * 对于少量数据的过滤，可以直接使用HashMap或HashSet
+ *
+ * 布隆过滤器除了误判之外的最大问题是，不能删除过滤器中的数据
+ * 举例来说，数据A起初在过滤器中，后来因条件变化等原因，需要从过滤器中剔除，但没办法实现
+ * 一个好的办法是建立临时删除白名单
+ */
+public class BTest {
+
+    //布隆容器过滤的数据期望的最大数量，超过也是允许的，但最好在限定数量内
+    private static int expectedSize = 1000;
+    //布隆过滤器的误判率，默认0.03，即百分之三
+    private static double fpp = 0.0001;
+    //布隆过滤器
+    private static BloomFilter<Integer> bloomFilter1 = BloomFilter.create(Funnels.integerFunnel(), expectedSize, fpp);
+    private static Charset charset = Charset.forName("UTF-8");
+    private static BloomFilter<String> bloomFilter2 = BloomFilter.create(Funnels.stringFunnel(charset), expectedSize, fpp);
+
+    /**
+     * 临时删除白名单
+     * 过滤器不能删除数据，但可以设立一个固定容量的set存储部分删除数据，即建立逻辑删除数据列表
+     * 在业务需要向布隆过滤器中添加数据时，需要同时清理白名单的脏数据(即逻辑删除恢复)，并实际物理恢复(持久化)这条数据
+     * 在业务需要删除(无论是否的确是)布隆过滤器中的某条数据时，需要在白名单中添加数据(即逻辑删除)，并实际物理删除(持久化)这条数据
+     * 如果过滤器添加数据很多&白名单很大，则清理效率会很低，因此，应限制白名单的大小(超出时强制更新过滤器或者丢弃)
+     *
+     * 在项目启动时或者定时任务或者预留接口，清空白名单，更新布隆过滤器，过滤器数据来源于持久化的数据集
+     * 根据需要也可以不持久化过滤数据，但提供清空白名单和过滤器的接口是必要的
+     *
+     * 以缓存穿透数据过滤(以下称为穿透过滤器，简称TF)为例，在不持久化过滤数据&使用临时删除白名单(简称TDL)时，整个过滤器的使用流程为：
+     * 查询数据时，先经过TF
+     * 1. TF未命中的数据，查询redis
+     * 1.1 if确认击穿，加入到缓存，并判断TF是否命中，如果命中，加入到TDL
+     * 1.2 if确认穿透，加入到TF，并入库穿透缓存库(简称TR)
+     * 1.3 if确认redis有数据，查询数据
+     * 2. TF命中的数据，查询TDL
+     * 2.1 TDL命中的数据，实际为TF未命中，跳转到步骤1
+     * 2.2 TDL未命中的数据，实际为TF命中，返回自定义的结果
+     */
+    private static Set<String> whiteSet = new HashSet<>();
+
+    public static void main(String[] args) {
+        //test(bloomFilter1,0);
+        test(bloomFilter2,1);
+    }
+
+    private static void test(BloomFilter bloomFilter, int type) {
+        int fppNum = 0;
+
+        if (type == 0) {
+            for (int i = 0; i < expectedSize; i++) {
+                bloomFilter.put(i);
+            }
+
+            for (int i = expectedSize; i < expectedSize+10000 ; i++) {
+                if (bloomFilter.mightContain(i)) {
+                    System.out.println("误命中：" + i);
+                    fppNum++;
+                }
+            }
+        }else{
+            for (int i = 0; i < expectedSize; i++) {
+                bloomFilter.put("字符串"+i);
+            }
+
+            for (int i = expectedSize; i < expectedSize+100000 ; i++) {
+                if (bloomFilter.mightContain("字符串"+i)) {
+                    System.out.println("误命中：字符串" + i);
+                    fppNum++;
+                }
+            }
+        }
+
+        System.out.println(">>>误命中率(万分之)：" + fppNum);
+    }
+}

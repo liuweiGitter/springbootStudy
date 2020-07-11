@@ -1,0 +1,77 @@
+【application配置文件】
+springboot配置文件可以使用yml格式和properties格式，默认命名分别为：application.yml、application.properties
+创建springboot项目时，通常将配置文件放置在"项目的resources目录下"
+实际上springboot约定了多个配置文件路径，当约定路径存在多个配置文件时，每一个文件都会被自动读取到，但有约定的顺序
+
+约定的文件位置和读取顺序为：
+注1：以下位置相对项目根目录
+特别备注2：即使配置了多个配置文件，如果在项目编译和打包时没有选择把配置文件打进去，也没用
+	编译时，springboot默认会①编译src/main/java下的源码②拷贝resources目录下的文件
+	到classes目录中，典型的源码和编译后代码结构为
+	xxx项目
+		src
+			main
+				java
+					xxx.java
+				resource
+					mapper
+						xxxMapper.xml
+					application.properties
+					application-local.properties
+					application-test.properties
+					application-prd.properties
+					logback-spring.xml
+					mybatis-config.xml
+					meta-data
+						json/properties等元数据文件
+
+		target
+			classes
+				com(或org等class文件目录)
+				mapper
+				application.properties
+				application-local.properties
+				application-test.properties
+				application-prd.properties
+				logback-spring.xml
+				mybatis-config.xml
+				meta-data
+					json/properties等元数据文件
+
+1、config/application.properties
+2、config/application.yml
+
+3、application.properties
+4、application.yml
+
+5、resources/config/application.properties
+6、resources/config/application.yml
+
+7、resources/application.properties
+8、resources/application.yml
+
+
+
+如果同一个目录下，有application.yml也有application.properties，默认先读取application.properties
+如果同一个配置属性，在多个配置文件都配置了，默认使用第1个读取到的，后面读取的不覆盖前面读取到的
+
+【logback配置文件】
+logback配置文件可以使用xml格式和groovy格式，约定的文件位置和读取顺序为：
+
+1、logback-test.groovy
+2、logback-test.xml
+3、logback.groovy
+4、logback.xml
+
+5、logback-test-spring.groovy
+6、logback-test-spring.xml
+7、logback-spring.groovy
+8、logback-spring.xml
+
+按顺序，只会读取到一个配置文件
+
+
+
+
+
+

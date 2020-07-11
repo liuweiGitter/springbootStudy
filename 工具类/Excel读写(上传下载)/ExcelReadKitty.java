@@ -1,5 +1,6 @@
 package com.jshx.zq.p2p.util;
 
+import com.jshx.zq.p2p.cleanup.ResourceClose;
 import com.jshx.zq.p2p.exception.BaseException;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.hssf.usermodel.*;
@@ -20,6 +21,7 @@ import java.util.*;
  *
  * 支持读取xls和xlsx文件
  * 支持指定sheet下标和row下标
+ * 支持连续读取多个sheet
  * 支持数字和日期时间的格式化
  * 支持excel公式的解析
  *
@@ -77,6 +79,13 @@ public class ExcelReadKitty {
     private int sheetIndex = DEFAULT_SHEET_INDEX;
     private int rowStartIndex = DEFAULT_ROW_INDEX;
 
+    /**
+     * 需要读取的起始和终止的sheet下标
+     * 注意，需要连续的下标，此配置意在支持多sheet页的读取
+     */
+    private int sheetIndexStart = sheetIndex;
+    private int sheetIndexEnd = sheetIndex;
+
     private Workbook workbook;
 
     //==================构造函数==================//
@@ -113,6 +122,19 @@ public class ExcelReadKitty {
     //指定读取的sheet页和起始行下标
     public ExcelReadKitty (int sheetIndex, int rowStartIndex) {
         dataIndex(sheetIndex, rowStartIndex);
+    }
+
+    /**
+     * 指定读取的起始sheet页、终止sheet页和起始行下标
+     * @param sheetIndexStart 起始sheet页下标
+     * @param sheetIndexEnd 终止sheet页下标
+     * @param rowStartIndex 起始行下标(默认第2行开始，即下标1)，必传，此参数的主要目的是重写构造函数
+     */
+    public ExcelReadKitty (int sheetIndexStart, int sheetIndexEnd, int rowStartIndex) {
+        if (rowStartIndex < 0){
+            rowStartIndex = 1;
+        }
+        dataIndex(sheetIndexStart, sheetIndexEnd, rowStartIndex);
     }
 
     //==================对象的连缀操作==================//
@@ -155,7 +177,30 @@ public class ExcelReadKitty {
 
     //指定读取的sheet页和起始行下标
     public ExcelReadKitty dataIndex(int sheetIndex, int rowStartIndex) {
+        if (sheetIndex < 0) {
+            sheetIndex = 0;
+        }
+        if (rowStartIndex < 0) {
+            rowStartIndex = 0;
+        }
         this.sheetIndex = sheetIndex;
+        this.rowStartIndex = rowStartIndex;
+        return this;
+    }
+
+    //指定读取的起始sheet页、终止sheet页和起始行下标
+    private ExcelReadKitty dataIndex(int sheetIndexStart, int sheetIndexEnd, int rowStartIndex) {
+        if (sheetIndexStart < 0) {
+            sheetIndexStart = 0;
+        }
+        if (sheetIndexEnd < 0) {
+            sheetIndexEnd = 0;
+        }
+        if (rowStartIndex < 0) {
+            rowStartIndex = 0;
+        }
+        this.sheetIndexStart = sheetIndexStart;
+        this.sheetIndexEnd = sheetIndexEnd;
         this.rowStartIndex = rowStartIndex;
         return this;
     }
@@ -164,9 +209,8 @@ public class ExcelReadKitty {
 
     /**
      * 读取excel
-     *
      * @param absolutePath 绝对路径
-     * @param keys         Map<sheet表列索引,列索引对应的key名称>，如2,city表示索引2列名称为city
+     * @param keys Map<sheet表列索引,列索引对应的key名称>，如2,city表示索引2列名称为city
      * @return
      */
     public List<Map<String, Object>> readExcel(String absolutePath, Map<Integer, String> keys) {
@@ -184,9 +228,8 @@ public class ExcelReadKitty {
 
     /**
      * 读取excel
-     *
      * @param absolutePath 绝对路径
-     * @param keyArr       列索引对应的key名称，顺序对应
+     * @param keyArr 列索引对应的key名称，顺序对应
      * @return
      */
     public List<Map<String, Object>> readExcel(String absolutePath, String[] keyArr) {
@@ -204,7 +247,6 @@ public class ExcelReadKitty {
 
     /**
      * 读取excel
-     *
      * @param file MultipartFile格式文件
      * @param keys Map<sheet表列索引,列索引对应的key名称>，如2,city表示索引2列名称为city
      * @return
@@ -218,8 +260,7 @@ public class ExcelReadKitty {
 
     /**
      * 读取excel
-     *
-     * @param file   MultipartFile格式文件
+     * @param file MultipartFile格式文件
      * @param keyArr 列索引对应的key名称，顺序对应
      * @return
      */
@@ -246,8 +287,7 @@ public class ExcelReadKitty {
                 throw new BaseException("excel tail error check which in (xls,xlsx)!");
             }
             //读取sheet
-            Sheet sheet = workbook.getSheetAt(sheetIndex);
-            readToList(sheet, keyArr, indexArr, list);
+            readSheets(keyArr, indexArr, list);
         } catch (IOException e) {
             LogAndThrowException.error("excel [" + fileName + "] read error !", e);
         } finally {
@@ -269,9 +309,23 @@ public class ExcelReadKitty {
             throw new BaseException("excel [" + absolutePath + "] read error!");
         }
         //读取sheet
-        Sheet sheet = workbook.getSheetAt(sheetIndex);
-        readToList(sheet, keyArr, indexArr, list);
+        readSheets(keyArr, indexArr, list);
         return list;
+    }
+
+    /**
+     * 读取多个sheet页
+     * 指定的sheet下标超过实际下标时，返回之前的sheet页
+     */
+    private void readSheets(String[] keyArr, Integer[] indexArr, List<Map<String, Object>> list){
+        int sheetNum = workbook.getNumberOfSheets();
+        for (int i = sheetIndexStart; i <= sheetIndexEnd; i++) {
+            if(sheetNum < i+1){
+                return;
+            }
+            Sheet sheet = workbook.getSheetAt(i);
+            readToList(sheet, keyArr, indexArr, list);
+        }
     }
 
     private void readToList(Sheet sheet, String[] keyArr, Integer[] indexArr, List<Map<String, Object>> list) {

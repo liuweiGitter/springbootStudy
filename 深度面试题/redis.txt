@@ -1,0 +1,557 @@
+【如何使用redis分布式锁？】
+redis的SETNX(SET if Not eXists)命令，在指定的key不存在时，为key设置指定的值，成功返回1，失败返回0
+redis本身是单线程的，并发redis请求会被串行处理，因此，多进程使用SETNX命令设置同一个key时，只会有一个进程设置成功
+使用分支判断，在成功执行到SETNX的分支中处理业务逻辑，在处理完业务逻辑后删除key
+对key设置合适的过期时间，避免异常造成key无法释放，产生永久性"死锁"
+
+集群中的定时任务、限调接口，都是需要分布式锁定的典型场景
+
+另一种典型的场景是对redis数据递增操作，如点击量统计，需要保证读写的原子性
+分布式锁是其中的一种解决方案，但不是最好的
+redis提供了incr自增api接口(这些api接口都是原子性的)，专门用来解决自变化问题
+
+【什么是缓存击穿？缓存击穿时如何避免并发流量涌入数据库？】
+>>初始化时未加载缓存，或缓存时间到期时，缓存中没有但数据库中有数据
+这时如果并发访问很多，由于缓存未命中，并发请求会同时去数据库取数据，对数据库造成瞬时的过大压力
+这种现象即是缓存击穿(击穿到数据库)
+>>一些热点数据在程序启动后即预加载，并适当延长过期时间，必要时永不过期
+在缓存未命中时，有两种解决方法：
+1.同步数据库查询操作，这可以让后续的请求命中缓存，而避免同一数据的多个请求同时访问数据库
+缺点则是，很难处理目标key的锁，上锁时多个线程需要共享同一把锁，会影响其它未命中数据的访问
+而且，如果是集群服务，不能处理多进程并发访问问题(不过，由于读操作的幂等性，不影响结果)
+2.使用redis分布式锁(锁的key和缓存的key同名，value为null)，获得锁的进程和线程来读写数据，其余进程和线程等待读缓存数据(等待时间根据需要自定义，不能太长)
+
+【什么是缓存穿透？如何解决穿透问题？】
+>>缓存和数据库中都没有数据，而用户不断发起请求，此时每次请求都会访问数据库，这种现象即缓存穿透(穿透了数据库)
+>>缓存穿透如果频繁出现，很有可能是遭到了攻击，数据库将承受很大压力
+首先应该对用户请求进行鉴权校验，防止非法用户请求
+其次对请求参数进行数据校验，如非空校验、非负校验等
+再次对于击穿的key值，在缓存中也存储，value取null值，转移数据库压力到缓存中
+在设置击穿key的缓存时，时间不能太短(以免频繁请求数据库)，也不能太长(以免有真实数据存储后也不能访问到)
+
+【什么是缓存雪崩？如何解决雪崩问题？】
+>>初始化时未加载缓存，或缓存中多条数据批量到了过期时间，此时如果查询请求过多，将对数据库造成很大压力，严重的甚至宕机，这种现象即缓存雪崩(大量击穿)
+和缓存击穿不同的是，缓存击穿指并发查同一条数据，缓存雪崩则是并发查询多条不同的数据
+>>一些热点数据在程序启动后即预加载，并适当延长过期时间，必要时永不过期
+缓存数据的过期时间在一定范围内随机设置，防止同一时间大量数据过期现象的发生
+
+【什么样的数据需要缓存？哪些数据需要缓存预热(预加载)？】
+>>
+缓存是会占内存的，内存是有限的
+那些访问不频繁，量又大的数据，则不需要也不应该缓存
+那些访问不频繁，但量少且很少改动的数据(如字典数据)，可以缓存
+那些访问频繁，量又少的数据，无论是否修改频繁，都需要缓存
+那些访问频繁，量又大的数据，无论是否修改频繁，都应该缓存，且缓存前应该尽量优化减少内存占用
+
+缓存目的是快速读取数据，避免每次都访问数据库，对数据库造成压力
+大量的频繁的读取会造成数据库很大的压力，因此这样的数据(也称为热点数据)无论是否修改频繁都需要缓存
+
+缓存是有过期时间的
+固定数据或改动较少的数据可以设置永不过期或者很长时间才过期
+频繁改动的数据，则需要设置短的过期时间，避免长期脏数据
+但频繁改动的数据基于业务需求需要缓存，但在理论上是不希望缓存的
+太短的过期时间会对redis造成压力，redis过期策略可能会造成内存中积累大量过期数据，降低redis系统容量和服务性能
+
+总结来说，缓存的过期时间需要谨慎选择
+不能太长导致长期脏数据
+也不能太短导致过期策略执行频繁，并且不应该出现缓存还没有被访问过就已经失效了这种情况
+理想的情况是既没有脏数据，又被访问了不少于2次
+
+>>项目启动后，将需要访问的数据在用户操作之前即加载到缓存中，此即为缓存预热
+热点数据应该进行缓存预热，避免并发数据库的请求压力
+如果数据量不大，可以在项目启动时同步加载
+如果数据量比较大，可以启动时异步加载
+根据需要，还可以定时更新缓存，必要时提供页面刷新接口供手动更新
+
+【缓存过期、淘汰和更新的策略有哪些？对应哪些应用场景？】
+①redis缓存过期删除策略
+redis可以对缓存添加过期时间，在缓存过期后并不会被立即删除，甚至可能会长期不被删除
+过期的数据什么时候被删除取决于redis和用户的行为
+
+redis过期策略是：定期删除+惰性删除
+两种策略是并行的
+没有对用户提供接口用以主动清除过期key，只能依赖于redis自身的策略
+
+>>定期(主动)删除，是指redis每隔(默认100ms)一定时间随机抽取一些(默认100个)设置了过期时间的 key，检查其是否过期，如果过期就删除
+以默认配置为例，定期删除过程如下：
+1.随机测试100个设置了过期时间的key
+2.删除所有发现的已过期的key
+3.若删除的key超过25个则重复步骤1
+4.每100ms重复一遍以上操作
+这种算法的目的是样本性地，将redis中已经过期的key控制在所有设置了过期的key的总量的25%以下
+
+定期删除的频率不应该过高，以防止过期数据的积累，也不能太低，以免频繁阻塞线程
+除了删除频率，redis还允许配置每次删除占用的最大时长，目的是为了避免长期阻塞线程
+
+由于样本的随机性，很多过期 key 可能不会被及时抽中，尤其是数据量很大时
+
+>>惰性(被动)删除，是指用户在获取某个设置了过期时间的 key 时，redis 会检查这个 key 是否已过期，如果过期了就删除，并返回空
+
+定期删除的随机性可能会漏掉很多过期的key
+惰性删除则需要用户主动去查询过期的key，很多时候用户短期内或者可能永远不会再去查询这些key
+因此当这两种策略都没有能够清除掉过期的key时，就会导致大量过期 key 堆积在内存里，降低整个系统的性能
+缓存中只存在少量有效数据，但内存占用很高，这就是典型的过期key积累现象，可以通过灰度重启redis服务恢复内存
+
+无论是过期key积累，还是实际写入的key过多，最终都可能引起redis内存耗尽
+当redis内存耗尽时会触发缓存淘汰行为
+
+②redis缓存淘汰策略
+redis的缓存数据存储在内存中，maxmemory参数限制了redis可以使用的最大内存空间，maxmemory-policy则指定了缓存淘汰策略
+0表示不限制，即可以用尽系统内存
+100mb表示可以使用100mb的内存
+10gb表示可以使用10gb的内存，当然，如果系统内存总共才8GB，则最多可以用尽系统内存
+
+当redis内存占满以后，就会根据一定的淘汰策略主动失效一部分老数据，为接下来的存储腾出部分空间，或者直接报错而不允许再写入数据
+注意，缓存淘汰是在内存满了以后的动作
+
+redis 3.0+ 支持的策略有6种:
+1.noeviction: 不删除策略, 达到最大内存限制时, 如果需要更多内存, 直接返回错误信息。
+2.allkeys-lru: 所有key通用; 优先删除最近最少使用(less recently used ,LRU) 的 key。
+3.volatile-lru: 只限于设置了 expire 的部分; 优先删除最近最少使用(less recently used ,LRU) 的 key。
+4.allkeys-random: 所有key通用; 随机删除一部分 key。
+5.volatile-random: 只限于设置了 expire 的部分; 随机删除一部分 key。
+6.volatile-ttl: 只限于设置了 expire 的部分; 优先删除剩余时间(time to live,TTL) 短的key。
+
+>>如果所有key都不设置 expire , 则策略1/3/5/6效果一样，都是不删除
+>>如果所有key都设置了 expire , 则策略2/3效果一样，4/5效果一样
+>>如果有些key是热点，另一些是冷数据，则策略2是更好的选择，策略3是次好的选择
+	实际上，如果需求中既有热数据也有冷数据，应该放在不同的redis实例中，即为热点数据单独启用redis(防止被意外淘汰)
+	如果没有独立的redis，建议策略3
+>>如果所有key热度差别不大，则策略4是更好的选择，策略5是次好的选择，一般来说热度差别不大时也都设置了expire，即4/5没有区别
+>>如果想按有效期余量删除，则选择策略6
+
+策略是内存占满之后的手段，由于redis是单线程的，淘汰数据时会阻塞用户的读写操作
+实际使用中应该合理规划缓存大小，业务数据尽量精简存储(尽量避免大集合大数据的存储)，以降低淘汰发生的频率
+
+lru是经常使用的淘汰策略，但redis实际采用的并不是绝对lru算法，而是近似lru算法
+很显然，绝对lru需要从全量缓存数据中筛选，占用大量内存、效率低且会长期阻塞线程
+近似lru算法则是维持一个样本池，池中存储少量的 key 样本, 在这个样本空间中执行lru策略
+
+③业务层的更新策略
+缓存可以设置永久不过期，也可以设置过期时间
+无论哪一种，都存在一种情况，缓存尚生效但和数据库不一致，一些强一致性(或及时一致性)的场景，需要主动更新缓存(而不是依赖缓存的失效重载)
+
+在数据库删除数据时，无论哪种情况，都需要同步删除缓存数据
+在数据库修改数据时则有不同的方案
+	对于强一致性要求的缓存数据，需要同步更新缓存
+	对于及时一致性要求的缓存数据，可以在定时任务中更新缓存
+		定时更新缓存存在的问题是，即使数据并不需要更新也不能简单过滤掉，只能全量更新，在数据量比较多而变动又比较少时效率很低(此时应同步更新缓存)
+
+
+【缓存降级】
+当并发访问量增加、服务宕机、网络异常等情况发生时，用户可能长期得不到或者根本得不到数据响应
+等待连接池资源、发起连接、等待响应等过程的，超时时间是可以配置的，超时后将分别返回相应错误
+一般情况下，系统可以全局捕获这些异常，经过处理后返回给用户错误信息(或者直接访问数据库，但不建议，如果缓存服务长期不可用可能会造成数据库雪崩)
+然而，有些服务并不希望跳出异常信息或者响应空白数据，而是希望在发生错误时有默认数据可以展示
+在页面上，可以根据约定填充默认数据
+但也可以在服务端直接响应默认数据
+提供默认数据本质上是对服务的降级，服务可用，但有损
+
+如果系统中存在需要访问缓存的核心服务A和普通服务B，在缓存可用但并发增加时，希望优先保证服务A
+此时需要对服务B进行降级，而不是无差别降级
+有差别的降级，需要一个独立的线程不断监听缓存服务的响应速度(如连续3次的平均响应时间、是否响应异常等)，并在系统中标记缓存的traffic状态，各服务根据状态选择自己是否需要直接降级(可以通过切面实现)
+除了系统自动监听自动降级之外，也可以提供开关接口(人工修改traffic状态)，实现人工降级和恢复
+
+如果服务的优先级别有很多个，服务降级应该一层层下降，而不是全部下降，此时需要维持一个降级passLevelUp
+举例来说，系统中有5个服务优先级，从低到高分别为1/2/3/4/5，初始时passLevelUp为0，不高于passLevelUp的优先级将被降级
+现在traffic拥堵，passLevelUp提升到1，则level1服务被降级，如果降级后traffic还拥堵，则升级到2，类推，直到升级到最高级5
+降级是一层层的，恢复也是层层恢复
+现在traffic通畅，passLevelUp减一，如果还通畅，继续减一，类推，直到降低到最低级0
+可能存在一种情况，passLevelUp==3时拥堵，passLevelUp==4时通畅，则passLevelUp会在3和4之间不断切换
+
+服务降级后可以通过告警系统，邮件、短信等方式通知管理员
+
+【redis事务】
+redis的每一个api操作都是原子性的，不需要添加事务，这是由于redis是单线程的
+批量的api操作不是原子性的，需要添加事务，不过redis的事务并不同于关系型数据库的事务
+redis不支持回滚，在事务失败时根据失败的原因不同有不同的操作
+1.如果在一个事务中的命令出现语法错误，则所有的命令都不会执行
+2.如果在一个事务中出现运行错误，则根据设置，整个事务内所有正确的命令或者错误之前的所有正确的命令，会被执行
+
+redis事务不能保证批量操作的原子性，很多时候这是允许的
+毕竟，如果只是部分数据没有被写入、修改、删除，在用户访问时可以读数据库，可以等待缓存过期后自动清除
+然而有些时候要求批量操作的原子性，此时可以通过lua脚本实现
+lua脚本相当于redis的一个虚拟api，会全部执行或全部回滚
+
+redis事务是通过MULTI、EXEC、DISCARD和WATCH四个原语实现的
+1）MULTI：用于开启一个事务，它总是返回OK 
+MULTI执行之后，客户端可以继续向服务器发送任意多条命令，这些命令不会立即被执行，而是被放到一个队列中
+当EXEC命令被调用时，所有队列中的命令才会被执行
+2）EXEC：执行所有事务块内的命令
+返回事务块内所有命令的返回值，按命令执行的先后顺序排列，当操作被打断时，返回空值nil
+3）DISCARD：清空事务队列，并放弃执行事务，并且客户端会从事务状态中退出
+DISCARD只是结束本次事务，在此之前正确命令造成的影响仍然存在
+4）WATCH：为redis事务提供 check-and-set （CAS）行为
+可以监控一个或多个键，一旦其中有一个键被修改（或删除），之后的事务就不会执行
+
+通常生产环境的redis都是集群或者主从
+对于主从由于读写分离，只在主机写入，因此事务的情况和单机一样
+对于集群则不然
+集群的分布式算法是hash槽分片，多个key会分散到多个redis实例中存储，也就是说在批量写入key的时候，实际是跨进程的
+跨进程的操作实际是需要分布式事务的，redis集群不具备这个功能，因此对集群redis使用事务是无效的
+
+
+【redis的并发安全性和效率】
+redis是线程安全的，原因在于redis本身是单线程的
+redis是高效的
+	一是基于内存的操作(读写速度非常快)
+	二是单线程避免了不必要的上下文切换
+	三是虽然单线程但采用了非阻塞I/O多路复用机制，也就是说，虽然单线程但可以同时监听(注意，是并发监听而不是并发处理)多个客户端请求，安全高效兼顾
+
+redis为什么是单线程的？
+由于内存存储数据，redis的瓶颈最有可能是机器内存的大小或者网络带宽，而不是CPU
+既然CPU的要求并不高，而单线程相比多线程更容易实现且避免了不必要的上下文切换
+因此redis选择了单线程方案，redis利用队列技术将并发访问变为串行访问
+
+【redis持久化机制】
+redis是一个支持数据持久化的内存数据库
+通过持久化机制把内存中的数据同步到硬盘文件中
+当redis重启后通过把硬盘文件重新加载到内存，就能达到恢复数据的目的
+
+>>RDB(redis DataBase)：
+redis默认的持久化方式
+rdb文件默认是经过压缩（rdbcompression yes，也可以根据需要禁用压缩以节省CPU占用）的二进制文件
+redis按照一定的时间周期策略把内存的数据以Snapshot快照的形式保存到硬盘的二进制文件dump.rdb中
+配置文件中的save <seconds> <changes>参数用以定义快照的周期，默认配置为：
+save 900 1
+save 300 10
+save 60 10000
+即每分钟有不少于10000个key修改时，或每5分钟有不少于10个key修改时，或每15分钟有不少于1个key修改时，快照一次(并替换上一次的旧快照文件)
+此处的修改是广义的，包括修改和删除
+
+rdb快照的实现过程为：
+1.redis使用fork函数复制一份当前进程（父进程）的副本（子进程）
+2.父进程继续接收并处理客户端发来的命令，而子进程开始(当有数据变动时，即父进程增删改数据时才会)将内存中的数据写入硬盘中的临时文件
+3.当子进程写入完所有数据后会用该临时文件(RDB文件总是完整的，不会直接修改，而是使用临时文件替换)替换旧的RDB文件，至此一次快照操作完成
+
+除了自动快照，还可以手动发送SAVE或BGSAVE命令让redis执行快照，前者是由主进程进行快照操作，会阻塞住其他请求，后者会通过fork子进程进行快照操作
+ 
+redis启动后会读取RDB快照文件，将数据从硬盘载入到内存，根据数据量大小与结构和服务器性能不同，这个时间可能在几秒钟到几分钟之间
+
+通过RDB方式实现持久化，一旦redis异常退出，就会丢失最后一次快照以后更改的所有数据
+这就需要开发者根据具体的应用场合，通过组合设置自动快照条件的方式来将可能发生的数据损失控制在能够接受的范围
+如果数据很重要以至于无法承受任何损失，则可以考虑使用AOF方式进行持久化
+
+>>AOF(Append Only File)：
+redis可以(not一定会)将每一个接收到的写命令通过Write函数追加到文件最后，类似于MySQL的binlog
+aof可以同步持久化每一条数据，也可以每隔一定时间持久化一次数据
+#appendfsync always 每次执行写入都会执行同步，最安全也最慢
+#appendfsync everysec 每秒执行一次同步操作
+#appendfsync no 不主动进行同步操作，而是完全交由操作系统来做（即每30秒一次），最快也最不安全
+也就是说aof可以保证数据的绝对安全，但需要正确的配置
+当aof选择定期持久化数据时，行为实际和rdb是没有区别的，但效率会比rdb低一些，因此，如果没有绝对的安全必要，建议使用rdb持久化数据
+
+当redis重启时会通过执行文件中保存的写命令来在内存中重建整个数据库
+AOF默认不开启，默认配置为：
+appendonly no
+appendfilename "appendonly.aof"
+
+当两种方式同时开启时，redis会优先选择AOF恢复数据
+
+【redis线程模型】
+套接字的事件包括连接应答（accept）、读取（read）、写入（write）、关闭（close）等
+这些事件又称为文件事件
+I/O多路复用程序可以同时监听多个套接字，并向文件事件分派器传送那些产生了事件的套接字
+尽管多个文件事件可能会并发地出现，但I/O多路复用程序总是会将所有产生事件的套接字都入队到一个队列里面
+这个队列以有序、同步(因为单线程)、每次一个套接字的方式向文件事件分派器传送套接字
+ 
+当上一个套接字产生的事件全部被处理完毕之后，I/O多路复用程序才会继续向文件事件分派器传送下一个套接字
+
+【redis集群类型】
+redis有三种集群方式：主从复制、哨兵模式和分片集群
+
+【redis主从】
+redis主从复制，(有且只有)一个主数据库master，一个或多个从数据库slave，一个主库可以有多个从库，一个从库只能对应一个主库
+主数据库可以进行读写操作，当发生写操作的时候自动将数据同步到从数据库
+从数据库可以但不应该允许写操作(因为一个从库只能对应一个主库，其它从库没办法同步另一个同胞从库的数据)
+从库通常应该设置为只读(默认就是只读，可以通过slave-read-only设置)，并接收主库同步过来的数据
+通过slaveof/replicaof <host> <port>命令，或者配置文件slaveof/replicaof参数，可以指定当前服务器（slave）复制指定服务器（master）的内容
+
+主库读写，从库只读，在一定程度上实现了读写分离
+在主从复制模式下，如果master宕机了，slave是不能变为主服务器进行写操作的，整个集群不再能够进行写操作
+
+主从集群最典型的结构是
+master
+	slave1
+	slave2
+除此之外，主从结构是可以级联的，一个从库还可以有自己的从库，典型结构是
+master
+	slave1
+	slave2
+		slave2_1
+		slave2_2
+
+>>主从复制原理
+主要过程分为2个阶段：建立连接、数据同步
+
+1.建立连接
+从库根据配置文件向主库发起socket连接
+创建连接后根据主库的配置，可能还需要进行身份验证
+
+2.数据同步
+从服务器向主服务器发送SYNC命令，开始从主服务器同步数据
+同步方式分为全量同步和增量同步，系统自动决定同步方式
+当slave首次连上master，或者主从断线重连以后，即slave初始化时，可能(not一定)会进行全量同步
+当全量同步以后，主从持续连接过程中，即slave初始化以后，会进行增量同步
+
+由于全量同步很低效，实际上，从库任何时候首先会询问是否可以进行增量同步，如增量条件不满足，才会进行全量同步
+当然，如果有需要，slave在任何时候都可以发起全量同步
+
+master服务器内存中给每个slave服务器维护了一份同步日志和同步标识
+每个slave服务器在跟master服务器进行同步时都会携带自己的同步标识和上次同步的最后位置
+slave服务器定期(默认每隔1秒)主动尝试和master服务器进行连接和数据同步
+如果slave服务器携带的偏移量标识和master服务器的同步备份日志匹配，则进行增量同步，否则，进行全量同步
+
+2.1全量同步
+从服务器向主服务器发送SYNC命令
+主服务器接收到SYNC命名后，开始执行BGSAVE命令生成RDB文件并使用缓冲区记录此后执行的所有写命令 
+主服务器BGSAVE执行完后，向所有从服务器发送快照文件，并在发送期间继续记录被执行的写命令
+从服务器收到快照文件后丢弃所有旧数据，载入收到的快照；
+主服务器快照发送完毕后开始向从服务器发送缓冲区中的写命令；
+从服务器完成对快照的载入，开始接收命令请求，并执行来自主服务器缓冲区的写命令
+
+2.2增量同步
+全量同步完成以后，进行增量同步
+主服务器每执行一个写命令就会向从服务器发送相同的写命令，从服务器接收并执行收到的写命令
+
+redis主从复制默认是fork子进程异步的，既不会阻塞主库也不会阻塞从库，也就是主从同步时不影响主库的读写以及从库的读请求
+
+slave服务器上过期键的清理，实际是由master发起的(但应该是没必要的)
+master将相关删除命令以数据同步的方式同步给slave服务器，slave服务器根据删除命令删除本地的key
+
+>>优点
+1.数据冗余，实现了数据的热备
+2.故障恢复，单点故障不影响整个服务的可用性(master故障除外)
+3.读写分离，负载均衡，减轻了读压力，提高了服务器的并发容量
+
+>>缺点
+1.主库宕机后系统不可再写入数据，如果未及时持久化数据，主库恢复时也会有数据丢失，如果未及时同步数据，从库存在脏数据
+2.扩容困难，集群的容量实际为单机的容量，且由于只有主库允许写入，不能随时对主库在线停机扩容
+
+>>注意事项
+由于slave启动或者重连时会进行全量同步，如果多个slave断线且同时重启，可能会导致master IO剧增宕机，应避免这种情况
+
+redis支持数据持久化，默认也是开启持久化的，以备宕机恢复数据(如果不开启持久化，重启后redis将会是空的，从库也会跟着同步到空数据)
+
+如果需要宕机后自动恢复服务，可以设置redis服务开机启动
+
+默认情况下，一个全量同步需要在磁盘上创建一个RDB文件，然后加载这个文件向从服务器发送数据
+通过RDB文件同步的好处是，主服务挂掉以后可以恢复较新的数据，但缺点是同步速度会较慢
+子进程也可以直接将RDB通过网络发送给从服务器，而不使用磁盘作为中间存储，可以称为无磁盘复制(通过repl-diskless-sync配置)
+
+默认情况下，写入操作只要得到主库确认即认为成功
+redis主从复制是异步的且不需要确认的，不能确保从服务器确实收到了要写入的数据，所以从库存在一定的数据丢失可能性
+如果需要保障从库的增量同步强一致性，可以设置写入操作得到主库和所有(也可以部分)从库的确认后才认为成功，但效率会很低，确实必需时可以这样设置
+
+【redis哨兵】
+主从复制模式下，当主库服务中断后，需要手动重启主库
+redis为此在主从复制的基础上提供了哨兵sentinel模式，实现了自动化的系统监控和故障恢复功能
+哨兵模式==主从集群+哨兵
+哨兵模式-哨兵==主从集群
+极端情况下，如果所有哨兵都没有启动或者都挂掉，则哨兵模式就退化成了主从模式
+
+哨兵的作用主要有2个：
+1.监控主服务器和从服务器是否正常运行
+2.主服务器出现故障时自动将从服务器转换为主服务器
+
+典型的哨兵集群是，一主两从三哨兵
+启动顺序的要求是，先启动主从服务，后启动哨兵监听服务
+通常，哨兵数应不低于3个，以提高哨兵侦测结果的客观性
+在设计上，一个哨兵认为服务下线是主观下线，而多个哨兵同时认为服务下线是客观下线
+
+>>工作原理
+默认情况下，每个sentinel进程以每秒钟一次的频率向整个集群中的master、slave以及其他sentinel进程发送一个PING命令
+如果一个实例instance距离最后一次有效回复PING命令的时间超过 down-after-milliseconds 选项所指定的值(默认30000即30秒)，
+则这个实例会被sentinel进程标记为主观下线SDOWN
+如果足够数量的sentinel进程标记一个实例为SDOWN，则这个实例会被标记为客观下线ODOWN
+
+在一般情况下，每个sentinel进程会以每10秒一次的频率向整个集群中的master、slave服务器发送INFO命令
+当master主服务器被sentinel进程标记为客观下线ODOWN时，sentinel进程发送INFO命令的频率会增加到每秒一次
+如果足够数量的sentinel进程投票同意master服务下线，则master服务被实际下线，否则，master服务的客观下线状态就会被移除
+当master服务实际下线后，sentinel集群会自动选举某个表现良好的服务作为新的master服务，此时哨兵会重写哨兵配置文件记录最新的master
+如果在指定时间内(sentinel failover-timeout，默认3分钟)，无法选举并切换到新的master服务(比如集群中所有的redis实例都宕机了)，则认为整个集群出现了故障
+
+在master服务实际下线之前
+若master服务重新对sentinel进程发送的PING命令返回有效回复，master服务的主观下线状态就会被移除
+如果足够数量的sentinel进程移除了master的主观下线标记，则master恢复为正常状态
+在master服务实际下线之后
+若原master恢复服务，则变为slave服务加入主从集群
+
+>>优点
+1.哨兵模式是基于主从模式的，具备主从模式的所有优点
+2.主从可以自动切换，提高了系统的可用性
+
+>>缺点
+1.主库宕机后如果未及时持久化数据，主库恢复时也会有数据丢失，如果未及时同步数据，从库以及新选举的主库都会存在脏数据
+2.扩容困难，集群的容量实际为单机的容量，虽然可以在合适的时机对主库在线停机扩容，但容量瓶颈仍为单机限制
+
+【redis集群】
+redis哨兵模式实现了redis集群的读写分离、冗余备份和高可用
+不过，哨兵模式下每台redis服务器都存储相同的数据，浪费内存，且难以扩展系统容量
+
+redis为此提供了cluster集群模式，实现了缓存数据的分布式存储(每台redis节点上存储不同的内容)
+
+ Redis-Cluster采用无中心结构,它的特点如下：
+
+所有的redis节点彼此互联(PING-PONG机制),内部使用二进制协议优化传输速度和带宽。
+
+节点的fail是通过集群中超过半数的节点检测失效时才生效。
+
+客户端与redis节点直连,不需要中间代理层.客户端不需要连接集群所有节点,连接集群中任何一个可用节点即可。
+
+>>工作方式
+
+在redis的每一个节点上，都有这么两个东西，一个是插槽（slot），它的的取值范围是：0-16383。
+还有一个就是cluster，可以理解为是一个集群管理的插件。
+当我们的存取的key到达的时候，
+redis会根据crc16的算法得出一个结果，然后把结果对 16384 求余数，
+这样每个 key 都会对应一个编号在 0-16383 之间的哈希槽，
+通过这个值，去找到对应的插槽所对应的节点，然后直接自动跳转到这个对应的节点上进行存取操作。
+
+为了保证高可用，redis-cluster集群引入了主从模式，一个主节点对应一个或者多个从节点，
+当主节点宕机的时候，就会启用从节点。当其它主节点ping一个主节点A时，如果半数以上的主节点与A通信超时，
+那么认为主节点A宕机了。如果主节点A和它的从节点A1都宕机了，那么该集群就无法再提供服务了。
+
+
+
+【redis数据备份和恢复】
+【redis管道和脚本】
+【redis数据结构】
+
+【redis的实际应用】
+点赞、共同好友、发布--订阅等等
+【更新、删除数据时是先redis还是先数据库】
+【缓存删除时主从和集群的行为】
+https://blog.csdn.net/Butterfly_resting/article/details/89668661
+
+
+vue开发
+小程序、微信公众号
+
+
+除了主应用
+172.16.27.47   1521
+
+主应用：172.16.27.45  1521
+
+实例   oracleSid
+
+http://132.228.169.171:8001/ida/axis/services/AsigAxisService?wsdl
+
+
+
+<wsdl:definitions targetNamespace="http://service.regaltec.com" xmlns:impl="http://service.regaltec.com" xmlns:intf="http://service.regaltec.com" xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/" xmlns:wsdlsoap="http://schemas.xmlsoap.org/wsdl/soap/" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <wsdl:types>
+    <schema elementFormDefault="qualified" targetNamespace="http://service.regaltec.com" xmlns="http://www.w3.org/2001/XMLSchema" xmlns:impl="http://service.regaltec.com" xmlns:intf="http://service.regaltec.com" xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+		<element name="executeXML">
+		 <complexType>
+		  <sequence>
+		   <element name="inXmlString" nillable="true" type="xsd:string"/>
+		  </sequence>
+		 </complexType>
+		</element>
+		<element name="executeXMLResponse">
+		 <complexType>
+		  <sequence>
+		   <element name="executeXMLReturn" nillable="true" type="xsd:string"/>
+		  </sequence>
+		 </complexType>
+		</element>
+ 		<element name="call">
+ 			<complexType>
+ 				<sequence>
+  					<element name="inXmlString" nillable="true" type="xsd:string"/> 
+  				</sequence>
+  			</complexType>
+		</element>
+		<element name="callResponse">
+ 			<complexType>
+ 				<sequence>
+  					<element name="callReturn" nillable="true" type="xsd:string"/> 
+  				</sequence>
+  			</complexType>
+  		</element>
+	</schema>
+  </wsdl:types>
+  <wsdl:message name="executeXMLRequest">
+	<wsdl:part element="impl:executeXML" name="parameters"/> 
+  </wsdl:message>
+  <wsdl:message name="executeXMLResponse">
+	<wsdl:part element="impl:executeXMLResponse" name="parameters"/> 
+  </wsdl:message>
+  
+  <wsdl:message name="callRequest">
+  	<wsdl:part element="impl:call" name="parameters"/> 
+  </wsdl:message>
+  <wsdl:message name="callResponse">
+  	<wsdl:part element="impl:callResponse" name="parameters"/> 
+  </wsdl:message>
+  
+  <wsdl:portType name="AsigAxisService">
+    <wsdl:operation name="executeXML">
+      <wsdl:input message="impl:executeXMLRequest" name="executeXMLRequest"/>
+      <wsdl:output message="impl:executeXMLResponse" name="executeXMLResponse"/>
+    </wsdl:operation>
+
+    <wsdl:operation name="call">
+		<wsdl:input message="impl:callRequest" name="callRequest"/> 
+  		<wsdl:output message="impl:callResponse" name="callResponse"/> 
+  	</wsdl:operation>
+  </wsdl:portType>
+
+  <wsdl:binding name="AsigAxisServiceSoapBinding" type="impl:AsigAxisService">
+    <wsdlsoap:binding style="document" transport="http://schemas.xmlsoap.org/soap/http"/>
+    <wsdl:operation name="executeXML">
+      <wsdlsoap:operation soapAction=""/>
+      <wsdl:input name="executeXMLRequest">
+        <wsdlsoap:body use="literal"/>
+      </wsdl:input>
+      <wsdl:output name="executeXMLResponse">
+        <wsdlsoap:body use="literal"/>
+      </wsdl:output>
+    </wsdl:operation>
+    
+	<wsdl:operation name="call">
+  		<wsdlsoap:operation soapAction=""/> 
+ 		<wsdl:input name="callRequest">
+  			<wsdlsoap:body use="literal"/> 
+  		</wsdl:input>
+ 		<wsdl:output name="callResponse">
+  			<wsdlsoap:body use="literal"/> 
+  		</wsdl:output>
+	</wsdl:operation>
+  </wsdl:binding>
+  <wsdl:service name="AsigAxisServiceService">
+    <wsdl:port binding="impl:AsigAxisServiceSoapBinding" name="AsigAxisService">
+      <wsdlsoap:address location="http://132.228.169.171:8001/ida/axis/services/AsigAxisService"/>
+    </wsdl:port>
+  </wsdl:service>
+</wsdl:definitions>
+
+
+<soapenv:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" 
+xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:urn="http://service.regaltec.com">
+    <soapenv:Header/>
+    <soapenv:Body>
+        <urn:AsigAxisService  soapenv:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">
+            <param xsi:type="xsd:string"><![CDATA[<?xml version="1.0" encoding="GBK" ?><SERVICE>
+<IDA_SVR_SA>
+<CALL_METHOD>saBillInfoForZZ</CALL_METHOD>
+<INPUT_XMLDATA>
+      <bill_sn>20200518147542</bill_sn>
+</INPUT_XMLDATA>
+</IDA_SVR_SA>
+</SERVICE>]]></param>
+        </urn:AsigAxisService >
+    </soapenv:Body>
+</soapenv:Envelope>
+
+
+
+
+
+
+
+
+
+

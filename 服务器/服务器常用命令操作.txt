@@ -14,6 +14,8 @@ firewall-cmd --query-port=8080/tcp
 firewall-cmd --permanent --add-port=80/tcp
 移除端口
 firewall-cmd --permanent --remove-port=8080/tcp
+移除一个规则
+firewall-cmd --permanent --remove-rich-rule="rule family="ipv4" source address="10.0.5.0/24" port protocol="tcp" port="10050" accept"
 重启防火墙(修改配置后要重启防火墙)
 firewall-cmd --reload
 
@@ -45,7 +47,8 @@ create database zqp2p;
 create database `xxl-job`;
 
 创建用户
-create user zqp2p1 identified by 'V#HliG#p';
+create user zqp2p1;
+alter user 'zqp2p1'@'%' IDENTIFIED WITH mysql_native_password BY 'V#HliG#p';
 
 数据库授权
 grant SELECT, INSERT, UPDATE, DELETE, CREATE, DROP on zqp2p.* to zqp2p1@'%';
@@ -101,6 +104,17 @@ ORDER BY data_length DESC
 替换字符串
 SELECT replace('字段名','子串','新的子串，可以是空内容') 字段名 FROM 表;
 update 表 set 字段名 = replace('字段名','子串','新的子串，可以是空内容') where 条件;
+
+修改root用户密码
+drop user 'root'@'locahost';
+drop user 'root'@'%';
+create user 'root'@'locahost';
+alter user 'root'@'locahost' IDENTIFIED WITH mysql_native_password BY 'JShx@9527';
+create user 'root'@'%' IDENTIFIED BY 'JShx@9527';
+alter user 'root'@'%' IDENTIFIED WITH mysql_native_password BY 'JShx@9527';
+grant all privileges on *.* to 'root'@'locahost';
+--root账户不开放远程访问权限
+flush privileges;
 
 【nginx
 启动
@@ -233,6 +247,18 @@ tar -zxf xxx.tgz -C xxx/xxx
 拷贝文件
 #拷贝整个文件夹
 cp -r xxx xxx
+
+查看开机启动服务
+systemctl list-unit-files |grep enabled
+
+设置开机启动
+systemctl enable xxx
+#如果不能设置，会报错类似以下信息Failed to enable unit: Unit file xxx.service does not exist.
+
+
+
+
+
 
 【ftp
 登录

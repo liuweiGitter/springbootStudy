@@ -1,0 +1,22 @@
+1.下载mysql安装tar.xz包
+https://dev.mysql.com/downloads/mysql/
+进入MySQL Community Server下载页面，选择Linux - Generic (glibc 2.12) (x86, 64-bit)系统
+下载Compressed TAR Archive即压缩的tar包，如mysql-8.0.19-linux-glibc2.12-x86_64.tar.xz
+
+2.安装压缩包
+指定目录安装，通常安装在/usr/local下，也可以自定义路径，本文以安装在/database/server下为例
+cd /database/server
+
+tar.xz包的解压命令为
+tar -Jxf mysql-8.0.19-linux-glibc2.12-x86_64.tar.xz
+
+解压后，修改名称为mysql
+mv mysql-8.0.19-linux-glibc2.12-x86_64 mysql
+
+创建数据存放目录，存放mysql数据，本文以数据存放在/database/data/mysql下为例
+mkdir -p /database/data/mysql
+
+修改mysql配置文件，指向存储路径
+cd /database/server/mysql
+vim my.cfg
+待续，mycfg的具体目录以及配置，参考智慧政支数据库

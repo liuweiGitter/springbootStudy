@@ -1,0 +1,157 @@
+【查看磁盘信息】
+>fdisk -l
+
+磁盘 /dev/sdb：536.9 GB, 536870912000 字节，1048576000 个扇区
+Units = 扇区 of 1 * 512 = 512 bytes
+扇区大小(逻辑/物理)：512 字节 / 512 字节
+I/O 大小(最小/最佳)：512 字节 / 512 字节
+磁盘标签类型：dos
+磁盘标识符：0x5f17c551
+
+设备 Boot      Start         End      Blocks   Id  System
+/dev/sdb1            2048   419432447   209715200   83  Linux
+
+磁盘 /dev/sda：161.1 GB, 161061273600 字节，314572800 个扇区
+Units = 扇区 of 1 * 512 = 512 bytes
+扇区大小(逻辑/物理)：512 字节 / 512 字节
+I/O 大小(最小/最佳)：512 字节 / 512 字节
+磁盘标签类型：dos
+磁盘标识符：0x0005d409
+
+设备 Boot      Start         End      Blocks   Id  System
+/dev/sda1   *        2048     1026047      512000   83  Linux
+/dev/sda2         1026048   146800639    72887296   8e  Linux LVM
+
+磁盘 /dev/mapper/rhel-root：45.1 GB, 45055213568 字节，87998464 个扇区
+Units = 扇区 of 1 * 512 = 512 bytes
+扇区大小(逻辑/物理)：512 字节 / 512 字节
+I/O 大小(最小/最佳)：512 字节 / 512 字节
+
+
+磁盘 /dev/mapper/rhel-swap：7516 MB, 7516192768 字节，14680064 个扇区
+Units = 扇区 of 1 * 512 = 512 bytes
+扇区大小(逻辑/物理)：512 字节 / 512 字节
+I/O 大小(最小/最佳)：512 字节 / 512 字节
+
+
+磁盘 /dev/mapper/rhel-home：22.0 GB, 21999124480 字节，42967040 个扇区
+Units = 扇区 of 1 * 512 = 512 bytes
+扇区大小(逻辑/物理)：512 字节 / 512 字节
+I/O 大小(最小/最佳)：512 字节 / 512 字节
+
+【查看分区挂载情况】
+>df -h
+
+文件系统               容量  已用  可用 已用% 挂载点
+/dev/mapper/rhel-root   42G   38G  4.2G   91% /
+devtmpfs                16G     0   16G    0% /dev
+tmpfs                   16G   84K   16G    1% /dev/shm
+tmpfs                   16G   98M   16G    1% /run
+tmpfs                   16G     0   16G    0% /sys/fs/cgroup
+/dev/sda1              497M  140M  358M   29% /boot
+/dev/mapper/rhel-home   21G  738M   20G    4% /home
+tmpfs                  3.2G   16K  3.2G    1% /run/user/42
+tmpfs                  3.2G     0  3.2G    0% /run/user/0
+tmpfs                  3.2G     0  3.2G    0% /run/user/1000
+/dev/sdb1              197G  842M  186G    1% /loveu
+
+>lsblk
+NAME          MAJ:MIN RM  SIZE RO TYPE MOUNTPOINT
+fd0             2:0    1    4K  0 disk 
+sda             8:0    0  150G  0 disk 
+|-sda1          8:1    0  500M  0 part /boot
+`-sda2          8:2    0 69.5G  0 part 
+  |-rhel-root 253:0    0   42G  0 lvm  /
+  |-rhel-swap 253:1    0    7G  0 lvm  [SWAP]
+  `-rhel-home 253:2    0 20.5G  0 lvm  /home
+sdb             8:16   0  500G  0 disk 
+`-sdb1          8:17   0  200G  0 part /loveu
+sr0            11:0    1  352K  0 rom
+
+【切入磁盘并查看命令帮助】
+>fdisk /dev/sdb
+
+Welcome to fdisk (util-linux 2.27.1).
+Changes will remain in memory only, until you decide to write them.
+Be careful before using the write command.
+
+
+Command (m for help):m
+
+Help:
+
+  DOS (MBR)
+   a   toggle a bootable flag
+   b   edit nested BSD disklabel
+   c   toggle the dos compatibility flag
+
+  Generic
+   d   delete a partition
+   F   list free unpartitioned space
+   l   list known partition types
+   n   add a new partition
+   p   print the partition table
+   t   change a partition type
+   v   verify the partition table
+   i   print information about a partition
+
+  Misc
+   m   print this menu
+   u   change display/entry units
+   x   extra functionality (experts only)
+
+  Script
+   I   load disk layout from sfdisk script file
+   O   dump disk layout to sfdisk script file
+
+  Save & Exit
+   w   write table to disk and exit
+   q   quit without saving changes
+
+  Create a new label
+   g   create a new empty GPT partition table
+   G   create a new empty SGI (IRIX) partition table
+   o   create a new empty DOS partition table
+   s   create a new empty Sun partition table
+
+【创建新分区(不做实际演示，最后使用+size设置分区大小即可，w保存退出)】
+Command (m for help):n
+
+Partition type:
+   p   primary (1 primary, 0 extended, 3 free)
+   e   extended
+Select (default p):
+
+【分区格式化(设分区名为/dev/sdb1)】
+mkfs -t ext3 /dev/sdb1
+有时候会报错设备不存在，这通常是因为在创建分区时没有写入分区表，partprobe命令刷新一下即可
+
+【分区持久化挂载(设挂载到/loveu目录)】
+vim /etc/fstab
+
+/dev/sdb1	/loveu ext3	defaults	0	0
+
+【设备挂载】
+#fstab文件生效挂载
+mount -a
+
+#设备退出挂载
+unmount 设备名
+
+#查看挂载情况
+df -h
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

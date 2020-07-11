@@ -1,0 +1,72 @@
+package com.jshx.zq.p2p.aspect;
+
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationContext;
+import org.springframework.stereotype.Component;
+
+import javax.annotation.PostConstruct;
+
+/**
+ * @author liuwei
+ * @date 2020-07-01 15:46
+ * @desc 嵌套切面的spring bean代理获取工具
+ */
+@Component
+@Slf4j
+public class NestAspectProxy {
+
+    /**
+     * spring aop的基本原理是，对注解类创建代理bean对象，在代理bean对象中对其中的注解方法上创建代理方法
+     * 根本上，对方法的调用增强(即切面)，是由于代理对象调用代理方法产生的，而不是注解类对象本身调用原始方法所致
+     *
+     * 当在注解类中使用 this 关键字嵌套调用同类中的其他方法时，如注解A类的注解a方法中调用了同类的注解b方法
+     * 由于this指向的是类对象本身，而不是代理对象
+     * 因此spring不能拦截到这些被嵌套调用的方法，也就不能实现嵌套的aop切面
+     *
+     * 跨注解类对象的注解方法调用，如注解A类的注解a方法中调用了注解B类的注解b方法
+     * 则由于使用的是代理对象，可以实现嵌套的aop切面
+     *
+     * 当需要嵌套aop时，可以先获取到对象的代理对象，然后通过代理对象，而不是this对象，去调用内层注解方法
+     * 典型的调用方法
+     *     @XXX注解A
+     *     public void methodA() {
+     *         //...
+     *         //methodB();不能实现嵌套的aop
+     * 		    //以下为可以嵌套aop的伪代码
+     * 		    SpringBeanOfThisClass proxyBean = applicationContext.getBean(this.class);
+     * 		    proxyBean.methodB();
+     *         //...
+     *     }
+     *
+     *     @XXX注解B
+     *     private void methodB() {
+     *
+     *     }
+     */
+
+    //注入spring上下文
+    @Autowired
+    private ApplicationContext applicationContext;
+
+    private static ApplicationContext CONTEXT;
+
+    //初始化静态变量
+    @PostConstruct
+    private void initContext() {
+        CONTEXT = applicationContext;
+        log.info("Spring context init");
+    }
+
+    /**
+     * 获取指定类的spring代理对象
+     * 这个类需要实际被spring代理(即存在bean实例)，否则会抛出内置异常
+     * @param clz 指定类的class对象
+     * @param <T>
+     * @return
+     */
+    public static <T> T getSpringProxyBean(Class<T> clz) {
+       return CONTEXT.getBean(clz);
+    }
+
+}

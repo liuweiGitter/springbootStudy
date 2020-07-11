@@ -3,6 +3,42 @@
 后台启动  ./elasticsearch -d
 停止  kill强杀
 
+【创建一个索引index】
+curl -X PUT 'http://172.16.168.201:9200/<索引名称>'
+也可以在创建索引时同时指定分片、创建类型mapping映射
+注意使用postman测试，或者参数写入文件中通过参数--data-binary @${file}引用
+
+curl -H 'Content-type:application/json' -X PUT 'http://172.16.168.201:9200/<索引名称>' \
+{
+	"settings": {
+		"number_of_shards": 3,
+		"number_of_replicas": 2
+	},
+	"mapping": {
+		"doc1": {
+			"properties": {
+				"commodity_id": {
+					"type": "long"
+				},
+				"commodity_name": {
+					"type": "text"
+				},
+				"picture_url": {
+					"type": "keyword"
+				},
+				"price": {
+					"type": "double"
+				}
+			}
+		},
+		"doc2":{
+			//...
+		}
+	}
+}
+
+【创建一个类型type】
+
 【新增】
 插入一个document
 语法：curl -H 'Content-type:application/json' -X PUT 'http://es地址:es服务端口/索引名/类型名/文档id' -d '文档json对象'
@@ -231,6 +267,42 @@
 可以看到中文的分词实际上是逐字分词，这通常不是所需要的
 应使用ik分词器或者不对中文进行分词
 如果必须分词，可能只能进行match模糊查询，而非term精确查询
+
+【批量写入测试1】批量一次性写入，每次写入1000条，总共写入100万条
+#数据准备
+mkdir tmp_test
+cd tmp_test
+rm -rf ./batch_file*.txt
+
+file_count=1000
+num_count=1000
+
+echo "数据准备起始时间-->"`date "+%Y-%m-%d %H:%M:%S.%N" | cut -b 1-23`
+base_count=''
+for ((i=1; i<=$file_count; i++)) 
+do  
+	base_count=$[($i-1)*$num_count]
+	for ((j=1; j<=$num_count; j++))
+	do  
+		echo -e "{ \"index\":{} }\n{ \"id\":$[$base_count+$j],\"name\":\"liuwei_$[$base_count+$j]\" }" >> batch_file_${i}.txt
+	done
+done
+echo "数据准备结束时间-->"`date "+%Y-%m-%d %H:%M:%S.%N" | cut -b 1-23`
+
+echo ===========================================
+
+echo "写入起始时间-->"`date "+%Y-%m-%d %H:%M:%S.%N" | cut -b 1-23`
+for file in `ls batch_file*.txt` 
+do 
+	echo ">>写入文件 ${file}  "`date "+%Y-%m-%d %H:%M:%S.%N" | cut -b 1-23`
+	curl -H "Content-type:application/json" -X POST 172.16.168.201:9200/es_test/adoc/_bulk?pretty  --data-binary @${file}
+done
+echo "写入结束时间-->"`date "+%Y-%m-%d %H:%M:%S.%N" | cut -b 1-23`
+
+
+【批量写入测试2】连续多次写入
+每次写入一条数据，不详述
+
 
 【查询+时间分析】
 echo "查询起始时间-->"`date "+%Y-%m-%d %H:%M:%S.%N" | cut -b 1-23` && \

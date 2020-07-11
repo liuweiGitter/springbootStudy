@@ -1,0 +1,51 @@
+【@Configuration】
+@Configuration注解在类上，用于定义spring容器(应用上下文，bean的配置类)，可替换xml配置文件(等同于xml配置文件中的<beans>)
+被注解的类内部包含有一个或多个被@Bean注解的方法(等同于xml配置文件中的<bean>)
+这些方法将会被AnnotationConfigApplicationContext或AnnotationConfigWebApplicationContext类进行扫描，并用于构建bean定义
+
+@Configuration不可以注解final类或者匿名类，对于内部类则必须是静态类
+
+【@Bean】
+@Bean注解在返回某个实例的方法上，用以注册bean对象
+这个返回实例的方法，内部可以是任何创建对象的方式，如new对象、反射创建对象等等
+
+@Bean默认指定bean的名称为方法同名，默认无初始化和销毁方法调用，默认作用域为singleton(单例)，这些属性可以显式指定
+
+1.默认配置
+@Bean
+2.指定bean名称、初始化方法名和销毁方法名(位于bean类中的公共无参方法，用以在bean的初始化前和销毁后进行一些方法调用)
+@Bean(name = "myBean",initMethod = "initMethodNameInBeanClass",destroyMethod = "destroyMethodNameInBeanClass")
+3.指定bean名称、初始化方法名和销毁方法名，并指定作用域
+@Bean(name = "myBean",initMethod = "initMethodNameInBeanClass",destroyMethod = "destroyMethodNameInBeanClass")
+@Scope(value = "someScope")
+作用域的取值有5种
+1、singleton，默认配置，单例作用域，一个Spring容器中只有一个Bean的实例，全容器共享一个实例 
+2、prototype，原型作用域，每次调用新建一个Bean的实例 
+3、request，请求级作用域，Web项目中对每一个http request新建一个Bean实例
+4、session，会话级作用域，Web项目中对每一个http session新建一个Bean实例
+5、globalsession，这个只在portal应用中有用，给每一个global http session新建一个Bean实例
+
+既然@Bean的作用是注册bean对象，那么完全可以使用@Component、@Controller、@Service、@Ripository等注解注册bean
+当然需要配置@ComponentScan注解进行自动扫描
+
+
+【示例】
+@Configuration
+public class TestConfiguration {
+	//配置类的构造函数，在spring创建配置类对象时会自动调用，一般不需要显式的无参构造
+	public TestConfiguration() {
+		System.out.println("TestConfiguration容器启动初始化...");
+	}
+}
+
+
+
+
+
+
+
+
+
+
+
+
