@@ -62,45 +62,8 @@ https://docs.spring.io/spring-kafka/docs/2.2.1.BUILD-SNAPSHOT/reference/html/dep
 	#外部kafka服务
 	spring.kafka-outer1.bootstrap-servers=172.16.49.68:9092
 
-4.消费者demo
-	package com.jshx.zq.p2p.mq.consumer;
 
-	import lombok.extern.slf4j.Slf4j;
-	import org.apache.kafka.clients.consumer.ConsumerRecord;
-	import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
-	import org.springframework.context.annotation.PropertySource;
-	import org.springframework.kafka.annotation.KafkaListener;
-	import org.springframework.stereotype.Component;
-
-	/**
-	 * @author liuwei
-	 * @date 2020-03-10 02:06
-	 * @desc 消费者测试
-	 */
-	@Component
-	@ConditionalOnExpression("${kafka_start_flag:true}")
-	@PropertySource(value = "classpath:/data/properties/kafka_topic.properties")
-	@Slf4j
-	public class TestConsumer {
-
-		@KafkaListener(topics = "${test}",groupId = "testGroup1")
-		public void test1 (ConsumerRecord<String, String> record) {
-			String msg = record.value();
-			log.info("test1消费："+msg);
-		}
-
-		//containerFactory指向KafkaListenerContainerFactory bean的名称
-		@KafkaListener(topics = "${test}",groupId = "testGroup2",containerFactory = "kafkaListenerContainerFactory1")
-		public void test2 (ConsumerRecord<String, String> record) {
-			String msg = record.value();
-			log.info("test2消费："+msg);
-		}
-
-	}
-
-
-
-5.启动springboot
+4.启动springboot
 成功启动后有类似以下信息打印
 	00:26:54.042 [RMI TCP Connection(3)-127.0.0.1] INFO  o.a.k.c.consumer.ConsumerConfig - ConsumerConfig values: 
 	auto.commit.interval.ms = 1000
@@ -150,8 +113,8 @@ https://docs.spring.io/spring-kafka/docs/2.2.1.BUILD-SNAPSHOT/reference/html/dep
 	consumer1>>>topic=test1,offset=5,value=nice 
 	consumer2>>>topic=test1,offset=5,value=nice
 
-6.kafka错误问题
-》6.1连接错误
+5.kafka错误问题
+》5.1连接错误
 00:38:13.642 [org.springframework.kafka.KafkaListenerEndpointContainer#0-0-C-1] 
 WARN  o.apache.kafka.clients.NetworkClient - [Consumer clientId=consumer-1, groupId=consumer1] 
 Connection to node -1 (/x.x.x.x:19092) could not be established. Broker may not be available.
@@ -159,187 +122,12 @@ Connection to node -1 (/x.x.x.x:19092) could not be established. Broker may not 
 如果x.x.x.x为外网地址，通常这是由于kafka服务没有绑定外网地址导致的
 必须在kafka配置文件中配置advertised.listeners才可以外网访问
 
-》6.2生产者关闭错误
+》5.2生产者关闭错误
 java.lang.NoSuchMethodError: org.apache.kafka.clients.producer.Producer.close(Ljava/time/Duration;)V
 这是因为kafka-clients不同的版本中方法不同造成的，所以要严格匹配版本关系
 spring-kafka2.3.4版本会调用kafka-client中的这个方法，在低版本中没有这个方法，kafka-client 2.2.0版本有此方法
 
-7.KafkaTemplate注册
-	package com.jshx.zq.p2p.config;
-
-	import lombok.extern.slf4j.Slf4j;
-	import org.apache.kafka.clients.consumer.ConsumerConfig;
-	import org.apache.kafka.clients.producer.ProducerConfig;
-	import org.apache.kafka.common.serialization.StringDeserializer;
-	import org.apache.kafka.common.serialization.StringSerializer;
-	import org.springframework.beans.factory.annotation.Value;
-	import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
-	import org.springframework.context.annotation.Bean;
-	import org.springframework.context.annotation.Configuration;
-	import org.springframework.context.annotation.Primary;
-	import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
-	import org.springframework.kafka.config.KafkaListenerContainerFactory;
-	import org.springframework.kafka.core.DefaultKafkaConsumerFactory;
-	import org.springframework.kafka.core.DefaultKafkaProducerFactory;
-	import org.springframework.kafka.core.KafkaTemplate;
-	import org.springframework.kafka.listener.ConcurrentMessageListenerContainer;
-
-	import java.util.HashMap;
-	import java.util.Map;
-
-	/**
-	 * @author liuwei
-	 * @date 2020-03-10 10:17
-	 * @desc kafka配置类
-	 * 支持多kafka实例的生产和消费的配置
-	 * 支持生产者和消费者的按需独立配置(生产者注册KafkaTemplate，消费者注册KafkaListenerContainerFactory)
-	 *
-	 * 多实例kafka的生产依赖于每个实例的KafkaTemplate
-	 * 多实例kafka的消费则通过containerFactory指定具体的实例对象，详细配置参见TestConsumer
-	 */
-	@Configuration
-	@ConditionalOnExpression("${kafka_start_flag:true}")
-	@Slf4j
-	public class KafkaConfig {
-
-		//====================配置参数====================//
-
-		//系统kafka服务
-		@Value("${spring.kafka.bootstrap-servers}")
-		private String bootstrap_servers_config;
-		@Value("${spring.kafka.producer.retries}")
-		private String retries_config;
-		@Value("${spring.kafka.producer.batch-size}")
-		private String batch_size_config;
-		@Value("${spring.kafka.producer.buffer-memory}")
-		private String buffer_memory_config;
-
-		//智慧物业、酒店kafka服务
-		@Value("${spring.kafka-outer1.bootstrap-servers}")
-		private String bootstrap_servers_config1;
-
-
-
-
-		//====================公共方法====================//
-
-		//注册消费者监听工厂
-		private KafkaListenerContainerFactory<ConcurrentMessageListenerContainer<Integer, String>> getKafkaListenerContainerFactory(String bootstrapServersConfig) {
-			ConcurrentKafkaListenerContainerFactory<Integer, String> factory = new ConcurrentKafkaListenerContainerFactory<>();
-			Map<String, Object> props = new HashMap<>();
-			props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServersConfig);
-			props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
-			props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
-			factory.setConsumerFactory(new DefaultKafkaConsumerFactory<>(props));
-			return factory;
-		}
-
-		//注册生产者模板类
-		private KafkaTemplate getKafkaTemplate(String bootstrapServersConfig){
-			HashMap<String, Object> configs = new HashMap<>();
-			configs.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG,bootstrapServersConfig);
-			configs.put(ProducerConfig.RETRIES_CONFIG,retries_config);
-			configs.put(ProducerConfig.BATCH_SIZE_CONFIG,batch_size_config);
-			configs.put(ProducerConfig.BUFFER_MEMORY_CONFIG,buffer_memory_config);
-			configs.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
-			configs.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG,StringSerializer.class);
-			DefaultKafkaProducerFactory producerFactory = new DefaultKafkaProducerFactory(configs);
-			return new KafkaTemplate(producerFactory);
-		}
-
-
-
-		//====================生产者和消费者bean注册====================//
-
-		/**
-		 * Group1：系统kafka
-		 */
-
-		//消费者监听工厂
-		//指定为默认Primary工厂，使用此监听工厂的消费者不需要显式指定工厂引用
-		@Bean
-		@Primary
-		public KafkaListenerContainerFactory<ConcurrentMessageListenerContainer<Integer, String>> kafkaListenerContainerFactory() {
-			return getKafkaListenerContainerFactory(bootstrap_servers_config);
-		}
-
-		//生产者模板
-		@Bean
-		public KafkaTemplate kafkaTemplate(){
-			log.info("系统KafkaTemplate注册");
-			return getKafkaTemplate(bootstrap_servers_config);
-		}
-
-		/**
-		 * Group2：智慧物业、酒店kafka
-		 */
-
-		//消费者监听工厂
-		@Bean
-		public KafkaListenerContainerFactory<ConcurrentMessageListenerContainer<Integer, String>> kafkaListenerContainerFactory1() {
-			return getKafkaListenerContainerFactory(bootstrap_servers_config1);
-		}
-
-		//智慧物业kafka服务仅用于本项目的消费，故生产者可以不注册
-		//生产者模板
-		/*@Bean
-		public KafkaTemplate kafkaTemplate1(){
-			log.info("智慧物业KafkaTemplate注册");
-			return getKafkaTemplate(bootstrap_servers_config1);
-		}*/
-
-	}
-
-
-8.生产者demo
-	package com.jshx.zq.p2p.mq.producer;
-
-	import com.jshx.zq.p2p.data.MetaDataCache;
-	import lombok.extern.slf4j.Slf4j;
-	import org.springframework.beans.factory.annotation.Autowired;
-	import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
-	import org.springframework.kafka.core.KafkaTemplate;
-	import org.springframework.stereotype.Component;
-
-	import java.time.LocalDateTime;
-	import java.time.format.DateTimeFormatter;
-
-	/**
-	 * @author liuwei
-	 * @date 2020-03-10 02:06
-	 * @desc 生产者测试
-	 */
-	@Component
-	@ConditionalOnExpression("${kafka_start_flag:true}")
-	@Slf4j
-	public class TestProducer {
-
-		@Autowired
-		private KafkaTemplate kafkaTemplate;
-
-		public void sendMsg(String msg){
-			//如果生产者发送的主题尚未创建，kafka会自动创建该主题
-			kafkaTemplate.send(MetaDataCache.KAFKA_TOPICS.getProperty("test"), msg);
-		}
-
-		public void test(){
-			sendMsg("Time = "+ LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
-		}
-
-	}
-
-
-
-
-
-
-
-
-
-
-
-
-
+6.生产者和消费者配置、使用demo、服务中心参见《springboot集成示例》
 
 
 
