@@ -1,0 +1,199 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--springboot logback日志配置文件，默认路径resource/logback-spring.xml-->
+<!--每隔180秒扫描一次本文件，以热响应配置文件修改-->
+<!--官解：(默认)不打印debug信息，设置为true时将开启debug日志打印？实际配置不起作用，忽略-->
+<configuration debug="false" scan="true" scanPeriod="180 seconds">
+
+    <contextName>springboot_logback</contextName>
+
+    <!--日志文件路径前缀，注意，是目录+文件名前缀，且为linux路径格式-->
+    <!--不建议使用相对路径-->
+    <!--若目录不存在，则自动创建目录(当然，前提是当前用户具有w权限)-->
+    <!--对于windows系统，会以项目所在磁盘分区为根目录创建日志目录-->
+    <property name="log.file.prefix" value="/某个linux绝对路径/日志文件名前缀"/>
+
+    <!--文件日志输出格式-->
+    <property name="log.file.pattern"
+              value="%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{50}[%line] -- %msg%n"/>
+
+    <!--控制台日志输出格式-->
+    <property name="log.console.pattern"
+              value="%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{50} -- %msg%n"/>
+
+
+    <!--==================================================-->
+    <!--日志输出到控制台-->
+    <!--==================================================-->
+
+    <appender name="console" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>${log.console.pattern}</pattern>
+        </encoder>
+    </appender>
+
+    <!--==================================================-->
+    <!--日志输出到文件-->
+    <!--==================================================-->
+
+    <!--不建议配置，建议使用基于时间和大小的日志轮替策略-->
+    <!--注意，appender标签不需要的配置不要写，否则也会创建一个空白的文件-->
+    <!--<appender name="info_file_by_time" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        &lt;!&ndash;基于时间的日志轮替策略&ndash;&gt;
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            &lt;!&ndash;格式形如：/xxx/xxx.2020-07-13.info&ndash;&gt;
+            <fileNamePattern>${log.file.prefix}.%d{yyyy-MM-dd}.info</fileNamePattern>
+            &lt;!&ndash;最多存30天日志&ndash;&gt;
+            <maxHistory>30</maxHistory>
+        </rollingPolicy>
+        &lt;!&ndash;日志输出格式&ndash;&gt;
+        <encoder>
+            <pattern>${log.file.pattern}</pattern>
+        </encoder>
+    </appender>-->
+
+    <!--只记录debug级别日志：过滤器强制限制-->
+    <appender name="debug_only_by_time_size" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <!--基于时间和大小的日志轮替策略-->
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <!--格式形如：/xxx/xxx.2020-07-13.1.debug-->
+            <fileNamePattern>${log.file.prefix}.%d{yyyy-MM-dd}.%i.debug</fileNamePattern>
+            <!--最多存10个日志文件-->
+            <maxHistory>10</maxHistory>
+            <!--每个日志文件最大不超过5MB-->
+            <maxFileSize>5MB</maxFileSize>
+        </rollingPolicy>
+        <!--日志输出格式-->
+        <encoder>
+            <pattern>${log.file.pattern}</pattern>
+        </encoder>
+        <!--日志级别过滤：默认允许所有级别，此处设置只记录debug级别-->
+        <filter class="ch.qos.logback.classic.filter.LevelFilter">
+            <level>DEBUG</level>
+            <onMatch>ACCEPT</onMatch>
+            <onMismatch>DENY</onMismatch>
+        </filter>
+    </appender>
+
+    <!--只记录info级别日志：过滤器强制限制-->
+    <appender name="info_only_by_time_size" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <!--基于时间和大小的日志轮替策略-->
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <!--格式形如：/xxx/xxx.2020-07-13.1.info-->
+            <fileNamePattern>${log.file.prefix}.%d{yyyy-MM-dd}.%i.info</fileNamePattern>
+            <!--最多存30个日志文件-->
+            <maxHistory>30</maxHistory>
+            <!--每个日志文件最大不超过15MB-->
+            <maxFileSize>15MB</maxFileSize>
+        </rollingPolicy>
+        <!--日志输出格式-->
+        <encoder>
+            <pattern>${log.file.pattern}</pattern>
+        </encoder>
+        <!--日志级别过滤：默认允许所有级别，此处设置只记录info级别-->
+        <filter class="ch.qos.logback.classic.filter.LevelFilter">
+            <level>INFO</level>
+            <onMatch>ACCEPT</onMatch>
+            <onMismatch>DENY</onMismatch>
+        </filter>
+    </appender>
+
+    <!--记录warn以上级别日志：过滤器强制限制-->
+    <appender name="warn_up_by_time_size" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <!--基于时间和大小的日志轮替策略-->
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <!--格式形如：/xxx/xxx.2020-07-13.1.warn_up-->
+            <fileNamePattern>${log.file.prefix}.%d{yyyy-MM-dd}.%i.warn_up</fileNamePattern>
+            <!--最多存15个日志文件-->
+            <maxHistory>15</maxHistory>
+            <!--每个日志文件最大不超过10MB-->
+            <maxFileSize>10MB</maxFileSize>
+        </rollingPolicy>
+        <!--日志输出格式-->
+        <encoder>
+            <pattern>${log.file.pattern}</pattern>
+        </encoder>
+        <!--日志级别过滤：默认允许所有级别，此处设置只记录warn和error级别-->
+        <filter class="ch.qos.logback.classic.filter.LevelFilter">
+            <level>WARN</level>
+            <onMatch>ACCEPT</onMatch>
+            <!--☆☆☆☆☆注意：当配置多个过滤器时，会按照顺序加载成filterChain-->
+            <!--为避免后续过滤器无法生效，此处onMismatch务必不能配置-->
+            <!--<onMismatch>不能配置</onMismatch>-->
+        </filter>
+        <filter class="ch.qos.logback.classic.filter.LevelFilter">
+            <level>ERROR</level>
+            <onMatch>ACCEPT</onMatch>
+            <onMismatch>DENY</onMismatch>
+        </filter>
+    </appender>
+
+
+    <!--==================================================-->
+    <!--root配置-->
+    <!--==================================================-->
+
+    <!--日志的输出级别由低到高 trace->debug->info->warn->error -->
+
+    <!--root配置某级别及其以上(更高)的级别日志输出路径-->
+    <!--root只有一个level属性，默认向上级传递日志，不能更改传递属性-->
+    <!--此处配置，debug及其以上的所有信息，输出到控制台-->
+
+    <!--也可以配置输出到info、warn、error日志文件-->
+    <!--在输出到文件时，可以配置过滤级别，使得每一级别的日志输出到不同的文件中-->
+    <!--也可以所有日志都输出到一个文件中，此处配置info、warn+error分级别输出-->
+    <root level="debug">
+        <appender-ref ref="console"/>
+        <appender-ref ref="info_only_by_time_size"/>
+        <appender-ref ref="warn_up_by_time_size"/>
+    </root>
+
+    <!--==================================================-->
+    <!--logger配置-->
+    <!--==================================================-->
+
+    <!--**************************************************-->
+
+    <!--所有指定包或类中的，指定级别及其以上的，日志，输出到指定路径-->
+    <!--<logger level="日志级别" name="包或类的全路径">
+        <appender-ref ref="路径引用1"/>
+        <appender-ref ref="路径引用2"/>
+    </logger>-->
+
+    <!--所有指定包或类中的，指定级别(不向上传递)的，日志，输出到指定路径-->
+    <!-- addtivity 默认为true，表示向上级传递日志-->
+    <!--<logger level="日志级别" name="包或类的全路径(可以是前缀路径)" addtivity="false">
+        <appender-ref ref="路径引用1"/>
+        <appender-ref ref="路径引用2"/>
+    </logger>-->
+
+    <!--☆☆☆☆☆实测发现，additivity属性始终会向上级传递日志-->
+    <!--因此，过滤级别的任务需要由appender中的filter来完成-->
+    <!--不过，level属性仍需控制日志的最低级别-->
+
+    <!--**************************************************-->
+
+    <!--此处只是指定了某个包路径，其余所有路径的所有级别日志都不会写入文件中-->
+    <!--换句话说，日志文件不会记录其余包的日志信息，即会丢很多日志记录-->
+
+    <!--在开发和测试环境中经常需要打印sql语句，生产环境排查问题时也有这种需求-->
+    <!--通常来说，logger标签主要用于 结合环境类型 配置sql语句的打印-->
+    <!--注：mybatis在代理Mapper类时会使用debug级别打印sql语句-->
+
+    <!-- 本地开发环境和测试环境 -->
+    <!--如果没有需要配置的logger，可以留空-->
+    <springProfile name="local,dev">
+        <!--配置某Mapper类的debug级别日志输出，即sql语句输出-->
+        <!--也可以配置到Mapper类所在的包，但不建议打印那么多sql语句-->
+        <!--<logger name="xxx.xxx.XXXMapper" level="debug" additivity="false">
+            <appender-ref ref="debug_only_by_time_size"/>
+        </logger>-->
+        <!--and so on-->
+    </springProfile>
+
+    <!-- 生产环境 -->
+    <!--通常，生产环境不打印sql，此处可留空，待需要定位问题时再填写具体的配置-->
+    <springProfile name="online">
+
+    </springProfile>
+
+</configuration>

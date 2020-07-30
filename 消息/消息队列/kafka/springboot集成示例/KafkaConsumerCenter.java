@@ -1,11 +1,16 @@
-package com.ping.job.master.consumer;
+package com.ping.job.manager.consumer;
 
+import com.ping.job.manager.cache.MasterCache;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
+import org.springframework.context.annotation.DependsOn;
 import org.springframework.context.annotation.PropertySource;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
+
+import javax.annotation.PostConstruct;
 
 /**
  * @author liuwei
@@ -14,23 +19,24 @@ import org.springframework.stereotype.Component;
  */
 @Component
 @ConditionalOnExpression("${kafka_start_flag:true}")
+@DependsOn("kafkaBeanCreatedFlag")
 @PropertySource(value = "classpath:/data/properties/kafka_topic.properties")
 @Slf4j
 public class KafkaConsumerCenter {
 
-    //@KafkaListener(topics = "${xxTopic主题}", containerFactory = "kfkListenerFacAutoCommitDy")
-    //@KafkaListener(topics = "${xxTopic主题}", containerFactory = "kfkListenerFacManualCommitDy")
-    //@KafkaListener(topics = "${xxTopic主题}", groupId = "xxGroupId", containerFactory = "kfkListenerFacAutoCommit")
-    //@KafkaListener(topics = "${xxTopic主题}", groupId = "xxGroupId", containerFactory = "kfkListenerFacManualCommit")
-    public void xxConsumerBusiness (ConsumerRecord<String, String> record) {
-        /**
-         * 业务处理在业务层执行
-         * 服务中心只负责消费者监听注册
-         */
-        //XXConsumer.business(record.value());
+    @PostConstruct
+    private void init(){
+        log.info(">>>KafkaConsumerCenter bean init success!");
     }
-	
-	//...
+
+    @KafkaListener(topics = "${taskMasterInterface}", containerFactory = KafkaConsumerFacType.autoCommitDynamic)
+    public void taskMasterRegister (ConsumerRecord<String, String> record) {
+        String url = record.value();
+        if (StringUtils.isEmpty(url) || !url.startsWith("http")) {
+            return;
+        }
+        MasterCache.addMaster(url);
+    }
 
 }
 

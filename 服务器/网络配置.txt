@@ -1,0 +1,10 @@
+【DNS配置】
+对于云服务器，首先要开通icmp出访协议
+其次，在服务器ping测外网测试，如果ping测不通，需在服务器上进行以下配置
+
+配置DNS
+vim /etc/resolv.conf
+nameserver 8.8.8.8
+nameserver 202.96.134.33
+重启网络
+systemctl restart network 

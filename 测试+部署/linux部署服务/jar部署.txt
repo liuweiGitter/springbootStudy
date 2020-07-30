@@ -36,6 +36,9 @@
 使用maven打包出jar文件
 启动jar，设jar名称为notice.jar
 	前台启动，日志输出到控制台：nohup java -jar -Xms512M -Xmx1024M notice.jar
-	前台启动，日志打入文件：nohup java -jar -Xms512M -Xmx1024M notice.jar > notice.log
-	后台启动，日志打入文件：nohup java -jar -Xms512M -Xmx1024M notice.jar > notice.log &
-	启动时指定端口(会覆盖配置文件中的端口，为实际端口)：nohup java -jar -Xms512M -Xmx1024M notice.jar --server.port=19090 > notice.log &
+	前台启动，日志打入文件：nohup java -jar -Xms512M -Xmx1024M notice.jar > /dev/null
+	后台启动，日志打入文件：nohup java -jar -Xms512M -Xmx1024M notice.jar > /dev/null &
+	启动时指定端口(会覆盖配置文件中的端口，为实际端口)：nohup java -jar -Xms512M -Xmx1024M notice.jar --server.port=19090 > dev/null &
+注：由于spring-logback.xml已经配置了日志路径，因此日志输出到/dev/null即可
+
+
