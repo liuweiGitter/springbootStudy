@@ -1,4 +1,8 @@
+0.JDK安装和配置
+es依赖于jdk
+
 1.下载安装包
+mkdir -p /usr/local/elasticsearch
 cd /usr/local/elasticsearch
 wget https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-6.6.1.tar.gz
 
@@ -30,7 +34,7 @@ network.host: 172.16.168.201(私网地址)
 5.启动es
 #注意切换到es用户，否则报错
 #org.elasticsearch.bootstrap.StartupException: java.lang.RuntimeException: can not run elasticsearch as root
-su elasticUser
+su - elasticUser
 cd /usr/local/elasticsearch/elasticsearch-6.6.1
 
 es单机默认申请内存为1GB左右，可以配置最小和最大内存，一定要确保系统内存够用，否则启动失败
@@ -39,8 +43,8 @@ vim ./bin/elasticSearch 添加  ES_JAVA_OPTS="-Xms300m -Xmx1g"
 建议-Xms和-Xmx设置一样大小，否则可能报错
 
 启动：应在es根目录下启动，否则，虽能正确启动但会报错
-./bin/elasticSearch  #前台启动，会直接打印启动日志，但ctrl+c会杀掉es进程
-./bin/elasticSearch -d #后台启动
+./bin/elasticsearch  #前台启动，会直接打印启动日志，但ctrl+c会杀掉es进程
+./bin/elasticsearch -d #后台启动
 
 查看启动日志：
 tailf -n 200 ./logs/elasticsearch.log
@@ -79,7 +83,7 @@ vim /etc/security/limits.conf 修改 * soft nofile 65536  * hard nofile 65536
 
 2.max virtual memory areas vm.max_map_count [65530] is too low, increase to at least [262144]
 vim /etc/sysctl.conf 添加 vm.max_map_count=262144
-添加后即生效，查看参数：sysctl -p
+添加后即生效，(root用户)查看参数：sysctl -p
 
 
 

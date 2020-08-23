@@ -172,5 +172,39 @@ public class FileChannelDemo {
 		// 关闭文件
 		file.close();
 	}
+	
+	/**
+     * 文件通道追加写入字符串，并清空字节缓存
+     * @param value String字符串
+     * @param fileChannel 文件通道
+     * @param buf 字节缓存
+     * @param file 通道指向的文件
+     * @throws IOException 流写入异常
+     */
+    private static void flushStringValue(String value, FileChannel fileChannel, ByteBuffer buf, RandomAccessFile file) throws IOException {
+        // 1.字符串转为字节数组，并写入buf
+        buf.put(value.getBytes(DFT_CHAR_SET));
+        /**
+         * 2.切换buffer从写模式到读模式，准备读取buf到文件
+         * buf是读写双向的，读和写的下标明显是不同的
+         * 默认为写模式，在需要读时，必须切换为读模式
+         */
+        buf.flip();
+        // 3.通道从缓冲区读数据(到文件)
+        fileChannel.write(buf);
+        /**
+         * 4.清空buffer
+         * 在下一次读写之前，必须清空buffer
+         * 一是由于flip已经把buffer的position切换为0，下次会从0开始写，如果不清除buffer，下次几乎一定会读入尾部的脏数据
+         * 二是防止内存溢出，buffer在空间不足以写入新的数据时会抛出内存溢出错误
+         */
+        buf.clear();
+        /**
+         * 5.指定通道的当前位置为文件末尾
+         * 默认当前位置为0，即同一个通道，每次都会从下标0开始写入，即从头开始覆盖已经写入的字节
+         * 此处需要追加写入，需指定通道位置为文件末尾
+         */
+        fileChannel.position(file.length());
+    }
 
 }

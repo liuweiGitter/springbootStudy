@@ -1,0 +1,6 @@
+本示例中，mapper配置文件的目录结构为：
+
+resources
+	mapper
+		mysql
+		oracle

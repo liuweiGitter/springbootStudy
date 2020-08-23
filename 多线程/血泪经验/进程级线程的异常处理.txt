@@ -1,0 +1,65 @@
+【背景】
+技术栈：
+	springboot框架+hikari数据源连接池+单例线程池
+业务：
+	监听MQ消息加入本地缓存List<Message>
+	单例线程池A每5秒轮询本地消息缓存，每分钟存在1条以上消息或每次轮询存在不少于500条消息时，调用DAO接口批量入库
+
+【问题】
+一旦出现sql异常，单例线程池A不再轮询消息
+
+【解决方案】
+经测试，druid数据源和hikari数据源均有此问题，与数据源连接池类型无关
+经测试，有2种解决方案，建议方案2
+
+1.在调用DAO时主动捕获异常
+	try {
+		//入库操作
+		xxxService.xxx(list);
+	} catch (Throwable e) {
+		//此处必须手动捕获异常，否则单例线程池A不可用!!!
+		log.error(e.getMessage());
+	}
+
+2.使用另一个单例线程池B调用DAO接口
+	private static final ExecutorService DB_POOL = Executors.newSingleThreadExecutor();
+	
+	DB_POOL.submit(new Runnable() {
+		@Override
+		public void run() {
+			//入库操作
+			xxxService.xxx(list);
+		}
+	});
+
+【逆向可能靠谱的分析】
+为什么改用单例线程池B调用DAO接口，遇到sql异常就不会造成单例线程池A的阻塞呢？
+猜测问题是由于，线程池中的线程在遇到未捕获的异常后，会自行了断，被回收到线程池，这样的行为，加上业务的特殊性，综合导致
+具体分析如下：
+
+本例中，设计了一个启动中心类，所有业务相关的JVM进程级生命周期的线程全部在此启动，线程池A的轮询操作也是启动于此
+	@Component
+	@Slf4j
+	public class BootCenter {
+
+		@PostConstruct
+		private void boot(){
+			log.info(">>>BootCenter running");
+			xxxThread.start();
+		}
+
+	}
+程序启动时，springboot的某个线程启动了A，但是，如果线程池A在运行过程中遇到了未捕获的异常而退出
+将不会再有某个线程来启用A，也就不会再去轮询消息
+
+而线程池B则不一样，B的调用者是A，A在每次需要入库时都会调用B
+即使某一次B遇到了未捕获的异常而退出，下一次A再去调用时，B还是可用的，还是可以完成各自的任务
+
+【小结】
+一个进程级别的线程，必须保证不会因为系统的异常、业务的bug等原因导致线程中途退出
+为降低风险，可以将可能出现异常的逻辑部分转移到一个临时线程去处理
+
+
+
+
+

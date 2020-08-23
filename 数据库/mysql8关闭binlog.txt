@@ -1,0 +1,43 @@
+以windows为例，linux类似
+
+【查看是否启用了binlog】
+mysql8默认是开启binlog的，首先检查是否实际启用了binlog
+其中，log_bin为ON时表示启用binlog
+
+> show variables like 'log_%'; 
+
+Variable_name	Value
+log_bin	OFF
+log_bin_basename	
+log_bin_index	
+log_bin_trust_function_creators	OFF
+log_bin_use_v1_row_events	OFF
+log_error	D:\DevelopTools\Mysql\data\DESKTOP-FK5HCEF.err
+log_error_services	log_filter_internal; log_sink_internal
+log_error_suppression_list	
+log_error_verbosity	2
+log_output	FILE
+log_queries_not_using_indexes	OFF
+log_slave_updates	OFF
+log_slow_admin_statements	OFF
+log_slow_extra	OFF
+log_slow_slave_statements	OFF
+log_statements_unsafe_for_binlog	ON
+log_throttle_queries_not_using_indexes	0
+log_timestamps	UTC
+
+【关闭binlog】
+在my.ini或my.cnf的[mysqld]部分添加skip-log-bin
+
+【重启mysql】
+重启后再次检查binlog状态即可
+
+
+
+
+
+
+
+
+
+

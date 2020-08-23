@@ -211,6 +211,86 @@ curl -H 'Content-type:application/json' -X PUT 'http://172.16.168.201:9200/<索�
   }
 }
 
+
+
+-------------------------------------------
+分页查询document(pretty参数使返回json格式化)
+语法：
+	curl -H 'Content-type:application/json' -X GET 'http://es地址:es服务端口/索引名/类型名/_search?pretty' -d '{"from" : 起始下标, "size" : 查询数量}'
+范例：
+	#不带条件的分页
+	curl -H 'Content-type:application/json' \
+	-X GET '172.16.168.201:9200/es/student/_search?pretty' \
+	-d '{"from" : 0, "size" : 3}'
+	#带有查询条件的分页
+	curl -H 'Content-type:application/json' \
+	-X GET '172.16.168.201:9200/es/student/_search?pretty' \
+	-d '{"from" : 0, "size" : 3, "query" : {"match" : {"watchName" : "107433791监控"}}}'
+响应：
+
+{
+  "took" : 7,
+  "timed_out" : false,
+  "_shards" : {
+    "total" : 5,
+    "successful" : 5,
+    "skipped" : 0,
+    "failed" : 0
+  },
+  "hits" : {
+    "total" : 51279,
+    "max_score" : 1.0,
+    "hits" : [
+      {
+        "_index" : "es_ping",
+        "_type" : "pingdoc",
+        "_id" : "02f4f4f870384dfba4696799975cf09d",
+        "_score" : 1.0,
+        "_source" : {
+          "id" : "02f4f4f870384dfba4696799975cf09d",
+          "sysId" : "55FAA41A6C304FC6B06EE22090167657",
+          "configId" : "de7e09ca206248eb90ad8197eecc9674",
+          "watchName" : "21466671监控",
+          "triggerTime" : "1970-01-19T19:11:12",
+          "response" : "丢包率--% 平均延迟--ms",
+          "outstandFlag" : false
+        }
+      },
+      {
+        "_index" : "es_ping",
+        "_type" : "pingdoc",
+        "_id" : "8dc8b18e18964fc4bcfc04829eba79d7",
+        "_score" : 1.0,
+        "_source" : {
+          "id" : "8dc8b18e18964fc4bcfc04829eba79d7",
+          "sysId" : "60EE17387C7B476986D8374185D1C3BF",
+          "configId" : "13559d3c39fd4b1b9a6a907220659ece",
+          "watchName" : "107433791监控",
+          "triggerTime" : "1970-01-19T19:11:12",
+          "response" : "丢包率--% 平均延迟--ms",
+          "outstandFlag" : false
+        }
+      },
+      {
+        "_index" : "es_ping",
+        "_type" : "pingdoc",
+        "_id" : "fb80b8adb5d64743a9d93335ec009314",
+        "_score" : 1.0,
+        "_source" : {
+          "id" : "fb80b8adb5d64743a9d93335ec009314",
+          "sysId" : "DBD63060A1C64C19899F85B1E475EF65",
+          "configId" : "1259315db05a478c86e3db7167261150",
+          "watchName" : "109839826监控",
+          "triggerTime" : "1970-01-19T19:11:12",
+          "response" : "丢包率--% 平均延迟--ms",
+          "outstandFlag" : false
+        }
+      }
+    ]
+  }
+}
+
+
 【查看某条数据的某个字段的分词结果】
 语法：curl -X GET 'http://es地址:es服务端口/索引名/类型名/数据id/_termvectors?pretty&fields=字段名'
 范例：curl -X GET '172.16.168.201:9200/es_test/testdoc/cbe4868669e0476db61f8e5c77bbc6f9/_termvectors?pretty&fields=desc'

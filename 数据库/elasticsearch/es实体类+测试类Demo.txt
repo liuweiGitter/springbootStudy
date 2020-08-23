@@ -114,6 +114,8 @@ public class TestDoc implements Serializable {
      *      根据需要进行格式化，一般精确到秒时使用yyyy-MM-dd'T'HH:mm:ss(去掉T会报错)
      *      在插入数据时不需要再创建Date对象时再格式化(下面的注解已经做了格式化操作)，直接new Date()即可
      *      取出的数据默认为时间戳，需要@JSONField格式化
+     * 文档对象必须使用JSONObject转换一遍，格式如JSONObject.parseObject(JSONObject.toJSONString(xxxObject),XxxObject.class)
+     * 否则Date字段入库时会变成1970年日期时间
      */
     @Field(type = FieldType.Date, pattern = "yyyy-MM-dd'T'HH:mm:ss")
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss", timezone = "Asia/Shanghai")

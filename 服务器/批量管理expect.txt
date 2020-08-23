@@ -1,0 +1,76 @@
+【安装Tcl】
+cd 安装目录
+
+1.下载源码包：
+wget http://nchc.dl.sourceforge.net/sourceforge/tcl/tcl8.4.11-src.tar.gz
+
+2.解压缩源码包：
+tar xfvz tcl8.4.11-src.tar.gz
+
+3.编译安装：
+cd tcl8.4.11/unix
+./configure --prefix=/usr/tcl --enable-shared
+make
+make install
+
+4.拷贝文件tclUnixPort.h
+cp tclUnixPort.h ../generic
+
+【安装expect】
+cd 安装目录
+
+1.下载源码包：
+wget http://sourceforge.net/projects/expect/files/Expect/5.45/expect5.45.tar.gz/download
+
+2.解压源码包：
+tar xzvf expect5.45.tar.gz
+
+3.安装配置：
+cd expect5.45
+./configure --prefix=/usr/expect --with-tcl=/usr/tcl/lib --with-tclinclude=../tcl8.4.11/generic
+make
+make install
+
+4.建立软连接：
+ln -s /usr/tcl/bin/expect /usr/expect/bin/expect
+
+【expect语法及示例】
+
+set命令：可以设置变量。
+
+spawn命令：激活一个Unix程序来进行交互式的运行。
+
+send命令：向进程发送字符串。
+
+expect命令：等待进程的某些字符串。expect支持正规表达式并能同时等待多个字符串，并对每一个字符串执行不同的操作。
+
+interact命令：执行完毕把持交互状态，然后在控制台继续操作。如果没有这一句，登陆之后就会退出，而不是留在终端上。
+
+ 
+
+示例脚本test.exp：
+
+#!/usr/bin/expect
+
+set USER vmuser
+set HOST 172.16.49.43
+set PWD xxxxx
+
+spawn ssh $USER@$HOST
+
+expect "*"
+send "yes\r"
+
+expect "*password:"
+send "$PWD\r"
+
+expect "*#"
+send "一个shell命令"
+
+send "exit\r"
+
+执行脚本：
+/usr/bin/expect test.exp
+
+
+

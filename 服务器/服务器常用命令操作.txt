@@ -6,7 +6,7 @@ service firewalld start/restart/stop
 查看所有配置
 firewall-cmd --list-all
 端口白名单添加
-firewall-cmd --permanent --add-rich-rule="rule family="ipv4" source address="47.96.170.25/32" port protocol="tcp" port="9999" accept"
+firewall-cmd --permanent --add-rich-rule="rule family="ipv4" source address="132.0.0.0/8" port protocol="tcp" port="9999" accept"
 firewall-cmd --permanent --add-rich-rule="rule family="ipv4" source address="0.0.0.0/0" port protocol="tcp" port="80" accept"
 查看端口是否开放
 firewall-cmd --query-port=8080/tcp
@@ -51,8 +51,8 @@ create user zqp2p1;
 alter user 'zqp2p1'@'%' IDENTIFIED WITH mysql_native_password BY 'V#HliG#p';
 
 数据库授权
-grant SELECT, INSERT, UPDATE, DELETE, CREATE, DROP on zqp2p.* to zqp2p1@'%';
-grant SELECT, INSERT, UPDATE, DELETE, CREATE, DROP on `xxl-job`.* to zqp2p1@'%';
+grant SELECT, INSERT, UPDATE, DELETE, ALTER, CREATE, DROP on zqp2p.* to zqp2p1@'%';
+grant SELECT, INSERT, UPDATE, DELETE, ALTER, CREATE, DROP on `xxl-job`.* to zqp2p1@'%';
 grant all privileges on zqp2p.* to zqp2p1@'%';
 
 查看用户权限
@@ -66,24 +66,24 @@ show master status;
 show slave status\G;
 
 导出单表数据(注，支持多表)
-mysqldump -h 127.0.0.1 -u zqp2p1 -P 13389 -p  zqp2p 表1 表2 ... > db.sql
+mysqldump -h 127.0.0.1 -u zqp2p1 -P 13389 -p zqp2p 表1 表2 ... > db.sql
 导入单表数据(注意使用root用户才能导入)
 mysql -u root -P 13389 -p zqp2p < db.sql
 
 导出表结构--单表数据(注，支持多表)
-mysqldump -h 127.0.0.1 -u zqp2p1 -P 13389 -p -d zqp2p 表1 表2 ... > db.sql
+mysqldump -h 127.0.0.1 -u zqp2p1 -P 13389 -p zqp2p 表1 表2 ... > db.sql
 导入表结构--单表数据(注意使用root用户才能导入)
-mysql -u root -P 13389 -p -d zqp2p < db.sql
+mysql -u root -P 13389 -p zqp2p < db.sql
 
 导出整个数据库
-mysqldump -h 127.0.0.1 -u zqp2p1 -P 13389 -p  zqp2p > db.sql
+mysqldump -h 127.0.0.1 -u zqp2p1 -P 13389 -p zqp2p > db.sql
 导入整个数据库(注意使用root用户才能导入)
 mysql -u root -P 13389 -p zqp2p < db.sql
 
 导出表结构--整个数据库
-mysqldump -h 127.0.0.1 -u zqp2p1 -P 13389 -p -d zqp2p > db.sql
+mysqldump -h 127.0.0.1 -u zqp2p1 -P 13389 -p zqp2p > db.sql
 导入表结构--整个数据库(注意使用root用户才能导入)
-mysql -u root -P 13389 -p -d zqp2p < db.sql
+mysql -u root -P 13389 -p zqp2p < db.sql
 
 查看每个表占用的磁盘大小
 SELECT 

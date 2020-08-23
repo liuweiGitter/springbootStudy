@@ -5,6 +5,7 @@ https://dev.mysql.com/downloads/mysql/
 
 2.安装压缩包
 指定目录安装，通常安装在/usr/local下，也可以自定义路径，本文以安装在/database/server下为例
+mkdir -p /database/server
 cd /database/server
 
 tar.xz包的解压命令为
@@ -13,10 +14,134 @@ tar -Jxf mysql-8.0.19-linux-glibc2.12-x86_64.tar.xz
 解压后，修改名称为mysql
 mv mysql-8.0.19-linux-glibc2.12-x86_64 mysql
 
+
+3.配置my.cnf和mysql.server
+
 创建数据存放目录，存放mysql数据，本文以数据存放在/database/data/mysql下为例
 mkdir -p /database/data/mysql
 
 修改mysql配置文件，指向存储路径
 cd /database/server/mysql
-vim my.cfg
-待续，mycfg的具体目录以及配置，参考智慧政支数据库
+vim my.cnf
+
+[client]
+socket=/database/data/mysql.sock
+
+[mysqld]
+bind-address=0.0.0.0
+port=13389
+default-authentication-plugin=mysql_native_password
+max_connections=1000
+lower_case_table_names=1
+
+#以下路径，mysql用户必须拥有全路径的rwx权限
+basedir=/database/server/mysql
+datadir=/database/data/mysql
+socket=/database/data/mysql.sock
+log-error=/database/data/mysqld.log
+#不建议放在/var/run目录下，此目录一般只对root用户开放rwx权限
+#pid-file=/var/run/mysqld/mysqld.pid
+pid-file=/database/server/mysqld.pid
+
+修改mysql.server文件，修改basedir和datadir路径
+#注，默认情况下，basedir=/usr/local/mysql，datadir=/usr/local/mysql/data，如果my.cnf有修改，需要同时修改mysql.server文件，否则不需修改
+vim support-files/mysql.server
+basedir=/database/server/mysql
+datadir=/database/data/mysql
+
+
+4.配置用户和权限
+
+创建用户和用户组
+groupadd mysql
+useradd -g mysql mysql
+
+更改目录权限
+chown -R mysql:mysql /database/data/mysql
+chown -R mysql:mysql /database/server/mysql
+
+读写权限赋值
+chmod -R 755 /database/data/mysql /database/server/mysql
+
+
+5.初始化mysql
+cd /database/server/mysql
+./bin/mysqld --initialize --user=mysql
+
+初始化以后，会打印类似以下消息
+2020-07-31T08:11:15.222373Z 0 [System] [MY-013169] [Server] 
+/database/server/mysql/bin/mysqld (mysqld 8.0.19) initializing of server in progress as process 24208
+2020-07-31T08:11:18.187554Z 5 [Note] [MY-010454] [Server] 
+A temporary password is generated for root@localhost: :yPqlttuz8.f
+
+其中，yPqlttuz8.f为临时的root密码
+
+
+
+6.设置mysql服务化和开机启动
+设置mysql服务化
+cd /database/server/mysql
+ln -s `pwd`/support-files/mysql.server /etc/init.d/mysql
+
+设置开机启动
+cd /etc/init.d
+chmod 755 /etc/init.d/mysql
+chkconfig --add mysql
+chkconfig --level 345 mysql on
+
+查看mysql服务状态
+service mysql status
+mysql服务启动、停止、重启
+service mysql start/stop/restart
+
+查看开机启动的服务
+chkconfig --list
+
+
+
+7.mysql命令添加至PATH路径
+vim /etc/profile
+
+export PATH=$PATH:/database/server/mysql/bin
+
+source /etc/profile
+
+
+8.启动mysql服务
+启动一直报错  The server quit without updating PID file (/var/run/mysqld[FAILED]pid)
+
+
+
+9.连接mysql，修改root密码，创建用户和库等操作
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

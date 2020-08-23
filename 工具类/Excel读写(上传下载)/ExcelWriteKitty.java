@@ -3,8 +3,10 @@ package com.jshx.zq.p2p.util;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.hssf.usermodel.*;
 import org.apache.poi.hssf.util.HSSFColor;
-
-import java.io.FileOutputStream;
+import org.apache.poi.ss.usermodel.BorderStyle;
+import org.apache.poi.ss.usermodel.FillPatternType;
+import org.apache.poi.ss.usermodel.HorizontalAlignment;
+import org.apache.poi.ss.usermodel.VerticalAlignment;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.Date;
@@ -19,7 +21,7 @@ import java.util.Set;
  * 注：写入excel表Map格式数据，对于mysql和oracle，map查询的结果中列名的大小写是不同的，在传参时应注意
  * mysql会默认查询表中的列名，可以手动指定列名整体或部分字母大小写
  * oracle除非特别设置，否则，不论如何指定，查询的列名总是大写的
- *
+ * <p>
  * 导出.xls格式数据
  */
 @Slf4j
@@ -39,7 +41,7 @@ public class ExcelWriteKitty {
 
     //判断列名数组是否为空，方法public，以供校验
     public boolean isColumnNamesNull() {
-        return null==columnNames;
+        return null == columnNames;
     }
 
     //表头样式
@@ -56,15 +58,17 @@ public class ExcelWriteKitty {
      * 部分情况下，导出的每一列都是非空的，但更多的情况下，可能有null数据
      * 此构造函数酌情慎用
      * 如果使用此构造函数，务必使用LinkedHashMap查询数据，以保证key顺序
-     * @param sheetName 表名
+     *
+     * @param sheetName   表名
      * @param headerNames 表头名
      * @param headerStyle 表头样式
-     * @param bodyStyle 表样式
+     * @param bodyStyle   表样式
      */
-    public ExcelWriteKitty(String sheetName, String[] headerNames, HSSFCellStyle headerStyle, HSSFCellStyle bodyStyle){
-        init(sheetName,headerNames,headerStyle,bodyStyle);
+    public ExcelWriteKitty(String sheetName, String[] headerNames, HSSFCellStyle headerStyle, HSSFCellStyle bodyStyle) {
+        init(sheetName, headerNames, headerStyle, bodyStyle);
         createSheet();
     }
+
     /**
      * 自动获取map数据列名且使用默认表样式的构造函数
      * 由于map查询字段为null时不创建key，因此dataListMap.get(0).keySet()可能小于实际值，从而导致导出错误
@@ -72,38 +76,41 @@ public class ExcelWriteKitty {
      * 部分情况下，导出的每一列都是非空的，但更多的情况下，可能有null数据
      * 此构造函数酌情慎用
      * 如果使用此构造函数，务必使用LinkedHashMap查询数据，以保证key顺序
-     * @param sheetName 表名
+     *
+     * @param sheetName   表名
      * @param headerNames 表头名
      */
-    public ExcelWriteKitty(String sheetName, String[] headerNames){
-        init(sheetName,headerNames,workbook.createCellStyle(),workbook.createCellStyle());
+    public ExcelWriteKitty(String sheetName, String[] headerNames) {
+        init(sheetName, headerNames, workbook.createCellStyle(), workbook.createCellStyle());
         defaultStyle();
         createSheet();
     }
+
     /**
      * 自定义map数据列名且使用默认表样式的构造函数：任何时候，推荐如此
-     * @param sheetName 表名
+     *
+     * @param sheetName   表名
      * @param headerNames 表头名
      * @param columnNames map列名
      */
-    public ExcelWriteKitty(String sheetName, String[] headerNames, String[] columnNames){
-        init(sheetName,headerNames,workbook.createCellStyle(),workbook.createCellStyle());
+    public ExcelWriteKitty(String sheetName, String[] headerNames, String[] columnNames) {
+        init(sheetName, headerNames, workbook.createCellStyle(), workbook.createCellStyle());
         this.columnNames = columnNames;
         defaultStyle();
         createSheet();
     }
 
     //设置从第mapResultStartIndex列开始读写，列数基于0，在自动获取map列名时允许如此设置
-    public ExcelWriteKitty setStartColumnIndex(int mapResultStartIndex){
+    public ExcelWriteKitty setStartColumnIndex(int mapResultStartIndex) {
         this.mapResultStartIndex = mapResultStartIndex;
         return this;
     }
 
-    public HSSFWorkbook getWorkbook(){
+    public HSSFWorkbook getWorkbook() {
         return this.workbook;
     }
 
-    private void init(String sheetName, String[] headerNames, HSSFCellStyle headerStyle, HSSFCellStyle bodyStyle){
+    private void init(String sheetName, String[] headerNames, HSSFCellStyle headerStyle, HSSFCellStyle bodyStyle) {
         this.sheetName = sheetName;
         this.headerNames = headerNames;
         this.headerStyle = headerStyle;
@@ -111,24 +118,24 @@ public class ExcelWriteKitty {
     }
 
     //初始化map数据列名，在自动获取map列名时调用
-    private void initColumnName(Set<String> keySet){
+    private void initColumnName(Set<String> keySet) {
         this.columnNames = new String[headerNames.length];
         int keySize = keySet.size();
         //如果查询结果集中列数减去开始导出的列的下标后小于表头列的列数，抛出异常
-        if (headerNames.length > keySize-mapResultStartIndex){
-            throw new IllegalStateException("查询结果集共"+keySize+
-                    "列，指定导出"+
-                    (keySize-mapResultStartIndex)+"列，表头共"+headerNames.length+"列，表头列数过多！");
+        if (headerNames.length > keySize - mapResultStartIndex) {
+            throw new IllegalStateException("查询结果集共" + keySize +
+                    "列，指定导出" +
+                    (keySize - mapResultStartIndex) + "列，表头共" + headerNames.length + "列，表头列数过多！");
         }
         String[] temArray = new String[keySize];
         temArray = keySet.toArray(temArray);
-        for(int i = 0;i<headerNames.length;i++){
-            columnNames[i] = temArray[i+mapResultStartIndex];
+        for (int i = 0; i < headerNames.length; i++) {
+            columnNames[i] = temArray[i + mapResultStartIndex];
         }
     }
 
     //默认样式
-    private void defaultStyle(){
+    private void defaultStyle() {
         /**
          * 1.表头设置
          */
@@ -139,7 +146,8 @@ public class ExcelWriteKitty {
         // 设置字体大小
         headerFont.setFontHeightInPoints((short) 12);
         // 字体加粗
-        headerFont.setBoldweight(HSSFFont.BOLDWEIGHT_BOLD);
+        //headerFont.setBoldweight(HSSFFont.BOLDWEIGHT_BOLD);
+        headerFont.setBold(true);
         // 在样式中引用这种字体
         headerStyle.setFont(headerFont);
         headerStyle.setFillForegroundColor(HSSFColor.WHITE.index);
@@ -155,21 +163,31 @@ public class ExcelWriteKitty {
         bodyFont.setFontHeightInPoints((short) 12);
         // 在样式中引用这种字体
         bodyStyle.setFont(bodyFont);
+        //使用富文本样式：用以解析换行符、公式等
+        bodyStyle.setWrapText(true);
 
         //3.公共设置
-        for (HSSFCellStyle style:new HSSFCellStyle[]{headerStyle,bodyStyle}) {
+        for (HSSFCellStyle style : new HSSFCellStyle[]{headerStyle, bodyStyle}) {
             //设置样式
             //此处实际为背景色，poi的bug
             style.setFillForegroundColor(HSSFColor.WHITE.index);
             //此处并不是背景色，也不是前景色
             //style.setFillBackgroundColor(HSSFColor.BLUE.index);
-            style.setFillPattern(HSSFCellStyle.SOLID_FOREGROUND);
-            style.setBorderBottom(HSSFCellStyle.BORDER_THIN);
-            style.setBorderLeft(HSSFCellStyle.BORDER_THIN);
-            style.setBorderRight(HSSFCellStyle.BORDER_THIN);
-            style.setBorderTop(HSSFCellStyle.BORDER_THIN);
-            style.setAlignment(HSSFCellStyle.ALIGN_CENTER);
-            style.setVerticalAlignment(HSSFCellStyle.VERTICAL_CENTER);
+            //style.setFillPattern(HSSFCellStyle.SOLID_FOREGROUND);
+            // style.setBorderBottom(HSSFCellStyle.BORDER_THIN);
+            // style.setBorderLeft(HSSFCellStyle.BORDER_THIN);
+            // style.setBorderRight(HSSFCellStyle.BORDER_THIN);
+            // style.setBorderTop(HSSFCellStyle.BORDER_THIN);
+            // style.setAlignment(HSSFCellStyle.ALIGN_CENTER);
+            // style.setVerticalAlignment(HSSFCellStyle.VERTICAL_CENTER);
+            style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+            style.setBorderBottom(BorderStyle.THIN);//下边框
+            style.setBorderLeft(BorderStyle.THIN);//左边框
+            style.setBorderRight(BorderStyle.THIN);//右边框
+            style.setBorderTop(BorderStyle.THIN); //上边框
+            style.setAlignment(HorizontalAlignment.CENTER);//水平居中
+            style.setVerticalAlignment(VerticalAlignment.CENTER);//垂直居中
+
         }
     }
 
@@ -191,31 +209,31 @@ public class ExcelWriteKitty {
     /**
      * 写入excel，不保存到文件(只驻留JVM)
      */
-    public boolean writeExcel(List<Map<String,Object>> dataListMap){
-        if (null==dataListMap || dataListMap.size()==0){
+    public boolean writeExcel(List<Map<String, Object>> dataListMap) {
+        if (null == dataListMap || dataListMap.size() == 0) {
             log.info("无数据写入！");
             return false;
         }
         //初始化列名：在自动获取map列名时调用，自定义列名时不允许调用
-        if(null == this.columnNames){
+        if (null == this.columnNames) {
             initColumnName(dataListMap.get(0).keySet());
         }
         int dataCount = dataListMap.size();
         int columnCount = headerNames.length;
 
-        Map<String,Object> map = null;
-        HSSFRow currentRow = null;
-        HSSFCell cell = null;
+        Map<String, Object> map;
+        HSSFRow currentRow;
+        HSSFCell cell;
         //遍历每一行数据
-        for (int i=0;i<dataCount;i++){
+        for (int i = 0; i < dataCount; i++) {
             map = dataListMap.get(i);
-            currentRow = sheet.createRow(i+1);
+            currentRow = sheet.createRow(i + 1);
             //遍历每一个单元格
             for (int j = 0; j < columnCount; j++) {
                 cell = currentRow.createCell(j);
                 cell.setCellStyle(bodyStyle);
                 //赋值
-                setCellValue(cell,map.get(columnNames[j]));
+                setCellValue(cell, map.get(columnNames[j]));
             }
         }
         return true;
@@ -223,23 +241,24 @@ public class ExcelWriteKitty {
 
     /**
      * 单元格赋值相应数据类型
+     *
      * @param cell
      * @param value
      */
-    private void setCellValue(HSSFCell cell,Object value){
-        if (null == value){
+    private void setCellValue(HSSFCell cell, Object value) {
+        if (null == value) {
             cell.setCellValue("");
             return;
         }
-        if (value instanceof String){//字符串
+        if (value instanceof String) {//字符串
             cell.setCellValue(value.toString());
-        }else if (value instanceof Integer){//整数
+        } else if (value instanceof Integer) {//整数
             cell.setCellValue((Integer) value);
-        }else if (value instanceof Double){//浮点数
+        } else if (value instanceof Double) {//浮点数
             cell.setCellValue((Double) value);
-        }else if (value instanceof Date){//日期
+        } else if (value instanceof Date) {//日期
             cell.setCellValue((Date) value);
-        }else {//其它全部设置为字符串，用户获取excel后，根据需要自定义数据类型
+        } else {//其它全部设置为字符串，用户获取excel后，根据需要自定义数据类型
             cell.setCellValue(value.toString());
         }
     }
@@ -247,8 +266,8 @@ public class ExcelWriteKitty {
     /**
      * 写入excel，保存到本地文件或异地输出流(到浏览器或网络管道)
      */
-    public boolean writeExcel(List<Map<String,Object>> dataListMap, OutputStream out){
-        if (!writeExcel(dataListMap)){
+    public boolean writeExcel(List<Map<String, Object>> dataListMap, OutputStream out) {
+        if (!writeExcel(dataListMap)) {
             return false;
         }
         try {
@@ -260,7 +279,7 @@ public class ExcelWriteKitty {
             workbook.write(out);
             out.close();
         } catch (IOException e) {
-            log.info("工作簿保存到输出流失败！",e);
+            log.info("工作簿保存到输出流失败！", e);
             return false;
         }
         return true;

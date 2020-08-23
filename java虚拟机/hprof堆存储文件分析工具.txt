@@ -1,0 +1,8 @@
+1. jdk jvisualvm.exe
+路径：jdk bin目录
+
+2. Eclipse Memory Analyzer
+下载地址：http://www.eclipse.org/mat/downloads.php
+
+3. jprofile
+下载地址：https://www.ej-technologies.com/download/jprofiler/files
