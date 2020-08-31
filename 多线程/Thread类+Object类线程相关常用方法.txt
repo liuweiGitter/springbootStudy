@@ -1,0 +1,132 @@
+==============================================================================
+==========Thread类常用方法==========
+==============================================================================
+
+【join】实例方法
+阻塞当前线程，等待目标线程执行完成后，恢复当前线程的执行
+可以等待多个线程执行完成，总之，遇到xxxThread.join()代码，当前线程就会阻塞
+当前线程阻塞期间不会释放其持有的锁
+
+伪代码如下：
+{
+	some codes before;
+	Thread threadA = new Thread(xxx);
+	threadA.start();
+	//阻塞等待线程threadA执行完成，然后再执行当前线程中后续的some codes after代码
+	threadA.join();
+	some codes after;	
+}
+
+【sleep】静态方法
+阻塞当前线程，休眠指定时间，CPU让出
+当前线程休眠期间不会释放其持有的锁
+
+【yield】静态方法
+当前线程让出正在使用的CPU，但保持Runnable就绪状态而非Block阻塞状态，之后，当前线程将和其它所有就绪的，优先级不小于当前线程的线程，共同竞争CPU
+也就是说，虽然让出了CPU，但是下一个竞争到CPU的可能还是当前线程
+当前线程让出CPU期间不会释放其持有的锁
+
+伪代码如下：
+{
+	some codes before;
+	//让出当前线程正在使用的CPU，等待下一次竞争到CPU后，继续执行后续的some codes after代码
+	Thread.yield();
+	some codes after;
+}
+
+
+==============================================================================
+==========Object类线程相关方法==========
+==============================================================================
+【wait】实例方法
+wait方法是实例方法，且只能在实例的同步方法或者实例的同步代码块中被锁对象本身调用
+作用是，阻塞当前线程，阻塞指定时间，并让出CPU
+当前线程阻塞期间*释放*其持有的锁，即释放调用wait方法的对象本身
+
+伪代码如下：
+{
+	Object someObjectAsLock = new Object();
+	synchronized(someObjectAsLock){
+		some codes before;
+		//同步代码块持有锁someObjectAsLock，调用该锁对象的wait方法后，释放了该对象锁
+		//等待另一个线程调用该锁对象的notifyAll方法后，当前线程被唤醒[**注1**]，继续执行后续的some codes after 01代码
+		//如果一直没有别的线程唤醒当前线程，则当前线程会一直阻塞
+		someObjectAsLock.wait();
+		some codes after 01;
+		//同样是wait功能，不同的是，指定了wait时间，如果超时还没有被其它线程唤醒，也会自己醒来
+		//注意，此处仅时demo，一个线程在wait一个对象时必须先获取到该对象的锁，上一段代码中已经释放了锁，因此此处会报错[**注2**]
+		someObjectAsLock.wait(10min);
+		some codes after 02;
+	}
+}
+
+**注1**
+一个对象在调用wait之后即释放了该对象锁，因此，一段时间以后，可能存在多个线程在wait的状态
+与此同时，某个获取该对象锁的线程，可以调用该对象的notify方法来从，等待该对象的一组线程中，随机唤醒一个线程
+也可以调用该对象的notifyAll方法，来唤醒所有等待该对象的线程
+
+**注2**
+如果wait方法不在自己的同步代码块或同步方法中执行，将会报错：java.lang.IllegalMonitorStateException
+也就是说，wait方法必须拿到被调用对象的对象锁
+实际上，notify和notifyAll方法也是一样的要求
+
+另外，一个线程可能拿到多把锁，wait/notify/notifyAll方法对象是其中任何一把锁都可以，举例来说
+	synchronized(lockA){
+		synchronized(lockB){
+			//此处根据需要可以调用lockA的wait，也可以调用lockB的wait
+		}
+	}
+
+
+【notify/notifyAll】实例方法
+notify/notifyAll方法是实例方法，且只能在实例的同步方法或者实例的同步代码块中被锁对象本身调用
+notify作用是，从执行了锁对象wait方法的一组线程中，随机唤醒一个线程
+notifyAll作用是，唤醒所有执行了锁对象wait方法的线程
+当前线程执行锁对象的notify方法后*不会释放*其持有的锁
+
+伪代码如下：
+{
+	Object someObjectAsLock = new Object();
+	synchronized(someObjectAsLock){
+		some codes before;
+		//同步代码块持有锁someObjectAsLock，调用该锁对象的notify方法后，从执行了锁对象wait方法的一组线程中，随机唤醒一个线程
+		//当前线程不会中断，而是继续执行后续的some codes after代码
+		someObjectAsLock.notify();
+		some codes after;
+	}
+}
+
+
+TODO：https://blog.csdn.net/wtopps/article/details/81431540
+永远在循环（loop）里调用 wait 和 notify，不是在 If 语句
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
