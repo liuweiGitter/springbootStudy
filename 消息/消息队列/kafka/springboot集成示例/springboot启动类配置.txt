@@ -1,0 +1,3 @@
+@SpringBootApplication(exclude = {DataSourceAutoConfiguration.class, KafkaAutoConfiguration.class})
+//当排除掉kafka自动装配后，需要添加@EnableKafka注解，否则消费者监听可能会注册失败
+@EnableKafka

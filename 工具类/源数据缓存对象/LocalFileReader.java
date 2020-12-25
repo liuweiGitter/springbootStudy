@@ -88,7 +88,7 @@ public class LocalFileReader {
     }
 
     //*******************************************************
-    // 读取json文件
+    // 读取json文件：读取的文件不允许出现空行、注释行等，否则在解析为JSONObject等对象时会报错
     //*******************************************************
 
     public static List<Map> getListMapFromJson(String pathRelativeClassPath) {
@@ -236,7 +236,7 @@ public class LocalFileReader {
 
 
     //*******************************************************
-    // 读取properties文件
+    // 读取properties文件：读取的文件不允许出现空行、注释行等，否则在解析为properties时会报错
     //*******************************************************
 
     //方式1：通过spring方法：实际底层会调用方式2
@@ -269,6 +269,114 @@ public class LocalFileReader {
             closePropertyStream(is);
         }
     }
+	
+	
+	//*******************************************************
+    // 读取的文件允许出现空行、注释行
+    //*******************************************************
+	
+	private static JSONObject jsonRead(String path) {
+        return JSONObject.parseObject(stringReadFilter(path));
+    }
+
+    private static Map<String, Object> mapRead(String path) {
+        return mapReadFilter(path);
+    }
+
+    private static Properties propertiesRead(String path) {
+        Map<String, Object> mapRead = mapReadFilter(path);
+        Properties properties = new Properties();
+        Iterator<Map.Entry<String, Object>> iterator = mapRead.entrySet().iterator();
+        while (iterator.hasNext()) {
+            Map.Entry<String, Object> keyValue = iterator.next();
+            properties.setProperty(keyValue.getKey(), String.valueOf(keyValue.getValue()));
+        }
+        return properties;
+    }
+
+    //读取的文件允许出现空行和左起第一个非空字符为#的注释行
+    private static String stringReadFilter(String path) {
+        //path支持多层路径，但不能以/开头，即必须为相对路径
+        if (!StringUtils.isEmpty(path) && path.startsWith("/")) {
+            path = path.substring(1);
+        }
+        log.info("init >> " + path);
+        StringBuilder builder = new StringBuilder();
+        File file = getFile(path);
+        BufferedReader br = null;
+        try {
+            br = new BufferedReader(new FileReader(file));
+            String line;
+            while ((line = br.readLine()) != null) {
+                line = StringUtils.trimWhitespace(line);
+                //忽略空行和注释行
+                if ("".equals(line) || line.startsWith("#")) {
+                    continue;
+                }
+                builder.append(line + System.lineSeparator());
+            }
+        } catch (IOException e) {
+            log.error(path + " 路径文件读取失败！", e);
+            System.exit(400);
+        } finally {
+            if (null != br) {
+                try {
+                    br.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+        return builder.toString();
+    }
+
+    //读取的文件允许出现空行和左起第一个非空字符为#的注释行
+    private static Map<String, Object> mapReadFilter(String path) {
+        //path支持多层路径，但不能以/开头，即必须为相对路径
+        if (!StringUtils.isEmpty(path) && path.startsWith("/")) {
+            path = path.substring(1);
+        }
+        log.info("init >> " + path);
+        Map<String, Object> map = new HashMap<>();
+        File file = getFile(path);
+        BufferedReader br = null;
+        try {
+            br = new BufferedReader(new FileReader(file));
+            String line;
+            int equalIndex;
+            while ((line = br.readLine()) != null) {
+                line = StringUtils.trimWhitespace(line);
+                //忽略空行和注释行
+                if ("".equals(line) || line.startsWith("#")) {
+                    continue;
+                }
+                equalIndex = line.indexOf("=");
+                if (equalIndex == line.length() - 1) {
+                    log.error(path + " 路径文件读取错误！value值不允许为空");
+                    System.exit(400);
+                }
+                map.put(line.substring(0, equalIndex), line.substring(equalIndex + 1));
+            }
+        } catch (IOException e) {
+            log.error(path + " 路径文件读取失败！", e);
+            System.exit(400);
+        } finally {
+            if (null != br) {
+                try {
+                    br.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+        return map;
+    }
+	
+	private static File getFile(String pathRelativeClassPath) {
+        //获取目标文件
+        return new File(classpath + pathRelativeClassPath);
+    }
+	
 
 }
 

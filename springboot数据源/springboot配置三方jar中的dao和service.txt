@@ -1,0 +1,15 @@
+1.application.yml
+
+	mybatis:
+	  configuration:
+		#驼峰映射
+		map-underscore-to-camel-case: true
+	  #实体类别名（可能不生效）
+	  type-aliases-package: com.chinaunicom.bbss.cust.datashare.model
+	  #扫描jar中的mapper配置文件：classpath*表示扫描jar文件，classpath表示扫描当前classpath目录
+	  mapper-locations: classpath*:mapper/*Mapper.xml,classpath:mapper/*Mapper.xml
+
+2.启动类
+@MapperScan(basePackages = {"需要扫描的mapper接口的包名全路径，将递归扫描下级目录"})
+@SpringBootApplication(exclude = {DataSourceAutoConfiguration.class},
+        scanBasePackages = {"需要扫描的dao、service、controller、config、定时任务等注解类的包名全路径，将递归扫描下级目录"})

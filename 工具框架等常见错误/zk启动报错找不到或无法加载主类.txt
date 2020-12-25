@@ -1,0 +1,4 @@
+zk启动报错：
+	找不到或无法加载主类 org.apache.zookeeper.server.quorum.QuorumPeerMain
+
+从3.5.5版本开始，zk的tar.gz包只是源码，不再能直接使用，需要下载bin.tar.gz包
